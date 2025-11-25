@@ -97,7 +97,8 @@ class Utils:
     def _build_gemini_context(
         self, prompt: str, image_b64_list: list[tuple[str, str]], params: dict
     ) -> dict:
-        parts: list[dict] = [{"text": prompt}]
+        # 处理图片内容部分
+        parts = []
         for mime, b64 in image_b64_list:
             parts.append(
                 {
@@ -118,7 +119,7 @@ class Utils:
         image_size = params.get("image_size", self.image_size)
         # 构建请求上下文
         context = {
-            "contents": [{"parts": parts}],
+            "contents": [{"parts": [{"text": prompt}, *parts]}],
             "generationConfig": {
                 "responseModalities": responseModalities,
                 "imageConfig": {"imageSize": image_size},
@@ -174,10 +175,18 @@ class Utils:
                             if "inlineData" in part and "data" in part["inlineData"]:
                                 data = part["inlineData"]
                                 b64_images.append((data["mimeType"], data["data"]))
+                    else:
+                        logger.warning(f"图片生成失败, 响应内容: {response.text}")
+                        return None, f"图片生成失败，原因: {finishReason}"
                 if not b64_images:
-                    logger.error(
+                    logger.warning(
                         f"请求成功，但未返回图片数据, 响应内容: {response.text}"
                     )
+                    if result.get("promptFeedback", {}):
+                        return (
+                            None,
+                            f"请求被内容安全系统拦截，原因：{result.get('promptFeedback', {}).get('blockReason', '')}",
+                        )
                     return None, "响应中未包含图片数据"
                 return b64_images, None
             else:

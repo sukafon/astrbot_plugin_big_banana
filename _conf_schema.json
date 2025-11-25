@@ -124,8 +124,8 @@
             "timeout": {
                 "description": "超时",
                 "type": "int",
-                "default": 1200,
-                "hint": "单位：秒，对所有请求有效。"
+                "default": 300,
+                "hint": "单位：秒，对所有请求有效。尽管设置超过10分钟仍然有可能出图，但是失败的可能更大一些。"
             },
             "proxy": {
                 "description": "HTTP代理",
