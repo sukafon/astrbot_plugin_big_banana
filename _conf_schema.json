@@ -1,0 +1,169 @@
+{
+    "main_provider": {
+        "description": "主接口",
+        "type": "object",
+        "hint": "",
+        "items": {
+            "api_type": {
+                "description": "接口规范",
+                "hint": "这个API接口使用的规范类型。当前仅支持Gemini规范。",
+                "type": "string",
+                "options": [
+                    "Gemini"
+                ],
+                "default": "Gemini"
+            },
+            "key": {
+                "description": "API密钥",
+                "hint": "API Key列表。",
+                "type": "list",
+                "default": []
+            },
+            "api_url": {
+                "description": "api_url",
+                "type": "string",
+                "default": "https://generativelanguage.googleapis.com/v1beta/models",
+                "hint": ""
+            },
+            "model": {
+                "description": "模型",
+                "type": "string",
+                "default": "gemini-3-pro-image-preview",
+                "hint": ""
+            }
+        }
+    },
+    "prompt": {
+        "description": "预设提示词",
+        "type": "list",
+        "default": [
+            "bnn anything --min_images 1",
+            "bnnt anything --min_images 0",
+            "手办化 Create a premium, collectible 1/7 scale standalone figurine based on the image, meticulously replicating the character, made from smooth PVC and ABS plastic with a professional matte finish. It stands on a minimalist transparent acrylic base. Next to it is its retail packaging box displaying the price and brand information, with the figure wrapped in plastic inside the slightly larger box. They are naturally arranged on a clean wooden table surrounded by reference books, with a bookshelf in the background and soft afternoon sunlight streaming through the window. Photo-realistic, DSLR effect, depth of field, bokeh background."
+        ],
+        "hint": "格式: 触发词 提示词 --参数1 参数值1 --参数2 参数值2。若省略参数值，则视为布尔值true，布尔值务必用小写。占位提示词：anything，占位提示词会被消息内容覆盖，用于自定义提示词。可选的参数请参考「提示词默认参数」。"
+    },
+    "def_params": {
+        "description": "提示词默认参数",
+        "type": "object",
+        "hint": "若提示词中未指定参数，将使用这里的默认参数。自定义提示词也可以直接指定参数，记得带上空格。示例：bnn 提示词 --image_size 4K --google_search",
+        "items": {
+            "min_images": {
+                "description": "最小图片数量",
+                "type": "int",
+                "default": 1,
+                "hint": "如果消息携带的图片数量少于这个值，将自动添加At对象头像（At多个用户则可能添加多张，直到达到上限），如果仍然不够，继续添加发送者头像（仅Aiocqhttp），数量仍然不够将返回错误信息。"
+            },
+            "max_images": {
+                "description": "最大图片数量",
+                "type": "int",
+                "default": 3,
+                "hint": "消息中携带的图片数量超过这个值n，只取前n张图片。Gemini API文档写了Gemini3最大支持14张图片输入，但是最佳实践是3张。"
+            },
+            "image_size": {
+                "description": "分辨率",
+                "type": "string",
+                "options": [
+                    "1K",
+                    "2K",
+                    "4K"
+                ],
+                "default": "1K",
+                "hint": "生成图片的分辨率，必须是大写的K。如果出图太慢，建议换成1K。"
+            },
+            "aspect_ratio": {
+                "description": "宽高比",
+                "type": "string",
+                "options": [
+                    "default",
+                    "1:1",
+                    "2:3",
+                    "3:2",
+                    "3:4",
+                    "4:3",
+                    "4:5",
+                    "5:4",
+                    "9:16",
+                    "16:9",
+                    "21:9"
+                ],
+                "default": "default",
+                "hint": "设置为 default 将不传递这个参数。根据Gemini API文档，默认情况下，模型会使输出图片的大小与输入图片的大小保持一致。"
+            },
+            "google_search": {
+                "description": "是否启用谷歌搜索工具",
+                "type": "bool",
+                "default": false,
+                "hint": "根据Gemini API文档，「谷歌搜索工具」与「仅返回图片」不能同时开启，即若开启「谷歌搜索工具」，则必须同时返回文本响应。因此在开启「谷歌搜索工具」的请求中，「仅返回图片」会静默失效。这个工具并不稳定，容易出现响应时间过长、模型过载、仅回复文本内容等问题。"
+            },
+            "only_image_response": {
+                "description": "是否仅返回图片",
+                "type": "bool",
+                "default": false,
+                "hint": "无论是否开启此项，插件都会静默忽略文本响应。如果要开启，有一点小限制，如上所述。"
+            },
+            "refer_images": {
+                "description": "参考图片",
+                "type": "string",
+                "default": "",
+                "hint": "填写格式是 文件名1,文件名2 把图片文件放在插件数据目录的 refer_images 文件夹下，这个参数指定的图片会优先传递给上下文。"
+            }
+        }
+    },
+    "prefix": {
+        "description": "前缀唤醒词",
+        "type": "string",
+        "default": "",
+        "hint": "设置后需要使用 前缀唤醒词+触发词 或者 @机器人 才能使用"
+    },
+    "network_config": {
+        "description": "网络配置",
+        "type": "object",
+        "hint": "",
+        "items": {
+            "timeout": {
+                "description": "超时",
+                "type": "int",
+                "default": 1200,
+                "hint": "单位：秒，对所有请求有效。"
+            },
+            "proxy": {
+                "description": "HTTP代理",
+                "type": "string",
+                "default": "",
+                "hint": "格式可能是 http://127.0.0.1:7890，仅对大模型请求生效。"
+            }
+        }
+    },
+    "retry": {
+        "description": "重试次数",
+        "type": "int",
+        "default": 2,
+        "hint": "每个Key的最大重试次数"
+    },
+    "save_image": {
+        "description": "本地存储",
+        "type": "bool",
+        "default": false,
+        "hint": "生成的图片保存到插件数据目录的 save_images 文件夹"
+    },
+    "whitelist_config": {
+        "description": "白名单配置",
+        "type": "object",
+        "hint": "",
+        "items": {
+            "enabled": {
+                "description": "启用群组白名单",
+                "type": "bool",
+                "default": false,
+                "hint": ""
+            },
+            "whitelist": {
+                "description": "群组SID白名单",
+                "type": "list",
+                "default": [],
+                "hint": "白名单群组SID列表，可在对应群内使用/sid获取。"
+            }
+        }
+    }
+}

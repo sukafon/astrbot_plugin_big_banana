@@ -1,0 +1,6 @@
+name: astrbot_plugin_big_banana
+display_name: BigBanana
+desc: 绘图插件，支持Gemini规范和高级配置参数。
+version: v0.0.1
+author: Sukafon
+repo: https://github.com/sukafon/astrbot_plugin_big_banana
