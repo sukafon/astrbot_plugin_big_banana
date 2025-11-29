@@ -1,4 +1,6 @@
 import base64
+import json
+import re
 from io import BytesIO
 
 from curl_cffi import AsyncSession, ProxySpec, requests
@@ -11,25 +13,22 @@ from astrbot.api import logger
 class Utils:
     def __init__(
         self,
-        network_config: dict,
+        retry_config: dict,
         def_params: dict,
-        max_retry: int,
+        proxy: str,
     ):
         # 初始化异步HTTP会话
-        proxy = network_config.get("proxy", None)
         self.proxies: ProxySpec | None = (
             {"http": proxy, "https": proxy} if proxy else None
         )
-        self.session = AsyncSession(
-            impersonate="chrome136", timeout=network_config.get("timeout", 600)
-        )
+        self.session = AsyncSession(timeout=retry_config.get("timeout", 300))
 
         # 默认参数
         self.image_size = def_params.get("image_size", "1K")
         self.aspect_ratio = def_params.get("aspect_ratio", "default")
         self.google_search = def_params.get("google_search", False)
         self.text_response = def_params.get("text_response", False)
-        self.max_retry = max_retry
+        self.max_retry = retry_config.get("max_retry", 2)
 
     def _handle_image(self, image_bytes: bytes) -> tuple[str, str]:
         try:
@@ -134,12 +133,9 @@ class Utils:
             context["generationConfig"]["imageConfig"] = {"aspectRatio": aspect_ratio}
 
         # 以下参数仅 Gemini-3-Pro-Image-Preview 模型有效
-        if model == "gemini-3-pro-image-preview":
+        if "gemini-3" in model:
             # 处理工具类
-            if (
-                params.get("google_search", self.google_search)
-                and model == "gemini-3-pro-image-preview"
-            ):
+            if params.get("google_search", self.google_search):
                 context["tools"] = [{"google_search": {}}]
             # 处理图片分辨率参数
             image_size = params.get("image_size", self.image_size)
@@ -205,10 +201,10 @@ class Utils:
             return None, "图片生成失败：响应超时"
         except Exception as e:
             logger.error(f"请求错误: {e}")
-            return None, "图片生成失败"
+            return None, "图片生成失败：程序错误"
 
     def _build_openai_context(
-        self, model, prompt: str, image_b64_list: list[tuple[str, str]]
+        self, model: str, prompt: str, image_b64_list: list[tuple[str, str]]
     ) -> dict:
         images_content = []
         for mime, b64 in image_b64_list:
@@ -217,21 +213,21 @@ class Utils:
             )
         context = {
             "model": model,
-            "stream": False,
             "messages": [
                 {
                     "role": "user",
                     "content": [{"type": "text", "text": prompt}, *images_content],
                 }
             ],
+            "stream": True,
         }
         return context
 
     async def _call_openai_api(
         self,
         api_url: str,
-        model,
         api_key: str,
+        model: str,
         prompt: str,
         image_b64_list: list[tuple[str, str]],
     ):
@@ -239,25 +235,60 @@ class Utils:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
         }
+        # 构建请求上下文
         openai_context = self._build_openai_context(model, prompt, image_b64_list)
         try:
+            # 发送请求
             response = await self.session.post(
-                api_url, headers=headers, json=openai_context, proxies=self.proxies
+                url=api_url,
+                headers=headers,
+                json=openai_context,
+                proxies=self.proxies,
+                stream=True,
             )
-            result = response.json()
+            # 处理流式响应
+            streams = response.aiter_content(chunk_size=1024)
+            # 读取完整内容
+            data = b""
+            async for chunk in streams:
+                data += chunk
+                logger.debug(f"流式响应内容: {data.decode('utf-8')}")
+            result = data.decode("utf-8")
             if response.status_code == 200:
-                pass
+                images_url = []
+                for line in result.splitlines():
+                    if line.startswith("data: "):
+                        line_data = line[len("data: ") :].strip()
+                        if line_data == "[DONE]":
+                            break
+                        try:
+                            json_data = json.loads(line_data)
+                            # 遍历 json_data，检查是否有图片
+                            for item in json_data.get("choices", []):
+                                content = item.get("delta", {}).get("content", "")
+                                match = re.search(r"!\[.*?\]\((.*?)\)", content)
+                                if match:
+                                    img_url = match.group(1)
+                                    images_url.append(img_url)
+                        except json.JSONDecodeError:
+                            continue
+                if not images_url:
+                    logger.warning(f"请求成功，但未返回图片数据, 响应内容: {result}")
+                    return None, "响应中未包含图片数据"
+                # 下载图片并转换为 base64
+                image_b64_list = await self.fetch_images(images_url)
+                return image_b64_list, None
             else:
                 logger.error(
-                    f"图片生成失败，状态码: {response.status_code}, 响应内容: {response.text}"
+                    f"图片生成失败，状态码: {response.status_code}, 响应内容: {result}"
                 )
-                return None, result.get("error", {}).get("message", "未知原因")
+                return None, "响应中未包含图片数据"
         except Timeout as e:
             logger.error(f"网络请求超时: {e}")
             return None, "图片生成失败：响应超时"
         except Exception as e:
             logger.error(f"请求错误: {e}")
-            return None, "图片生成失败"
+            return None, "图片生成失败：程序错误"
 
     async def generate_images(
         self,
@@ -279,8 +310,15 @@ class Utils:
                     image_b64_list=image_b64_list,
                     params=params,
                 )
+            elif api_type == "OpenAI_Chat":
+                image_b64, err = await self._call_openai_api(
+                    api_url=api_url,
+                    model=model,
+                    api_key=api_key,
+                    prompt=prompt,
+                    image_b64_list=image_b64_list,
+                )
             else:
-                # 不同平台的OpenAI规范接口返回的响应不太统一，留待以后再做。
                 logger.error(f"不支持的API类型: {api_type}")
                 return None, "❌ 不支持的API类型"
             if err is None:

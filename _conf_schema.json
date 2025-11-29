@@ -2,27 +2,28 @@
     "main_provider": {
         "description": "主提供商",
         "type": "object",
-        "hint": "",
+        "hint": "优先使用主提供商，主提供商重试机会耗尽后，回退到备用提供商重试。",
         "items": {
             "name": {
                 "description": "提供商名字",
                 "type": "string",
-                "default": "main_provider",
+                "default": "主接口",
                 "hint": "不要随便改",
                 "invisible": true
             },
             "enabled": {
                 "description": "启用接口",
                 "type": "bool",
-                "default": false,
-                "hint": "优先使用主提供商，主提供商重试机会耗尽后，回退到备用提供商重试。"
+                "default": true,
+                "hint": ""
             },
             "api_type": {
                 "description": "接口规范",
                 "hint": "这个API接口使用的规范类型。当前仅支持Gemini规范。",
                 "type": "string",
                 "options": [
-                    "Gemini"
+                    "Gemini",
+                    "OpenAI_Chat"
                 ],
                 "default": "Gemini"
             },
@@ -30,7 +31,7 @@
                 "description": "API密钥",
                 "type": "list",
                 "default": [],
-                "hint": "API Key列表，填写完后记得启用接口。"
+                "hint": "API Key列表。对于 OpenAI 规范，不需要填写Bearer 前缀，后端会自动拼接。"
             },
             "api_url": {
                 "description": "api_url",
@@ -54,7 +55,7 @@
             "name": {
                 "description": "提供商名字",
                 "type": "string",
-                "default": "main_provider",
+                "default": "备用接口",
                 "hint": "不要随便改",
                 "invisible": true
             },
@@ -62,20 +63,21 @@
                 "description": "启用接口",
                 "type": "bool",
                 "default": false,
-                "hint": "优先使用主提供商，主提供商重试机会耗尽后，回退到备用提供商重试。"
+                "hint": ""
             },
             "api_type": {
                 "description": "接口规范",
-                "hint": "这个API接口使用的规范类型。当前仅支持Gemini规范。",
+                "hint": "这个API接口使用的规范类型。",
                 "type": "string",
                 "options": [
-                    "Gemini"
+                    "Gemini",
+                    "OpenAI_Chat"
                 ],
                 "default": "Gemini"
             },
             "key": {
                 "description": "API密钥",
-                "hint": "API Key列表。留空使其与主提供商保持一致。",
+                "hint": "API Key列表。对于 OpenAI 规范，不需要填写Bearer 前缀，后端会自动拼接。",
                 "type": "list",
                 "default": []
             },
@@ -117,7 +119,7 @@
             "max_images": {
                 "description": "最大输入图片数量",
                 "type": "int",
-                "default": 3,
+                "default": 5,
                 "hint": "消息中携带的图片数量超过这个值n，只取前n张图片。Gemini API文档写了Gemini3最大支持14张图片输入，但是最佳实践是3张。"
             },
             "aspect_ratio": {
@@ -137,7 +139,7 @@
                     "21:9"
                 ],
                 "default": "default",
-                "hint": "设置为 default 将不传递这个参数。根据Gemini API文档，默认情况下，模型会使输出图片的大小与输入图片的大小保持一致。"
+                "hint": "设置为 default 将不传递这个参数。根据Gemini API文档，默认情况下，模型会使输出图片的大小与输入图片的大小保持一致。仅Gemini规范有效。"
             },
             "image_size": {
                 "description": "分辨率",
@@ -160,7 +162,7 @@
                 "description": "启用文本响应",
                 "type": "bool",
                 "default": false,
-                "hint": "无论是否开启此项，插件都会静默忽略文本响应。"
+                "hint": "无论是否开启此项，插件都会静默忽略文本响应。仅Gemini规范有效。"
             },
             "refer_images": {
                 "description": "参考图片",
@@ -173,7 +175,7 @@
     "prefix_config": {
         "description": "绘图命令触发方式",
         "type": "object",
-        "hint": "默认情况下，@机器人是否带上前缀都可以触发画图功能。",
+        "hint": "默认情况下，@机器人 将无视前缀要求（相当于启用混合模式）",
         "items": {
             "coexist_enabled": {
                 "description": "混合模式",
@@ -189,22 +191,22 @@
             }
         }
     },
-    "network_config": {
+    "retry_config": {
         "description": "网络配置",
         "type": "object",
         "hint": "",
         "items": {
+            "max_retry": {
+                "description": "最大重试次数",
+                "type": "int",
+                "default": 2,
+                "hint": "每个Key的最大重试次数"
+            },
             "timeout": {
                 "description": "超时",
                 "type": "int",
                 "default": 300,
                 "hint": "单位：秒，对所有请求有效。每次重试独立计算超时时间。"
-            },
-            "proxy": {
-                "description": "HTTP代理",
-                "type": "string",
-                "default": "",
-                "hint": "格式可能是 http://127.0.0.1:7890，仅对大模型请求生效。"
             }
         }
     },
@@ -213,6 +215,12 @@
         "type": "bool",
         "default": false,
         "hint": "生成的图片保存到插件数据目录的 save_images 文件夹"
+    },
+    "proxy": {
+        "description": "HTTP代理",
+        "type": "string",
+        "default": "",
+        "hint": "格式可能是 http://127.0.0.1:7890，仅对大模型请求生效。"
     },
     "whitelist_config": {
         "description": "白名单配置",

@@ -57,12 +57,12 @@ class BigBanana(Star):
         self.refer_images = def_params.get("refer_images", "")
 
         # 初始化工具类
-        network_config = self.conf.get("network_config", {})
-        self.max_retry = self.conf.get("retry", 2)
+        retry_config = self.conf.get("retry_config", {})
+        proxy = self.conf.get("proxy", "")
         self.utils = Utils(
-            network_config=network_config,
+            retry_config=retry_config,
             def_params=def_params,
-            max_retry=self.max_retry,
+            proxy=proxy,
         )
 
     def parsing_prompt_params(self, prompt: str) -> tuple[list[str], dict]:
@@ -135,11 +135,8 @@ class BigBanana(Star):
         if main_provider.get("enabled", False):
             self.provider_list.append(main_provider)
         # 解析备用提供商配置
-        back_provider = self.conf.get("back_provider", {}).copy()
+        back_provider = self.conf.get("back_provider", {})
         if back_provider.get("enabled", False):
-            # 处理Key列表为空的情况
-            if not back_provider.get("key", []):
-                back_provider["key"] = main_provider.get("key", []).copy()
             self.provider_list.append(back_provider)
 
         # 解析提示词配置
@@ -237,12 +234,17 @@ class BigBanana(Star):
                 for quote in comp.chain:
                     if isinstance(quote, Comp.Image):
                         image_urls.append(quote.url)
-            elif isinstance(comp, Comp.Image):
+            # 处理At对象的QQ头像（对于艾特机器人的问题，还没有特别好的解决方案）
+            elif isinstance(comp, Comp.At) and comp.qq:
+                image_urls.append(
+                    f"https://q4.qlogo.cn/headimg_dl?dst_uin={comp.qq}&spec=640"
+                )
+            elif isinstance(comp, Comp.Image) and comp.url:
                 image_urls.append(comp.url)
 
         min_required_images = params.get("min_images", self.min_images)
         max_allowed_images = params.get("max_images", self.max_images)
-        # 如果没有图片，且消息平台是Aiocqhttp，取QQ头像作为参考图片
+        # 如果图片数量不满足最小要求，且消息平台是Aiocqhttp，取QQ头像作为参考图片
         if (
             len(image_urls) < min_required_images
             and event.platform_meta.name == "aiocqhttp"
@@ -325,6 +327,19 @@ class BigBanana(Star):
             model = provider.get("model", "gemini-2.5-flash-image")
 
             key_list = provider.get("key", []).copy()
+            if not key_list:
+                logger.warning(
+                    f"提供商 {provider.get('name', 'unknown')} 未配置API Key，请先在插件配置中添加或者关闭此提供商",
+                )
+                yield event.chain_result(
+                    [
+                        Comp.Reply(id=event.message_obj.message_id),
+                        Comp.Plain(
+                            f"❌ 提供商 {provider.get('name', 'unknown')} 未配置API Key，请先在插件配置中添加或者关闭此提供商"
+                        ),
+                    ]
+                )
+                return
             random.shuffle(key_list)
             for key in key_list:
                 image_result, err = await self.utils.generate_images(
