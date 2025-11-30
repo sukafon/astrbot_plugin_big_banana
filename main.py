@@ -494,8 +494,8 @@ class BigBanana(Star):
             ]
         )
 
-        # 获取提示词配置
-        params = self.prompt_dict.get(cmd, {})
+        # 获取提示词配置 (使用 .copy() 防止修改污染全局预设)
+        params = self.prompt_dict.get(cmd, {}).copy()
         # 先从预设提示词参数字典字典中取出提示词
         prompt = params.get("prompt", "{{user_text}}")
 
@@ -602,7 +602,10 @@ class BigBanana(Star):
             fetched = await self.utils.fetch_images(image_urls[:append_count])
             if fetched:
                 image_b64_list.extend(fetched)
-            if not image_b64_list:
+
+            # [FIX] 修复：只有在“必须有图(min>0)”且“最终没有图”时才报错
+            # 如果 min_images 为 0，列表为空是允许的
+            if not image_b64_list and min_required_images > 0:
                 yield event.chain_result(
                     [
                         Comp.Reply(id=event.message_obj.message_id),
