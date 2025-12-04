@@ -222,6 +222,7 @@ class BigBanana(Star):
             yield event.plain_result(f"⚠️ {target_id} 不在名单列表中。")
             return
 
+        self.conf.save_config()
         yield event.plain_result(f"🗑️ 已删除{msg_type}白名单：{target_id}")
 
     @filter.command("lm白名单列表", aliases=["lmwll"])
@@ -259,7 +260,7 @@ class BigBanana(Star):
             return
 
         yield event.plain_result(
-            f"正在为触发词 「{trigger_word}」 添加/更新提示词，请在60秒内输入完整的提示词内容（包括参数）。输入「取消」可取消操作。"
+            f"🍌 正在为触发词 「{trigger_word}」 添加/更新提示词，请在60秒内输入完整的提示词内容（包括参数）。输入「取消」可取消操作。"
         )
 
         # 记录操作员账号
@@ -324,6 +325,7 @@ class BigBanana(Star):
             await event.send(
                 event.plain_result(f"✅ 已成功{action}提示词：「{trigger_word}」")
             )
+            self.conf.save_config()
             controller.stop()
 
         try:
@@ -376,6 +378,7 @@ class BigBanana(Star):
             if cmd == trigger_word:
                 del self.prompt_list[i]
                 yield event.plain_result(f"🗑️ 已删除提示词：「{trigger_word}」")
+                self.conf.save_config()
                 return
             # 处理多触发词
             if cmd.startswith("[") and cmd.endswith("]"):
@@ -413,6 +416,7 @@ class BigBanana(Star):
                         await event.send(
                             event.plain_result(f"🗑️ 已删除多触发提示词：{cmd}")
                         )
+                        self.conf.save_config()
                         controller.stop()
                         return
                     if reply_content == "A":
@@ -437,6 +441,7 @@ class BigBanana(Star):
                                     f"🗑️ 已从多触发提示词中移除：「{trigger_word}」"
                                 )
                             )
+                            self.conf.save_config()
                             controller.stop()
                             return
 
@@ -454,16 +459,7 @@ class BigBanana(Star):
     async def main(self, event: AstrMessageEvent):
         """绘图命令消息入口"""
 
-        # 取出所有 Plain 类型的组件拼接成纯文本内容。不知道为什么，总有At消息混入纯文本中。
-        plain_components = [
-            comp for comp in event.get_messages() if isinstance(comp, Comp.Plain)
-        ]
-
-        # 拼接成一个字符串
-        if plain_components:
-            message_str = " ".join(comp.text for comp in plain_components)
-        else:
-            message_str = event.message_str
+        message_str = event.message_str
         # 跳过空消息
         if not message_str.strip():
             return

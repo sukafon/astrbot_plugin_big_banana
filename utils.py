@@ -182,7 +182,7 @@ class Utils:
             async for chunk in streams:
                 data += chunk
                 # 不要打印，内容太多会卡死
-                # logger.debug(f"流式响应内容: {data.decode('utf-8')[:200]}...")
+                # logger.debug(f"流式响应内容: {data.decode('utf-8')[:500]}...")
             result = data.decode("utf-8")
             if response.status_code == 200:
                 b64_images = []
@@ -209,13 +209,13 @@ class Utils:
                             continue
                 if not b64_images:
                     logger.warning(
-                        f"请求成功，但未返回图片数据, 响应内容: {result[:200]}..."
+                        f"请求成功，但未返回图片数据, 响应内容: {result[:500]}..."
                     )
                     return None, "响应中未包含图片数据"
                 return b64_images, None
             else:
                 logger.error(
-                    f"图片生成失败，状态码: {response.status_code}, 响应内容: {result[:200]}..."
+                    f"图片生成失败，状态码: {response.status_code}, 响应内容: {result[:500]}..."
                 )
                 return None, "响应中未包含图片数据"
         except Timeout as e:
@@ -262,13 +262,13 @@ class Utils:
                                 b64_images.append((data["mimeType"], data["data"]))
                     else:
                         logger.warning(
-                            f"图片生成失败, 响应内容: {response.text[:200]}..."
+                            f"图片生成失败, 响应内容: {response.text[:500]}..."
                         )
                         return None, f"图片生成失败，原因: {finishReason}"
                 # 最后再检查是否有图片数据
                 if not b64_images:
                     logger.warning(
-                        f"请求成功，但未返回图片数据, 响应内容: {response.text[:200]}..."
+                        f"请求成功，但未返回图片数据, 响应内容: {response.text[:500]}..."
                     )
                     if result.get("promptFeedback", {}):
                         return (
@@ -279,7 +279,7 @@ class Utils:
                 return b64_images, None
             else:
                 logger.error(
-                    f"图片生成失败，状态码: {response.status_code}, 响应内容: {response.text[:200]}..."
+                    f"图片生成失败，状态码: {response.status_code}, 响应内容: {response.text[:500]}..."
                 )
                 err_msg = result.get("error", {}).get("message", "未知原因")
                 return None, f"图片生成失败：{err_msg}"
@@ -346,7 +346,7 @@ class Utils:
             async for chunk in streams:
                 data += chunk
                 # 不要打印，内容太多会卡死
-                # logger.debug(f"流式响应内容: {data.decode('utf-8')[:200]}...")
+                # logger.debug(f"流式响应内容: {data.decode('utf-8')[:500]}...")
             result = data.decode("utf-8")
             if response.status_code == 200:
                 b64_images = []
@@ -374,7 +374,7 @@ class Utils:
                             continue
                 if not images_url and not b64_images:
                     logger.warning(
-                        f"请求成功，但未返回图片数据, 响应内容: {result[:200]}..."
+                        f"请求成功，但未返回图片数据, 响应内容: {result[:500]}..."
                     )
                     return None, "响应中未包含图片数据"
                 # 下载图片并转换为 base64（有时会出现连接被重置的错误，不知道什么原因，海外机也一样）
@@ -384,7 +384,7 @@ class Utils:
                 return b64_images, None
             else:
                 logger.error(
-                    f"图片生成失败，状态码: {response.status_code}, 响应内容: {result[:200]}..."
+                    f"图片生成失败，状态码: {response.status_code}, 响应内容: {result[:500]}..."
                 )
                 return None, "响应中未包含图片数据"
         except Timeout as e:
@@ -436,13 +436,13 @@ class Utils:
                                 images_url.append(img_src)
                     else:
                         logger.warning(
-                            f"图片生成失败, 响应内容: {response.text[:200]}..."
+                            f"图片生成失败, 响应内容: {response.text[:500]}..."
                         )
-                        return None, f"图片生成失败，原因: {finish_reason}"
+                        return None, f"图片生成失败: {finish_reason}"
                 # 最后再检查是否有图片数据
                 if not images_url and not b64_images:
                     logger.warning(
-                        f"请求成功，但未返回图片数据, 响应内容: {response.text[:200]}..."
+                        f"请求成功，但未返回图片数据, 响应内容: {response.text[:500]}..."
                     )
                     return None, "响应中未包含图片数据"
                 # 下载图片并转换为 base64
@@ -452,7 +452,7 @@ class Utils:
                 return b64_images, None
             else:
                 logger.error(
-                    f"图片生成失败，状态码: {response.status_code}, 响应内容: {response.text[:200]}..."
+                    f"图片生成失败，状态码: {response.status_code}, 响应内容: {response.text[:500]}..."
                 )
                 return None, f"图片生成失败: 状态码 {response.status_code}"
         except Timeout as e:
