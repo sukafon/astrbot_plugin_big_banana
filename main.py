@@ -64,6 +64,11 @@ class BigBanana(Star):
         self.max_images = def_params.get("max_images", 3)
         self.refer_images = def_params.get("refer_images", "")
 
+        # 偏好配置
+        preference_settings = self.conf.get("preference_settings", {})
+        self.skip_at_first = preference_settings.get("skip_at_first", True)
+        self.skip_quote_first = preference_settings.get("skip_quote_first", True)
+
         # 初始化工具类
         retry_config = self.conf.get("retry_config", {})
         proxy = self.conf.get("proxy", "")
@@ -144,6 +149,11 @@ class BigBanana(Star):
         back_provider = self.conf.get("back_provider", {})
         if back_provider.get("enabled", False):
             self.provider_list.append(back_provider)
+
+        # 检查配置是否已经关闭函数工具
+        if not self.conf.get("llm_tool_settings", {}).get("llm_tool_enabled", False):
+            StarTools.unregister_llm_tool("banana_image_generation")
+            logger.info("已移除函数调用工具: banana_image_generation")
 
         # 初始化提示词配置
         self.init_prompts()
@@ -265,7 +275,7 @@ class BigBanana(Star):
             return
 
         yield event.plain_result(
-            f"🍌 正在为触发词 「{trigger_word}」 添加/更新提示词，请在60秒内输入完整的提示词内容（包括参数）。输入「取消」可取消操作。"
+            f"🍌 正在为触发词 「{trigger_word}」 添加/更新提示词\n请在60秒内输入完整的提示词内容（不含触发词，包含参数）\n输入「取消」可取消操作。"
         )
 
         # 记录操作员账号
@@ -494,14 +504,187 @@ class BigBanana(Star):
             )
             yield event.plain_result(f"❌ 未找到提示词：「{trigger_word}」")
 
+    async def _dispatch_generate_image(
+        self, event: AstrMessageEvent, params: dict, prompt: str
+    ):
+        """负责参数处理、调度提供商、密钥轮询等逻辑"""
+        # 收集图片URL，后面统一处理
+        image_urls = []
+        # 小标记，用于优化At头像。当At对象是被引用消息的发送者时，跳过一次。
+        skipped_at_qq = False
+        reply_sender_id = ""
+        for comp in event.get_messages():
+            if isinstance(comp, Comp.Reply) and comp.chain:
+                reply_sender_id = str(comp.sender_id)
+                for quote in comp.chain:
+                    if isinstance(quote, Comp.Image):
+                        image_urls.append(quote.url)
+            # 处理At对象的QQ头像（对于艾特机器人的问题，还没有特别好的解决方案）
+            elif (
+                isinstance(comp, Comp.At)
+                and comp.qq
+                and event.platform_meta.name == "aiocqhttp"
+            ):
+                # 如果At对象是被引用消息的发送者，跳过一次
+                if not skipped_at_qq and (
+                    (str(comp.qq) == reply_sender_id and self.skip_at_first)
+                    or (str(comp.qq) == event.get_self_id() and self.skip_quote_first)
+                ):
+                    skipped_at_qq = True
+                    continue
+                image_urls.append(f"https://q.qlogo.cn/g?b=qq&s=0&nk={comp.qq}")
+            elif isinstance(comp, Comp.Image) and comp.url:
+                image_urls.append(comp.url)
+
+        min_required_images = params.get("min_images", self.min_images)
+        max_allowed_images = params.get("max_images", self.max_images)
+        # 如果图片数量不满足最小要求，且消息平台是Aiocqhttp，取QQ头像作为参考图片
+        if (
+            len(image_urls) < min_required_images
+            and event.platform_meta.name == "aiocqhttp"
+        ):
+            # 优先取At对象头像
+            for comp in event.get_messages():
+                if isinstance(comp, Comp.At) and comp.qq:
+                    image_urls.append(f"https://q.qlogo.cn/g?b=qq&s=0&nk={comp.qq}")
+                if len(image_urls) >= min_required_images:
+                    break
+
+            # 如果图片数量仍然不足，取消息发送者头像
+            if len(image_urls) < min_required_images:
+                image_urls.append(
+                    f"https://q.qlogo.cn/g?b=qq&s=0&nk={event.get_sender_id()}"
+                )
+
+        # 图片b64列表，每个元素是 (mime_type, b64_data) 元组
+        image_b64_list = []
+        # 处理 refer_images 参数
+        refer_images = params.get("refer_images", self.refer_images)
+        if refer_images:
+            for filename in refer_images.split(","):
+                if len(image_b64_list) >= max_allowed_images:
+                    break
+                filename = filename.strip()
+                if filename:
+                    try:
+                        with open(self.refer_images_dir / filename, "rb") as f:
+                            file_data = f.read()
+                            mime_type, _ = mimetypes.guess_type(filename)
+                            b64_data = base64.b64encode(file_data).decode("utf-8")
+                            image_b64_list.append((mime_type, b64_data))
+                    except Exception as e:
+                        logger.error(f"读取参考图片 {filename} 失败: {e}")
+
+        # 判断图片数量是否满足最小要求
+        if len(image_urls) + len(image_b64_list) < min_required_images:
+            return [
+                Comp.Reply(id=event.message_obj.message_id),
+                Comp.Plain(
+                    f"🍌 图片数量不足，最少需要 {min_required_images} 张图片，当前仅 {len(image_urls) + len(image_b64_list)} 张"
+                ),
+            ]
+
+        # 检查图片数量是否超过最大允许数量，不超过则可从url中下载图片
+        append_count = max_allowed_images - len(image_b64_list)
+        if append_count > 0 and image_urls:
+            # 取前n张图片，下载并转换为Base64，追加到b64图片列表
+            if len(image_b64_list) + len(image_urls) > max_allowed_images:
+                logger.warning(
+                    f"参考图片数量超过或等于最大图片数量，将只使用前 {max_allowed_images} 张参考图片"
+                )
+            fetched = await self.utils.fetch_images(image_urls[:append_count])
+            if fetched:
+                image_b64_list.extend(fetched)
+
+            # 如果 min_required_images 为 0，列表为空是允许的
+            if not image_b64_list and min_required_images > 0:
+                return [
+                    Comp.Reply(id=event.message_obj.message_id),
+                    Comp.Plain("❌ 全部图片下载失败"),
+                ]
+
+        image_result = None
+        err = None
+        # 发起绘图请求
+        for provider in self.provider_list:
+            # 读取提供商配置
+            api_type = provider.get("api_type", "Gemini")
+            api_url = provider.get(
+                "api_url",
+                "https://generativelanguage.googleapis.com/v1beta/models",
+            )
+            model = provider.get("model", "gemini-2.5-flash-image")
+            stream = provider.get("stream", False)
+
+            # 浅拷贝，确保线程安全
+            key_list = provider.get("key", []).copy()
+            # 随机打乱Key顺序，避免每次都从第一个Key开始使用
+            random.shuffle(key_list)
+
+            if not key_list:
+                warn_msg = f"提供商 {provider.get('name', 'unknown')} 未配置API Key，请先在插件配置中添加或者关闭此提供商"
+                logger.warning(warn_msg)
+                return [
+                    Comp.Reply(id=event.message_obj.message_id),
+                    Comp.Plain(f"❌ {warn_msg}"),
+                ]
+
+            for key in key_list:
+                image_result, err = await self.utils.generate_images(
+                    api_type=api_type,
+                    stream=stream,
+                    api_url=api_url,
+                    model=model,
+                    api_key=key,
+                    prompt=prompt,
+                    image_b64_list=image_b64_list,
+                    params=params,
+                )
+                if image_result:
+                    break
+                logger.warning("图片生成失败，尝试更换Key重试...")
+            if image_result:
+                break
+
+        # 发送消息
+        if err or not image_result:
+            return [
+                Comp.Reply(id=event.message_obj.message_id),
+                Comp.Plain(err or "❌ 图片生成失败，响应中未包含图片数据"),
+            ]
+
+        # 假设它支持返回多张图片
+        reply_result = []
+        for mime, b64 in image_result:
+            reply_result.append(Comp.Image.fromBase64(b64))
+            # 保存图片到本地
+            if self.save_image:
+                # 构建文件名
+                now = datetime.now()
+                current_time_str = (
+                    now.strftime("%Y%m%d%H%M%S") + f"{int(now.microsecond / 1000):03d}"
+                )
+                ext = mimetypes.guess_extension(mime) or ".jpg"
+                file_name = f"banana_{current_time_str}{ext}"
+                # 构建文件保存路径
+                save_path = self.save_dir / file_name
+                # 转换成bytes
+                image_bytes = base64.b64decode(b64)
+                # 保存到文件系统
+                with open(save_path, "wb") as f:
+                    f.write(image_bytes)
+                logger.info(f"图片已保存到 {save_path}")
+
+        return [
+            Comp.Reply(id=event.message_obj.message_id),
+            *reply_result,
+        ]
+
     @filter.event_message_type(filter.EventMessageType.ALL, priority=5)
     async def main(self, event: AstrMessageEvent):
         """绘图命令消息入口"""
 
         message_str = event.message_str
-        # 跳过空消息
-        if not message_str.strip():
-            return
 
         # 先处理前缀
         matched_prefix = False
@@ -541,11 +724,6 @@ class BigBanana(Star):
             logger.info(f"用户 {event.get_sender_id()} 不在白名单内，跳过处理")
             return
 
-        # 检查API Key配置
-        if not self.provider_list:
-            yield event.plain_result("🍌 暂无可用模型提供商，请先在插件配置中启用")
-            return
-
         # 返回信息
         yield event.plain_result("🎨 在画了，请稍等一会...")
 
@@ -576,208 +754,83 @@ class BigBanana(Star):
         logger.debug(
             f"生成图片应用参数: { {k: v for k, v in params.items() if k != 'prompt'} }"
         )
+        msg_chain = await self._dispatch_generate_image(event, params, prompt)
+        yield event.chain_result(msg_chain)
 
-        # 收集图片URL，后面统一处理
-        image_urls = []
-        # 小标记，用于优化At头像。当At对象是引用回复的发送者时，跳过一次。
-        skipped_at_qq = False
-        reply_sender_id = ""
-        for comp in event.get_messages():
-            if isinstance(comp, Comp.Reply) and comp.chain:
-                reply_sender_id = str(comp.sender_id)
-                for quote in comp.chain:
-                    if isinstance(quote, Comp.Image):
-                        image_urls.append(quote.url)
-            # 处理At对象的QQ头像（对于艾特机器人的问题，还没有特别好的解决方案）
-            elif (
-                isinstance(comp, Comp.At)
-                and comp.qq
-                and event.platform_meta.name == "aiocqhttp"
-            ):
-                # 如果At对象是引用回复的发送者，则跳过一次
-                if not skipped_at_qq and str(comp.qq) == reply_sender_id:
-                    skipped_at_qq = True
-                    continue
-                image_urls.append(
-                    f"https://q4.qlogo.cn/headimg_dl?dst_uin={comp.qq}&spec=640"
-                )
-            elif isinstance(comp, Comp.Image) and comp.url:
-                image_urls.append(comp.url)
-
-        min_required_images = params.get("min_images", self.min_images)
-        max_allowed_images = params.get("max_images", self.max_images)
-        # 如果图片数量不满足最小要求，且消息平台是Aiocqhttp，取QQ头像作为参考图片
-        if (
-            len(image_urls) < min_required_images
-            and event.platform_meta.name == "aiocqhttp"
-        ):
-            # 优先取At对象头像
-            for comp in event.get_messages():
-                if isinstance(comp, Comp.At) and comp.qq:
-                    image_urls.append(
-                        f"https://q4.qlogo.cn/headimg_dl?dst_uin={comp.qq}&spec=640"
-                    )
-                if len(image_urls) >= min_required_images:
-                    break
-
-            # 如果图片数量仍然不足，取消息发送者头像
-            if len(image_urls) < min_required_images:
-                image_urls.append(
-                    f"https://q4.qlogo.cn/headimg_dl?dst_uin={event.get_sender_id()}&spec=640"
-                )
-
-        # 图片b64列表，每个元素是 (mime_type, b64_data) 元组
-        image_b64_list = []
-        # 处理 refer_images 参数
-        refer_images = params.get("refer_images", self.refer_images)
-        if refer_images:
-            for filename in refer_images.split(","):
-                if len(image_b64_list) >= max_allowed_images:
-                    break
-                filename = filename.strip()
-                if filename:
-                    try:
-                        with open(self.refer_images_dir / filename, "rb") as f:
-                            file_data = f.read()
-                            mime_type, _ = mimetypes.guess_type(filename)
-                            b64_data = base64.b64encode(file_data).decode("utf-8")
-                            image_b64_list.append((mime_type, b64_data))
-                    except Exception as e:
-                        logger.error(f"读取参考图片 {filename} 失败: {e}")
-
-        # 判断图片数量是否满足最小要求
-        if len(image_urls) + len(image_b64_list) < min_required_images:
-            yield event.chain_result(
-                [
-                    Comp.Reply(id=event.message_obj.message_id),
-                    Comp.Plain(
-                        f"🍌 图片数量不足，最少需要 {min_required_images} 张图片，当前仅 {len(image_urls) + len(image_b64_list)} 张"
-                    ),
-                ]
-            )
-            return
-
-        # 检查图片数量是否超过最大允许数量，不超过则可从url中下载图片
-        append_count = max_allowed_images - len(image_b64_list)
-        if append_count > 0 and image_urls:
-            # 取前n张图片，下载并转换为Base64，追加到b64图片列表
-            if len(image_b64_list) + len(image_urls) > max_allowed_images:
-                logger.warning(
-                    f"参考图片数量超过或等于最大图片数量，将只使用前 {max_allowed_images} 张参考图片"
-                )
-            fetched = await self.utils.fetch_images(image_urls[:append_count])
-            if fetched:
-                image_b64_list.extend(fetched)
-
-            # 如果 min_required_images 为 0，列表为空是允许的
-            if not image_b64_list and min_required_images > 0:
-                yield event.chain_result(
-                    [
-                        Comp.Reply(id=event.message_obj.message_id),
-                        Comp.Plain("❌ 全部图片下载失败"),
-                    ]
-                )
-                return
-
-        image_result = None
-        err = None
-        # 发起绘图请求
-        for provider in self.provider_list:
-            # 读取提供商配置
-            api_type = provider.get("api_type", "Gemini")
-            api_url = provider.get(
-                "api_url",
-                "https://generativelanguage.googleapis.com/v1beta/models",
-            )
-            model = provider.get("model", "gemini-2.5-flash-image")
-            stream = provider.get("stream", False)
-
-            # 浅拷贝，确保线程安全
-            key_list = provider.get("key", []).copy()
-            # 随机打乱Key顺序，避免每次都从第一个Key开始使用
-            random.shuffle(key_list)
-
-            if not key_list:
-                warn_msg = f"提供商 {provider.get('name', 'unknown')} 未配置API Key，请先在插件配置中添加或者关闭此提供商"
-                logger.warning(warn_msg)
-                yield event.chain_result(
-                    [
-                        Comp.Reply(id=event.message_obj.message_id),
-                        Comp.Plain(f"❌ {warn_msg}"),
-                    ]
-                )
-                return
-
-            for key in key_list:
-                image_result, err = await self.utils.generate_images(
-                    api_type=api_type,
-                    stream=stream,
-                    api_url=api_url,
-                    model=model,
-                    api_key=key,
-                    prompt=prompt,
-                    image_b64_list=image_b64_list,
-                    params=params,
-                )
-                if image_result:
-                    break
-                logger.warning("图片生成失败，尝试更换Key重试...")
-            if image_result:
-                break
-
-        # 发送消息
-        if err or not image_result:
-            yield event.chain_result(
-                [
-                    Comp.Reply(id=event.message_obj.message_id),
-                    Comp.Plain(err or "❌ 图片生成失败，响应中未包含图片数据"),
-                ]
-            )
-            return
-        # 假设它支持返回多张图片
-        reply_result = []
-        for _, b64 in image_result:
-            reply_result.append(Comp.Image.fromBase64(b64))
-        yield event.chain_result(
-            [
-                Comp.Reply(id=event.message_obj.message_id),
-                *reply_result,
-            ]
-        )
-        # 保存图片到本地
-        if self.save_image:
-            for mime, b64 in image_result:
-                # 构建文件名
-                now = datetime.now()
-                current_time_str = (
-                    now.strftime("%Y%m%d%H%M%S") + f"{int(now.microsecond / 1000):03d}"
-                )
-                ext = mimetypes.guess_extension(mime) or ".jpg"
-                file_name = f"banana_{current_time_str}{ext}"
-                # 构建文件保存路径
-                save_path = self.save_dir / file_name
-                # 转换成bytes
-                image_bytes = base64.b64decode(b64)
-                # 保存到文件系统
-                with open(save_path, "wb") as f:
-                    f.write(image_bytes)
-                logger.info(f"图片已保存到 {save_path}")
-
-    @filter.llm_tool(name="sora_video_generation")
-    async def sora_tool(self, event: AstrMessageEvent, prompt: str, screen: str):
+    @filter.llm_tool(name="banana_image_generation")
+    async def banana_tool(
+        self,
+        event: AstrMessageEvent,
+        prompt: str = "",
+        preset_name: str = "",
+        get_preset: bool = False,
+    ):
         """
-        A video generation tool, supporting both text-to-video and image-to-video functionalities.
-        If the user requests image-to-video generation, you must first verify that the user's
-        current message explicitly contains an actual image. References like "this one" or "the
-        above image" that point to an image in text form are not acceptable. Proceed only if a
-        real image is present.
+        This tool uses the Nano Banana Pro model for image generation. It supports both
+        text-based generation and image-reference generation. When a user requests generation
+        based on an image, you must first verify whether a valid image is present in the user's
+        current message or in the message they are replying to.
+        Textual pointers such as "that one" "the one above" or similar expressions are not acceptable as valid
+        image inputs. The user must provide an actual image file for the request to proceed.
+        In special cases, if the user says to use their avatar or mentions another user's avatar,
+        there is no need to explicitly provide an image. The tool will automatically fetch
+        the corresponding user avatar as a reference.
+        After getting the preset prompt, you need to perform multiple rounds of function-tool
+        calls until the image is generated.
 
         Args:
-            prompt(string): The video generation prompt. Refine the video generation prompt to
+            prompt(string): The image generation prompt. Refine the image generation prompt to
                 ensure it is clear, detailed, and accurately aligned with the user's intent.
-            screen(string): The screen orientation for the video. Must be one of "landscape" or
-                "portrait". You may choose a suitable orientation if the user does not specify.
+            preset_name(string): When the user requests generation based on a preset prompt,
+                you must retrieve the content of that preset prompt and assign it to this parameter.
+            get_preset(bool): If the user requests generation based on a preset prompt, you must
+                ask the user for the exact name of the preset. Once provided, set the option to True
+                and assign the "preset_name" parameter to that preset name. The tool will return the preset
+                prompt's content, allowing you to review and modify it as needed.
+                Once you get the preset prompt and finish modifying it, you need to put the revised
+                prompt into the prompt parameter, and set this option to false.
         """
+        # logger.info(f"{prompt}, {preset_name}, {get_preset}")
+        # 群白名单判断
+        if (
+            self.group_whitelist_enabled
+            and event.unified_msg_origin not in self.group_whitelist
+        ):
+            logger.info(f"群 {event.unified_msg_origin} 不在白名单内，跳过处理")
+            return "当前群不在白名单内，无法使用图片生成功能。"
+
+        # 用户白名单判断
+        if (
+            self.user_whitelist_enabled
+            and event.get_sender_id() not in self.user_whitelist
+        ):
+            logger.info(f"用户 {event.get_sender_id()} 不在白名单内，跳过处理")
+            return "该用户不在白名单内，无法使用图片生成功能。"
+
+        if get_preset:
+            if preset_name not in self.prompt_dict:
+                logger.warning(f"未找到预设提示词：「{preset_name}」")
+                return f"未找到预设提示词：「{preset_name}」，重新询问用户获取正确的预设名称。"
+            params = self.prompt_dict.get(preset_name, {})
+            preset_prompt = params.get("prompt", "{{user_text}}")
+            return preset_prompt
+
+        if not prompt:
+            return "prompt 参数不能为空，请提供有效的提示词。"
+
+        params = {}
+        if preset_name:
+            if preset_name not in self.prompt_dict:
+                logger.warning(f"未找到预设提示词：「{preset_name}」")
+                return f"未找到预设提示词：「{preset_name}」，请使用有效的预设名称。"
+            else:
+                params = self.prompt_dict.get(preset_name, {})
+                preset_prompt = params.get("prompt", "{{user_text}}")
+
+        logger.info(f"生成图片提示词: {prompt[:120]}...")
+        msg_chain = await self._dispatch_generate_image(event, params, prompt)
+        # 直接返回消息链好像发不出图片啊
+        return event.chain_result(msg_chain)
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""

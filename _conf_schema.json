@@ -212,7 +212,7 @@
                 "description": "最大重试次数",
                 "type": "int",
                 "default": 2,
-                "hint": "每个Key的最大重试次数，不计算每个Key的首次请求"
+                "hint": "每个Key的最大重试次数"
             },
             "timeout": {
                 "description": "超时",
@@ -225,6 +225,38 @@
                 "type": "string",
                 "default": "",
                 "hint": "格式可能是 http://127.0.0.1:7890，仅对大模型请求生效。"
+            }
+        }
+    },
+    "preference_settings": {
+        "description": "偏好设置",
+        "type": "object",
+        "hint": "以下配置因个人使用需求而异，暂无两全之策",
+        "items": {
+            "skip_at_first": {
+                "description": "跳过第一次@机器人",
+                "type": "bool",
+                "default": false,
+                "hint": "开启后@机器人生成图片时，第一次@将不引用机器人头像。skip_quote_first 与本项共用跳过计数。"
+            },
+            "skip_quote_first": {
+                "description": "跳过第一次@引用",
+                "type": "bool",
+                "default": true,
+                "hint": "如果At对象是被引用消息的发送者，第一次不引用At对象头像。"
+            }
+        }
+    },
+    "llm_tool_settings": {
+        "description": "LLM函数调用工具配置",
+        "type": "object",
+        "hint": "以下配置因个人使用需求而异，暂无两全之策",
+        "items": {
+            "llm_tool_enabled": {
+                "description": "启用函数调用工具",
+                "type": "bool",
+                "default": false,
+                "hint": "通过LLM对话生成图片，建议在AstrBot面板的配置文件中增加「工具调用超时时间」，以符合图片生成的时间需求"
             }
         }
     },

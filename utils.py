@@ -21,7 +21,8 @@ class Utils:
         self.proxies: ProxySpec | None = (
             {"http": proxy, "https": proxy} if proxy else None
         )
-        self.session = AsyncSession(timeout=retry_config.get("timeout", 300))
+        self.timeout = retry_config.get("timeout", 300)
+        self.session = AsyncSession(timeout=self.timeout)
 
         # 默认参数
         self.image_size = def_params.get("image_size", "1K")
