@@ -237,13 +237,13 @@
                 "description": "跳过第一次@机器人",
                 "type": "bool",
                 "default": false,
-                "hint": "开启后@机器人生成图片时，第一次@将不引用机器人头像。skip_quote_first 与本项共用跳过计数。"
+                "hint": "开启后@机器人生成图片时，跳过一次机器人的头像。skip_quote_first 与本项共用跳过计数。"
             },
             "skip_quote_first": {
                 "description": "跳过第一次@引用",
                 "type": "bool",
                 "default": true,
-                "hint": "如果At对象是被引用消息的发送者，第一次不引用At对象头像。"
+                "hint": "如果At对象是被引用消息的发送者，跳过一次At对象的头像。skip_at_first 与本性共用跳过计数。"
             }
         }
     },
@@ -255,7 +255,7 @@
             "llm_tool_enabled": {
                 "description": "启用函数调用工具",
                 "type": "bool",
-                "default": false,
+                "default": true,
                 "hint": "通过LLM对话生成图片，建议在AstrBot面板的配置文件中增加「工具调用超时时间」，以符合图片生成的时间需求"
             }
         }

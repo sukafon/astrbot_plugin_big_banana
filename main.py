@@ -12,6 +12,7 @@ from astrbot.api.star import Context, Star, StarTools
 from astrbot.core import AstrBotConfig
 from astrbot.core.utils.session_waiter import SessionController, session_waiter
 
+from .llm_tools import BigBananaTool
 from .utils import Utils
 
 PARAMS_LIST = [
@@ -66,7 +67,7 @@ class BigBanana(Star):
 
         # 偏好配置
         preference_settings = self.conf.get("preference_settings", {})
-        self.skip_at_first = preference_settings.get("skip_at_first", True)
+        self.skip_at_first = preference_settings.get("skip_at_first", False)
         self.skip_quote_first = preference_settings.get("skip_quote_first", True)
 
         # 初始化工具类
@@ -75,6 +76,11 @@ class BigBanana(Star):
         self.utils = Utils(
             retry_config=retry_config, def_params=def_params, proxy=proxy
         )
+
+        # 检查配置是否启用函数调用工具
+        if self.conf.get("llm_tool_settings", {}).get("llm_tool_enabled", False):
+            logger.info("已注册函数调用工具: banana_image_generation")
+            self.context.add_llm_tools(BigBananaTool(instance=self))
 
     def parsing_prompt_params(self, prompt: str) -> tuple[list[str], dict]:
         """解析提示词中的参数，若没有指定参数则使用默认值填充。必须是包括命令和参数的完整提示词"""
@@ -149,11 +155,6 @@ class BigBanana(Star):
         back_provider = self.conf.get("back_provider", {})
         if back_provider.get("enabled", False):
             self.provider_list.append(back_provider)
-
-        # 检查配置是否已经关闭函数工具
-        if not self.conf.get("llm_tool_settings", {}).get("llm_tool_enabled", False):
-            StarTools.unregister_llm_tool("banana_image_generation")
-            logger.info("已移除函数调用工具: banana_image_generation")
 
         # 初始化提示词配置
         self.init_prompts()
@@ -275,7 +276,7 @@ class BigBanana(Star):
             return
 
         yield event.plain_result(
-            f"🍌 正在为触发词 「{trigger_word}」 添加/更新提示词\n请在60秒内输入完整的提示词内容（不含触发词，包含参数）\n输入「取消」可取消操作。"
+            f"🍌 正在为触发词 「{trigger_word}」 添加/更新提示词\n✦ 请在60秒内输入完整的提示词内容（不含触发词，包含参数）\n✦ 输入「取消」可取消操作。"
         )
 
         # 记录操作员账号
@@ -756,81 +757,6 @@ class BigBanana(Star):
         )
         msg_chain = await self._dispatch_generate_image(event, params, prompt)
         yield event.chain_result(msg_chain)
-
-    @filter.llm_tool(name="banana_image_generation")
-    async def banana_tool(
-        self,
-        event: AstrMessageEvent,
-        prompt: str = "",
-        preset_name: str = "",
-        get_preset: bool = False,
-    ):
-        """
-        This tool uses the Nano Banana Pro model for image generation. It supports both
-        text-based generation and image-reference generation. When a user requests generation
-        based on an image, you must first verify whether a valid image is present in the user's
-        current message or in the message they are replying to.
-        Textual pointers such as "that one" "the one above" or similar expressions are not acceptable as valid
-        image inputs. The user must provide an actual image file for the request to proceed.
-        In special cases, if the user says to use their avatar or mentions another user's avatar,
-        there is no need to explicitly provide an image. The tool will automatically fetch
-        the corresponding user avatar as a reference.
-        After getting the preset prompt, you need to perform multiple rounds of function-tool
-        calls until the image is generated.
-
-        Args:
-            prompt(string): The image generation prompt. Refine the image generation prompt to
-                ensure it is clear, detailed, and accurately aligned with the user's intent.
-            preset_name(string): When the user requests generation based on a preset prompt,
-                you must retrieve the content of that preset prompt and assign it to this parameter.
-            get_preset(bool): If the user requests generation based on a preset prompt, you must
-                ask the user for the exact name of the preset. Once provided, set the option to True
-                and assign the "preset_name" parameter to that preset name. The tool will return the preset
-                prompt's content, allowing you to review and modify it as needed.
-                Once you get the preset prompt and finish modifying it, you need to put the revised
-                prompt into the prompt parameter, and set this option to false.
-        """
-        # logger.info(f"{prompt}, {preset_name}, {get_preset}")
-        # 群白名单判断
-        if (
-            self.group_whitelist_enabled
-            and event.unified_msg_origin not in self.group_whitelist
-        ):
-            logger.info(f"群 {event.unified_msg_origin} 不在白名单内，跳过处理")
-            return "当前群不在白名单内，无法使用图片生成功能。"
-
-        # 用户白名单判断
-        if (
-            self.user_whitelist_enabled
-            and event.get_sender_id() not in self.user_whitelist
-        ):
-            logger.info(f"用户 {event.get_sender_id()} 不在白名单内，跳过处理")
-            return "该用户不在白名单内，无法使用图片生成功能。"
-
-        if get_preset:
-            if preset_name not in self.prompt_dict:
-                logger.warning(f"未找到预设提示词：「{preset_name}」")
-                return f"未找到预设提示词：「{preset_name}」，重新询问用户获取正确的预设名称。"
-            params = self.prompt_dict.get(preset_name, {})
-            preset_prompt = params.get("prompt", "{{user_text}}")
-            return preset_prompt
-
-        if not prompt:
-            return "prompt 参数不能为空，请提供有效的提示词。"
-
-        params = {}
-        if preset_name:
-            if preset_name not in self.prompt_dict:
-                logger.warning(f"未找到预设提示词：「{preset_name}」")
-                return f"未找到预设提示词：「{preset_name}」，请使用有效的预设名称。"
-            else:
-                params = self.prompt_dict.get(preset_name, {})
-                preset_prompt = params.get("prompt", "{{user_text}}")
-
-        logger.info(f"生成图片提示词: {prompt[:120]}...")
-        msg_chain = await self._dispatch_generate_image(event, params, prompt)
-        # 直接返回消息链好像发不出图片啊
-        return event.chain_result(msg_chain)
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
