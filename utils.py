@@ -45,7 +45,10 @@ class Utils:
         self.vertex_ai_anonymous_max_retry = vertex_ai_anonymous_config.get(
             "max_retry", 5
         )
-        self.def_reproxy = vertex_ai_anonymous_config.get("def_reproxy", True)
+        # 默认Key是公开的，并非密钥泄露问题
+        self.vertex_ai_anonymous_api_key = vertex_ai_anonymous_config.get(
+            "api_key", "AIzaSyCI-zsRP85UVOi0DjtiCwWBwQ1djDy741g"
+        )
 
     def _handle_image(self, image_bytes: bytes) -> tuple[str, str]:
         try:
@@ -614,6 +617,7 @@ class Utils:
             reload_url = f"{self.recaptcha_base_api}/recaptcha/enterprise/reload?k=6LdCjtspAAAAAMcV4TGdWLJqRTEk1TfpdLqEnKdj"
             recaptcha_token = await self._execute_recaptcha(anchor_url, reload_url)
             if recaptcha_token:
+                logger.info("获取 recaptcha_token 成功")
                 return recaptcha_token
             logger.warning("获取 recaptcha_token 失败，重试中...")
         return None
@@ -627,7 +631,7 @@ class Utils:
         }
         try:
             response = await self.session.post(
-                url=f"{self.vertex_ai_anonymous_base_api}/v3/entityServices/AiplatformEntityService/schemas/AIPLATFORM_GRAPHQL:batchGraphql?key=AIzaSyCI-zsRP85UVOi0DjtiCwWBwQ1djDy741g&prettyPrint=false",
+                url=f"{self.vertex_ai_anonymous_base_api}/v3/entityServices/AiplatformEntityService/schemas/AIPLATFORM_GRAPHQL:batchGraphql?key={self.vertex_ai_anonymous_api_key}&prettyPrint=false",
                 headers=headers,
                 json=body,
                 impersonate="chrome",
@@ -708,8 +712,13 @@ class Utils:
             #     continue  # 资源耗尽，不需要重新获取 token
             if err_status == 3:
                 recaptcha_token = await self._get_recaptcha_token()
+                if recaptcha_token is None:
+                    return None, "获取 recaptcha_token 失败"
+            logger.warning(
+                f"图片生成失败，正在重试 Vertex AI Anonymous API ({_ + 1}/ {self.vertex_ai_anonymous_max_retry})"
+            )
         else:
-            return None, "图片生成失败，重试达到上限"
+            return None, "图片生成失败：重试达到上限。"
 
     async def generate_images(
         self,
@@ -766,6 +775,8 @@ class Utils:
                     image_b64_list=image_b64_list,
                     params=params,
                 )
+                if image_b64 is None:
+                    return None, err
             else:
                 logger.error(f"不支持的API类型: {api_type}")
                 return None, "❌ 不支持的API类型"

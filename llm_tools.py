@@ -29,8 +29,7 @@ there is no need to explicitly provide an image. The tool will automatically fet
 the corresponding user avatar as a reference. But you must first ensure that the message
 has @-mentioned the target user, or that it is using the sender's own avatar.
 After getting the preset prompt, you need to perform multiple rounds of tool function
-calls until the image is generated. You must explicitly call the tool to generate an image,
-rather than only producing textual output. Make decisions on your own, and do not ask
+calls until the image is generated. Make decisions on your own, and do not ask
 the user unless it is necessary."""  # 工具描述
     parameters: dict = Field(
         default_factory=lambda: {
@@ -39,8 +38,7 @@ the user unless it is necessary."""  # 工具描述
                 "prompt": {
                     "type": "string",
                     "description": """The image generation prompt. Refine the image generation
-prompt to ensure it is clear, detailed, and accurately aligned with the user's intent.
-Then continue call the tool.""",
+prompt to ensure it is clear, detailed, and accurately aligned with the user's intent.""",
                 },
                 "preset_name": {
                     "type": "string",
@@ -66,6 +64,12 @@ set this option to true, then the tool will return a list of all preset names,
 allowing you to accurately fill the correct preset into the preset_name parameter.
 After obtaining the list, you must set this option back to false. Then continue call the tool.""",
                 },
+                "referer_id": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": """If the user requests to use another person's avatar,
+please enter the target user's ID here.""",
+                },
             },
             "required": [],
         }
@@ -87,12 +91,14 @@ After obtaining the list, you must set this option back to false. Then continue 
         preset_name = kwargs.get("preset_name", "")
         get_preset = kwargs.get("get_preset", False)
         get_preset_name_list = kwargs.get("get_preset_name_list", False)
+        referer_id = kwargs.get("referer_id", [])
         logger.debug(
             {
-                "prompt": prompt[:30],
+                "prompt": prompt[:60],
                 "preset_name": preset_name,
                 "get_preset": get_preset,
                 "get_preset_name_list": get_preset_name_list,
+                "referer_id": referer_id,
             }
         )
 
@@ -143,15 +149,18 @@ After obtaining the list, you must set this option back to false. Then continue 
                 params = self.instance.prompt_dict.get(preset_name, {})
                 preset_prompt = params.get("prompt", "{{user_text}}")
 
-        logger.info(f"生成图片提示词: {prompt}")
+        if referer_id and event.platform_meta.name != "aiocqhttp":
+            return "referer_id 参数仅兼容 aiocqhttp 平台。"
+
+        logger.info(f"生成图片提示词: {prompt[:128]}...")
         msg_chain: list[
             BaseMessageComponent
         ] = await self.instance._dispatch_generate_image(
-            event, params, prompt, is_llm_tool=True
+            event, params, prompt, is_llm_tool=True, referer_id=referer_id
         )
         if any(isinstance(msg, Comp.Image) for msg in msg_chain):
             await event.send(MessageChain(msg_chain))
-            return "图片已发送。"
+            return "图片已发送，停止调用此工具。"
         else:
             for msg in msg_chain:
                 if isinstance(msg, Comp.Plain):

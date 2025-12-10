@@ -373,7 +373,7 @@ class BigBanana(Star):
         msg = "📜 当前预设提示词列表：\n" + "、".join(prompts)
         yield event.plain_result(msg)
 
-    @filter.command("lm详情", alias={"lmc"})
+    @filter.command("lm提示词", alias={"lmc", "lm详情"})
     async def prompt_details(self, event: AstrMessageEvent, trigger_word: str):
         """获取提示词详情字符串"""
         if trigger_word not in self.prompt_dict:
@@ -517,6 +517,7 @@ class BigBanana(Star):
         params: dict,
         prompt: str,
         is_llm_tool: bool = False,
+        referer_id: list[str] = [],
     ) -> list[BaseMessageComponent]:
         """负责参数处理、调度提供商、密钥轮询等逻辑"""
         # 收集图片URL，后面统一处理
@@ -553,6 +554,17 @@ class BigBanana(Star):
                 image_urls.append(f"https://q.qlogo.cn/g?b=qq&s=0&nk={comp.qq}")
             elif isinstance(comp, Comp.Image) and comp.url:
                 image_urls.append(comp.url)
+
+        # 处理referer_id参数，获取指定用户头像
+        if is_llm_tool and referer_id and event.platform_meta.name == "aiocqhttp":
+            for target_id in referer_id:
+                target_id = target_id.strip()
+                if target_id:
+                    build_url = f"https://q.qlogo.cn/g?b=qq&s=0&nk={target_id}"
+                    if build_url not in image_urls:
+                        image_urls.append(
+                            f"https://q.qlogo.cn/g?b=qq&s=0&nk={target_id}"
+                        )
 
         min_required_images = params.get("min_images", self.min_images)
         max_allowed_images = params.get("max_images", self.max_images)

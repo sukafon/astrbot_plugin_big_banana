@@ -210,6 +210,12 @@
         "type": "object",
         "hint": "提供商配置中，除了接口规范和模型外，其他选项皆对Vertex AI Anonymous规范无效，请在此配置。",
         "items": {
+            "api_key": {
+                "description": "API_KEY",
+                "type": "string",
+                "default": "AIzaSyCI-zsRP85UVOi0DjtiCwWBwQ1djDy741g",
+                "hint": "这是一个公共Key，可能不需要修改这个。"
+            },
             "recaptcha_base_api": {
                 "description": "Recaptcha Base API",
                 "type": "string",
@@ -289,7 +295,7 @@
                 "description": "启用函数调用工具",
                 "type": "bool",
                 "default": true,
-                "hint": "通过LLM对话生成图片，建议在AstrBot面板的配置文件中增加「工具调用超时时间」，以满足图片生成的时间需求"
+                "hint": "通过LLM对话生成图片，建议在AstrBot面板的配置文件中调整「工具调用超时时间」，以满足图片生成的时间需求"
             }
         }
     },
