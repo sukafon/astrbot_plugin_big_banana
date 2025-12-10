@@ -75,8 +75,12 @@ class BigBanana(Star):
         # 初始化工具类
         retry_config = self.conf.get("retry_config", {})
         proxy = self.conf.get("proxy", "")
+        vertex_ai_anonymous_config = self.conf.get("vertex_ai_anonymous_config", {})
         self.utils = Utils(
-            retry_config=retry_config, def_params=def_params, proxy=proxy
+            retry_config=retry_config,
+            def_params=def_params,
+            proxy=proxy,
+            vertex_ai_anonymous_config=vertex_ai_anonymous_config,
         )
 
         # 检查配置是否启用函数调用工具
@@ -622,17 +626,16 @@ class BigBanana(Star):
             stream = provider.get("stream", False)
 
             # 浅拷贝，确保线程安全
-            key_list = provider.get("key", []).copy()
+            key_list: list = provider.get("key", []).copy()
             # 随机打乱Key顺序，避免每次都从第一个Key开始使用
             random.shuffle(key_list)
 
-            if not key_list:
-                warn_msg = f"提供商 {provider.get('name', 'unknown')} 未配置API Key，请先在插件配置中添加或者关闭此提供商"
-                logger.warning(warn_msg)
-                return [
-                    Comp.Reply(id=event.message_obj.message_id),
-                    Comp.Plain(f"❌ {warn_msg}"),
-                ]
+            if len(key_list) == 0:
+                # 允许空Key
+                logger.info(
+                    f"提供商 {provider.get('name', 'unknown')} Key为空，将自动添加空字符串Key "
+                )
+                key_list.append("")
 
             for key in key_list:
                 image_result, err = await self.utils.generate_images(
@@ -645,7 +648,7 @@ class BigBanana(Star):
                     image_b64_list=image_b64_list,
                     params=params,
                 )
-                if image_result:
+                if image_result or api_type == "Vertex_AI_Anonymous":
                     break
                 logger.warning("图片生成失败，尝试更换Key重试...")
             if image_result:

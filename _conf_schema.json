@@ -19,13 +19,14 @@
             },
             "api_type": {
                 "description": "接口规范",
-                "hint": "这个API接口使用的规范类型。",
+                "hint": "这个API接口使用的规范类型。Vertex_AI_Anonymous类型接口请下拉到 vertex_ai_anonymous_config 进行具体配置。",
                 "type": "string",
                 "options": [
                     "Gemini",
-                    "OpenAI_Chat"
+                    "OpenAI_Chat",
+                    "Vertex_AI_Anonymous"
                 ],
-                "default": "Gemini"
+                "default": "Vertex_AI_Anonymous"
             },
             "key": {
                 "description": "API密钥",
@@ -37,7 +38,7 @@
                 "description": "api_url",
                 "type": "string",
                 "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini填写示例：https://generativelanguage.googleapis.com/v1beta/models，OpenAI填写示例：https://api.openai.com/v1/chat/completions"
+                "hint": "Gemini填写示例：https://generativelanguage.googleapis.com/v1beta/models；OpenAI填写示例：https://api.openai.com/v1/chat/completions"
             },
             "model": {
                 "description": "模型",
@@ -77,7 +78,8 @@
                 "type": "string",
                 "options": [
                     "Gemini",
-                    "OpenAI_Chat"
+                    "OpenAI_Chat",
+                    "Vertex_AI_Anonymous"
                 ],
                 "default": "Gemini"
             },
@@ -91,7 +93,7 @@
                 "description": "api_url",
                 "type": "string",
                 "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://generativelanguage.googleapis.com/v1beta/models，OpenAI示例：http://api.openai.com/v1/chat/completions"
+                "hint": "Gemini示例：https://generativelanguage.googleapis.com/v1beta/models；OpenAI示例：http://api.openai.com/v1/chat/completions"
             },
             "model": {
                 "description": "模型",
@@ -203,6 +205,31 @@
             }
         }
     },
+    "vertex_ai_anonymous_config": {
+        "description": "Vertex AI Anonymous配置项",
+        "type": "object",
+        "hint": "提供商配置中，除了接口规范和模型外，其他选项皆对Vertex AI Anonymous规范无效，请在此配置。",
+        "items": {
+            "recaptcha_base_api": {
+                "description": "Recaptcha Base API",
+                "type": "string",
+                "default": "https://www.google.com",
+                "hint": "考虑到网络环境或者IP频繁的情况，可以在这里配置反向代理"
+            },
+            "vertex_ai_anonymous_base_api": {
+                "description": "Vertex AI Anonymous Base API",
+                "type": "string",
+                "default": "https://cloudconsole-pa.clients6.google.com",
+                "hint": "考虑到网络环境或者IP频繁的情况，可以在这里配置反向代理"
+            },
+            "max_retry": {
+                "description": "最大重试次数",
+                "type": "int",
+                "default": 5,
+                "hint": "独立于常规接口的重试次数配置，用于实现不同需求场景下的灵活控制"
+            }
+        }
+    },
     "retry_config": {
         "description": "网络和重试",
         "type": "object",
@@ -224,7 +251,7 @@
                 "description": "HTTP代理",
                 "type": "string",
                 "default": "",
-                "hint": "格式可能是 http://127.0.0.1:7890，仅对大模型请求生效。"
+                "hint": "格式可能是 http://127.0.0.1:7890，仅对部分被墙端点启用。"
             }
         }
     },
