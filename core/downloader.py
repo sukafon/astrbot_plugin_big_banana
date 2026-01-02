@@ -27,7 +27,7 @@ class Downloader:
             if content is not None:
                 return content
 
-    async def fetch_images(self, image_urls: list[str]) -> list[tuple[str, str] | None]:
+    async def fetch_images(self, image_urls: list[str]) -> list[tuple[str, str]]:
         """下载多张图片并转换为 (mime, base64) 列表"""
         image_b64_list = []
         for url in image_urls:
@@ -39,7 +39,11 @@ class Downloader:
                     break  # 成功就跳出重试
         return image_b64_list
 
-    def _handle_image(self, image_bytes: bytes) -> tuple[str, str]:
+    @staticmethod
+    def _handle_image(image_bytes: bytes) -> tuple[str, str] | None:
+        if len(image_bytes) > 36 * 1024 * 1024:
+            logger.warning("[BIG BANANA] 图片超过 36MB，跳过处理")
+            return None
         try:
             with Image.open(BytesIO(image_bytes)) as img:
                 fmt = (img.format or "").upper()
@@ -64,14 +68,14 @@ class Downloader:
     async def _download_image(self, url: str) -> tuple[str, str] | None:
         try:
             response = await self.session.get(url, impersonate="chrome131", proxy=self.def_common_config.proxy, timeout=30)
-            content = self._handle_image(response.content)
+            content = Downloader._handle_image(response.content)
             return content
         except (SSLError, CertificateVerifyError):
             # 关闭SSL验证
             response = await self.session.get(
                 url, impersonate="chrome131", timeout=30, verify=False
             )
-            content = self._handle_image(response.content)
+            content = Downloader._handle_image(response.content)
             return content
         except Timeout as e:
             logger.error(f"[BIG BANANA] 网络请求超时: {url}，错误信息：{e}")

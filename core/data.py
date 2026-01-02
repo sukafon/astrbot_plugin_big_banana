@@ -9,11 +9,12 @@ DEF_VERTEX_AI_ANONYMOUS_BASE_API = "https://cloudconsole-pa.clients6.google.com"
 # 类型枚举
 _API_Type = Literal["Gemini", "OpenAI_Chat", "Vertex_AI_Anonymous"]
 
+
 @dataclass(repr=False, slots=True)
 class ProviderConfig:
     """提供商配置信息"""
 
-    name: str
+    api_name: str
     """提供商名称, 用于区分不同提供商(例如主提供商、备用提供商等)"""
     enabled: bool
     """是否启用"""

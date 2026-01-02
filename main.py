@@ -31,12 +31,8 @@ PARAMS_LIST = [
     "google_search",
     "preset_append",
     "gather_mode",
+    "providers",
 ]
-
-# 参数别称映射
-PARAMS_ALIAS_MAP = {
-    "append_mode": "gather_mode",
-}
 
 # 支持的文件格式
 SUPPORTED_FILE_FORMATS = (
@@ -51,7 +47,7 @@ SUPPORTED_FILE_FORMATS = (
 )
 
 # 提供商配置键列表
-provider_keys = ["main_provider", "back_provider", "back_provider2"]
+provider_list = ["main_provider", "back_provider", "back_provider2"]
 
 # 部分平台对单张图片大小有限制，超过限制需要作为文件发送
 MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
@@ -63,6 +59,11 @@ class BigBanana(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.conf = config
+        # 初始化常规配置和图片生成配置
+        self.common_config = CommonConfig(**self.conf.get("common_config", {}))
+        self.prompt_config = PromptConfig(**self.conf.get("prompt_config", {}))
+        # 参数别名列表
+        self.params_alias = self.conf.get("params_alias_map", {})
         # 初始化提示词配置
         self.init_prompts()
         # 白名单配置
@@ -104,8 +105,6 @@ class BigBanana(Star):
         self.preference_config = PreferenceConfig(
             **self.conf.get("preference_config", {})
         )
-        self.common_config = CommonConfig(**self.conf.get("common_config", {}))
-        self.prompt_config = PromptConfig(**self.conf.get("prompt_config", {}))
         self.http_manager = HttpManager()
         curl_session = self.http_manager._get_curl_session()
         self.downloader = Downloader(curl_session, self.common_config)
@@ -122,37 +121,60 @@ class BigBanana(Star):
 
     def init_providers(self):
         """解析提供商配置"""
-        # 激活的提供商配置列表
-        self.active_providers: list[ProviderConfig] = []
+        # 默认启用的提供商
+        self.def_enabled_providers: list[str] = []
+        # 提供商配置列表
+        self.providers_config: dict[str, ProviderConfig] = {}
         # 提供商实例映射
         self.provider_map: dict[str, BaseProvider] = {}
-        # 激活提供商+实例化提供商类
-        for key in provider_keys:
-            provider = self.conf.get(key, {})
+        # 注册提供商+实例化提供商类
+        for item in provider_list:
+            provider = self.conf.get(item, {})
+            api_type = provider["api_type"]
+            provider_cls = BaseProvider.get_provider_class(api_type)
+            if provider_cls is None:
+                logger.warning(
+                    f"未找到提供商类型对应的提供商类：{api_type}，跳过该提供商配置"
+                )
+                continue
+            # 添加到提供商配置列表
+            self.providers_config[provider["api_name"]] = ProviderConfig(**provider)
+            # 实例化提供商类
+            self.provider_map[api_type] = provider_cls(
+                config=self.conf,
+                common_config=self.common_config,
+                prompt_config=self.prompt_config,
+                session=self.http_manager._get_curl_session(),
+                downloader=self.downloader,
+            )
+            # 将启用的提供商加入默认提供商列表中
             if provider.get("enabled", False):
-                api_type = provider["api_type"]
-                provider_cls = BaseProvider.get_provider_class(api_type)
-                if provider_cls is None:
+                api_name = provider.get("api_name", "")
+                if not api_name:
+                    logger.warning(f"提供商类型 {api_type} 未设置提供商名称，无法启用")
+                    continue
+                if api_name in self.def_enabled_providers:
                     logger.warning(
-                        f"未找到提供商类型对应的提供商类：{api_type}，跳过该提供商配置"
+                        f"提供商名称 {api_name} 已存在于启用列表中，跳过重复添加"
                     )
                     continue
-                # 添加到激活提供商列表
-                self.active_providers.append(ProviderConfig(**provider))
-                # 实例化提供商类
-                self.provider_map[api_type] = provider_cls(
-                    config=self.conf,
-                    common_config=self.common_config,
-                    prompt_config=self.prompt_config,
-                    session=self.http_manager._get_curl_session(),
-                    downloader=self.downloader,
-                )
+                self.def_enabled_providers.append(api_name)
+                logger.info(f"已启用提供商：{api_name}")
 
     def init_prompts(self):
         """初始化提示词配置"""
         # 预设提示词列表
         self.prompt_list = self.conf.get("prompt", [])
         self.prompt_dict = {}
+        self.params_alias_map = {}
+        # 处理参数别名映射
+        for item in self.params_alias:
+            alias, _, param = item.partition(":")
+            if alias and param:
+                self.params_alias_map[alias] = param
+            elif not alias or not param:
+                logger.warning(f"参数别名映射配置错误，未指定参数名称：{item}，跳过处理")
+        # 解析预设提示词
         for item in self.prompt_list:
             cmd_list, params = self.parsing_prompt_params(item)
             for cmd in cmd_list:
@@ -188,8 +210,8 @@ class BigBanana(Star):
             if token.startswith("--"):
                 key = token[2:]
                 # 处理参数别称映射
-                if key in PARAMS_ALIAS_MAP:
-                    key = PARAMS_ALIAS_MAP[key]
+                if key in self.params_alias_map:
+                    key = self.params_alias_map[key]
                 # 仅处理已知参数
                 if key in PARAMS_LIST:
                     value = next(tokens_iter, None)
@@ -824,8 +846,8 @@ class BigBanana(Star):
                 f"https://q.qlogo.cn/g?b=qq&s=0&nk={event.get_sender_id()}"
             )
 
-        # 图片b64列表，每个元素是 (mime_type, b64_data) 元组
-        image_b64_list = []
+        # 图片b64列表
+        image_b64_list: list[tuple[str, str]] = []
         # 处理 refer_images 参数
         refer_images = params.get("refer_images", self.prompt_config.refer_images)
         if refer_images:
@@ -836,7 +858,7 @@ class BigBanana(Star):
                 if filename:
                     path = self.refer_images_dir / filename
                     mime_type, b64_data = await asyncio.to_thread(read_file, path)
-                    if b64_data:
+                    if mime_type and b64_data:
                         image_b64_list.append((mime_type, b64_data))
         # 图片去重
         image_urls = list(dict.fromkeys(image_urls))
@@ -862,6 +884,10 @@ class BigBanana(Star):
             if not image_b64_list and min_required_images > 0:
                 logger.error("全部参考图片下载失败")
                 return None, "全部参考图片下载失败"
+        elif append_count < 0:
+            logger.warning(
+                f"参考图片数量超过最大允许数量 {max_allowed_images}，跳过下载图片步骤"
+            )
 
         # 发送绘图中提示
         await event.send(MessageChain().message("🎨 在画了，请稍等一会..."))
@@ -893,23 +919,37 @@ class BigBanana(Star):
     ) -> tuple[list[tuple[str, str]] | None, str | None]:
         """提供商调度器"""
         err = None
+
+        # 处理需要启用的提供商列表参数
+        active_providers = params.get("provider", self.def_enabled_providers)
+        if isinstance(active_providers, str):
+            active_providers = active_providers.split(",")
+
         # 调度提供商
-        for i, provider in enumerate(self.active_providers):
+        for i, api_name in enumerate(active_providers):
+            # 获取提供商配置
+            provider_config = self.providers_config.get(api_name)
+            if not provider_config:
+                logger.warning(f"未找到提供商配置：{api_name}，跳过该提供商")
+                continue
+            # 获取提供商实例，并调用生成方法
             images_result, err = await self.provider_map[
-                provider.api_type
+                provider_config.api_type
             ].generate_images(
-                provider_config=provider,
+                provider_config=provider_config,
                 params=params,
                 image_b64_list=image_b64_list,
             )
             if images_result:
-                logger.info(f"{provider.name} 图片生成成功")
+                logger.info(f"{provider_config.api_name} 图片生成成功")
                 return images_result, None
-            if i < len(self.active_providers) - 1:
-                logger.warning(f"{provider.name} 生成图片失败，尝试使用下一个提供商...")
+            if i < len(active_providers) - 1:
+                logger.warning(
+                    f"{provider_config.api_name} 生成图片失败，尝试使用下一个提供商..."
+                )
 
         # 处理错误信息
-        if len(self.active_providers) == 0:
+        if len(active_providers) == 0:
             err = "当前无可用提供商，请检查插件配置。"
             logger.error(err)
         return None, err

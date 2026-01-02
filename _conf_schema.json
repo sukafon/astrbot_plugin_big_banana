@@ -19,14 +19,13 @@
                 "description": "启用接口",
                 "type": "bool",
                 "default": true,
-                "hint": ""
+                "hint": "这个选项本质上是控制--provider默认参数，可以在提示词中指定这个参数加以覆盖"
             },
-            "name": {
-                "description": "提供商名字",
+            "api_name": {
+                "description": "提供商名称",
                 "type": "string",
                 "default": "主提供商",
-                "hint": "提供商备注，用于信息回显时识别具体的提供商",
-                "invisible": true
+                "hint": "用于信息回显时识别具体的提供商，以及在参数中指定提供商。"
             },
             "api_type": {
                 "description": "接口规范类型",
@@ -43,7 +42,7 @@
                 "description": "API密钥",
                 "type": "list",
                 "default": [],
-                "hint": "API Key列表。对于 OpenAI 规范，不需要填写Bearer 前缀，后端会自动拼接。"
+                "hint": "API Key列表。对于 OpenAI 规范，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。"
             },
             "api_url": {
                 "description": "api_url",
@@ -74,14 +73,13 @@
                 "description": "启用接口",
                 "type": "bool",
                 "default": false,
-                "hint": ""
+                "hint": "这个选项本质上是控制--provider默认参数，可以在提示词中指定这个参数加以覆盖"
             },
-            "name": {
-                "description": "提供商名字",
+            "api_name": {
+                "description": "提供商名称",
                 "type": "string",
-                "default": "主提供商",
-                "hint": "提供商备注，用于信息回显时识别具体的提供商",
-                "invisible": true
+                "default": "备用提供商1",
+                "hint": "用于信息回显时识别具体的提供商，以及在参数中指定提供商。"
             },
             "api_type": {
                 "description": "接口规范类型",
@@ -96,7 +94,7 @@
             },
             "keys": {
                 "description": "API密钥",
-                "hint": "API Key列表。对于 OpenAI 规范，不需要填写Bearer 前缀，后端会自动拼接。",
+                "hint": "API Key列表。对于 OpenAI 规范，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
                 "type": "list",
                 "default": []
             },
@@ -129,14 +127,13 @@
                 "description": "启用接口",
                 "type": "bool",
                 "default": false,
-                "hint": ""
+                "hint": "这个选项本质上是控制--provider默认参数，可以在提示词中指定这个参数加以覆盖"
             },
-            "name": {
-                "description": "提供商名字",
+            "api_name": {
+                "description": "提供商名称",
                 "type": "string",
-                "default": "主提供商",
-                "hint": "提供商备注，用于信息回显时识别具体的提供商",
-                "invisible": true
+                "default": "备用提供商2",
+                "hint": "用于信息回显时识别具体的提供商，以及在参数中指定提供商。"
             },
             "api_type": {
                 "description": "接口规范类型",
@@ -151,7 +148,7 @@
             },
             "keys": {
                 "description": "API密钥",
-                "hint": "API Key列表。对于 OpenAI 规范，不需要填写Bearer 前缀，后端会自动拼接。",
+                "hint": "API Key列表。对于 OpenAI 规范，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
                 "type": "list",
                 "default": []
             },
@@ -241,6 +238,12 @@
                 "hint": "启用后插件不会立即开始画图，允许用户连续发送多条消息，直到回复「开始」，才会将收集到的文本和图片用于图片生成。"
             }
         }
+    },
+    "params_alias_map": {
+        "description": "参数别名映射",
+        "type": "list",
+        "default": ["append_mode:gather_mode"],
+        "hint": "格式是 自定义名称:内置参数名称 设置后使用自定义名称和内置参数名称皆可应用参数。参数名称冲突可能会相互覆盖。"
     },
     "common_config": {
         "description": "常规配置",
