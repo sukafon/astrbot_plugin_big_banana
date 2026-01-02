@@ -60,7 +60,7 @@
                 "description": "流式",
                 "type": "bool",
                 "default": false,
-                "hint": ""
+                "hint": "需提供商支持"
             }
         }
     },

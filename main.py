@@ -921,7 +921,7 @@ class BigBanana(Star):
         err = None
 
         # 处理需要启用的提供商列表参数
-        active_providers = params.get("provider", self.def_enabled_providers)
+        active_providers = params.get("providers", self.def_enabled_providers)
         if isinstance(active_providers, str):
             active_providers = active_providers.split(",")
 
