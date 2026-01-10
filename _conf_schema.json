@@ -19,7 +19,7 @@
                 "description": "启用接口",
                 "type": "bool",
                 "default": true,
-                "hint": "这个选项本质上是控制--provider默认参数，可以在提示词中指定这个参数加以覆盖"
+                "hint": "这个选项本质上是控制--providers默认参数，可以在提示词中指定加以覆盖"
             },
             "api_name": {
                 "description": "提供商名称",
@@ -73,7 +73,7 @@
                 "description": "启用接口",
                 "type": "bool",
                 "default": false,
-                "hint": "这个选项本质上是控制--provider默认参数，可以在提示词中指定这个参数加以覆盖"
+                "hint": "这个选项本质上是控制--providers默认参数，可以在提示词中指定加以覆盖"
             },
             "api_name": {
                 "description": "提供商名称",
@@ -127,7 +127,7 @@
                 "description": "启用接口",
                 "type": "bool",
                 "default": false,
-                "hint": "这个选项本质上是控制--provider默认参数，可以在提示词中指定这个参数加以覆盖"
+                "hint": "这个选项本质上是控制--providers默认参数，可以在提示词中指定加以覆盖"
             },
             "api_name": {
                 "description": "提供商名称",

@@ -915,7 +915,7 @@ class BigBanana(Star):
     async def _dispatch(
         self,
         params: dict,
-        image_b64_list: list[tuple[str, str]] = [],
+        image_b64_list: list[tuple[str, str]] | None = None,
     ) -> tuple[list[tuple[str, str]] | None, str | None]:
         """提供商调度器"""
         err = None

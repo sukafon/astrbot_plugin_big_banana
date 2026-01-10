@@ -63,18 +63,34 @@ class Downloader:
         except Exception as e:
             logger.warning(f"[BIG BANANA] GIF 处理失败，返回原图: {e}")
             b64 = base64.b64encode(image_bytes).decode("utf-8")
+            if not b64:
+                return None
             return ("image/gif", b64)
 
     async def _download_image(self, url: str) -> tuple[str, str] | None:
         try:
-            response = await self.session.get(url, impersonate="chrome131", proxy=self.def_common_config.proxy, timeout=30)
+            response = await self.session.get(
+                url,
+                proxy=self.def_common_config.proxy,
+                timeout=30,
+            )
+            if response.status_code != 200 or not response.content:
+                logger.warning(
+                    f"[BIG BANANA] 图片下载失败，状态码: {response.status_code}"
+                )
+                return None
             content = Downloader._handle_image(response.content)
             return content
         except (SSLError, CertificateVerifyError):
             # 关闭SSL验证
             response = await self.session.get(
-                url, impersonate="chrome131", timeout=30, verify=False
+                url, timeout=30, verify=False
             )
+            if response.status_code != 200 or not response.content:
+                logger.warning(
+                    f"[BIG BANANA] 图片下载失败，状态码: {response.status_code}"
+                )
+                return None
             content = Downloader._handle_image(response.content)
             return content
         except Timeout as e:

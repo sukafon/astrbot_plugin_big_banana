@@ -1,6 +1,6 @@
 name: astrbot_plugin_big_banana
 display_name: 🍌大香蕉🍌
 desc: 图片生成插件，支持Gemini、OpenAI、VertexAI逆向提供商以及高级配置参数。
-version: v0.1.6
+version: v0.1.7
 author: Sukafon & CatCat
 repo: https://github.com/sukafon/astrbot_plugin_big_banana

@@ -43,7 +43,7 @@ class VertexAIAnonymousProvider(BaseProvider):
         self,
         provider_config: ProviderConfig,
         params: dict,
-        image_b64_list: list[tuple[str, str]],
+        image_b64_list: list[tuple[str, str]] | None = None,
     ) -> tuple[list[tuple[str, str]] | None, str | None]:
         body = self._build_vertex_ai_body(
             provider_config.model, params["prompt"], image_b64_list, params
@@ -159,20 +159,21 @@ class VertexAIAnonymousProvider(BaseProvider):
         self,
         model: str,
         prompt: str,
-        image_b64_list: list[tuple[str, str]],
+        image_b64_list: list[tuple[str, str]] | None,
         params: dict,
     ) -> dict:
         # 处理图片内容部分
         parts = []
-        for mime, b64 in image_b64_list:
-            parts.append(
-                {
-                    "inlineData": {
-                        "mimeType": mime,
-                        "data": b64,
+        if image_b64_list:
+            for mime, b64 in image_b64_list:
+                parts.append(
+                    {
+                        "inlineData": {
+                            "mimeType": mime,
+                            "data": b64,
+                        }
                     }
-                }
-            )
+                )
 
         # 处理响应内容的类型
         responseModalities = ["IMAGE"]
@@ -189,7 +190,7 @@ class VertexAIAnonymousProvider(BaseProvider):
                 "maxOutputTokens": 32768,
                 "responseModalities": responseModalities,
                 "imageConfig": {
-                    "imageOutputOptions": {"mimeType": "image/png"},    # 这个修改是无效的
+                    "imageOutputOptions": {"mimeType": "image/png"},  # 这个修改是无效的
                     "personGeneration": "ALLOW_ALL",
                 },
             },

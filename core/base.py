@@ -63,7 +63,7 @@ class BaseProvider(ABC):
         self,
         provider_config: ProviderConfig,
         params: dict,
-        image_b64_list: list[tuple[str, str]],
+        image_b64_list: list[tuple[str, str]] | None = None,
     ) -> tuple[list[tuple[str, str]] | None, str | None]:
         """图片生成调度方法"""
         key_list_len = len(provider_config.keys)
@@ -96,12 +96,12 @@ class BaseProvider(ABC):
                 if self.def_common_config.smart_retry and not self.should_retry(status):
                     break
                 logger.warning(
-                    f"图片生成失败，正在重试 {provider_config.name} 当前Key ({i + 1}/ {self.def_common_config.max_retry})"
+                    f"图片生成失败，正在重试 {provider_config.api_name} 当前Key ({i + 1}/ {self.def_common_config.max_retry})"
                 )
             else:
                 if key_ < key_list_len - 1:
                     logger.warning(
-                        f"图片生成失败，切换到 {provider_config.name} 下一个Key"
+                        f"图片生成失败，切换到 {provider_config.api_name} 下一个Key"
                     )
         return None, err or "图片生成失败：所有 Key 均已用尽或不可用"
 
