@@ -193,7 +193,10 @@ class GeminiProvider(BaseProvider):
         # 构建请求上下文
         context = {
             "contents": [
-                {"parts": [{"text": params.get("prompt", "anything")}, *parts]}
+                {
+                    "role": "user",
+                    "parts": [{"text": params.get("prompt", "anything")}, *parts],
+                }
             ],
             "generationConfig": {
                 "responseModalities": responseModalities,
