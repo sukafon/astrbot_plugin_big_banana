@@ -335,6 +335,12 @@
                 "type": "int",
                 "default": 10,
                 "hint": "独立于常规接口的重试次数配置。"
+            },
+            "retry_delay": {
+                "description": "重试延迟",
+                "type": "float",
+                "default": 2,
+                "hint": "较大的重试延迟或许可以规避短时间内的集中失败的问题，单位：秒"
             }
         }
     },

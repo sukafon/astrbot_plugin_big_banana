@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 from urllib.parse import parse_qs, urlparse
@@ -54,14 +55,17 @@ class VertexAIAnonymousProvider(BaseProvider):
         err_msg = None
         # 记录recaptchaToken的使用次数，测试发现一个recaptchaToken需要在第二次使用时才有效
         captcha_try_count = 0
-        for _ in range(self.vertex_ai_anonymous_config.max_retry):
+        for i in range(self.vertex_ai_anonymous_config.max_retry):
             body["variables"]["recaptchaToken"] = recaptcha_token
             result, status, err_msg = await self._call_api(body)
             if result is not None:
                 return result, None
+            # 不在最后一次重试时刷新token
+            if i == self.vertex_ai_anonymous_config.max_retry - 1:
+                return None, err_msg or "图片生成失败：重试达到上限。"
             # 8:资源耗尽；3:Token失效/参数错误
-            if status == 3:
-                if err_msg and "Failed to verify action" in err_msg and captcha_try_count < 1:
+            if status == 3 or status == 8:  # 资源耗尽也刷新token，请求成功率会更高一些
+                if status == 3 and err_msg and "Failed to verify action" in err_msg and captcha_try_count < 1:
                     captcha_try_count += 1
                     continue
                 recaptcha_token = await self._get_recaptcha_token()
@@ -73,8 +77,9 @@ class VertexAIAnonymousProvider(BaseProvider):
                 # 这个提供商一但出现内容拦截，重试几乎没有意义，直接返回错误
                 return None, err_msg
             logger.warning(
-                f"[BIG BANANA] 图片生成失败，正在重试 Vertex AI Anonymous API ({_ + 1}/ {self.vertex_ai_anonymous_config.max_retry})"
+                f"[BIG BANANA] 图片生成失败，正在重试 Vertex AI Anonymous API ({i + 1}/ {self.vertex_ai_anonymous_config.max_retry})"
             )
+            await asyncio.sleep(self.vertex_ai_anonymous_config.retry_delay)
         else:
             return None, err_msg or "图片生成失败：重试达到上限。"
 
@@ -110,11 +115,13 @@ class VertexAIAnonymousProvider(BaseProvider):
                                 .get("code", None)
                             )
                             err_msg = err.get("message", "")
-                            # 应该包装错误而不是直接打印，但是现在重构太麻烦了
+                            # 应该包装错误而不是直接打印，但是不太想重构了
                             if err_msg not in "Failed to verify action":
                                 logger.error(
                                     f"[BIG BANANA] 图片生成失败，错误代码：{status}，错误原因：{err_msg}"
                                 )
+                            else:   # 这是一个预期的错误
+                                logger.debug(f"[BIG BANANA] 图片生成失败，错误代码：{status}，错误原因：{err_msg}")
                             return None, status, err_msg
                         # 没有错误，应该是正常响应
                         for candidate in item.get("data", {}).get("candidates", []):

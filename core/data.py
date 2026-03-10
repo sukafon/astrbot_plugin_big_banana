@@ -114,3 +114,5 @@ class VertexAIAnonymousConfig:
     """系统提示词"""
     max_retry: int = 10
     """最大重试次数"""
+    retry_delay: float = 2
+    """重试间隔时间, 单位: 秒"""
