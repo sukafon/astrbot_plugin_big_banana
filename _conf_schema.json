@@ -34,6 +34,7 @@
                 "options": [
                     "Gemini",
                     "OpenAI_Chat",
+                    "Vertex_AI",
                     "Vertex_AI_Anonymous"
                 ],
                 "default": "Vertex_AI_Anonymous"
@@ -48,7 +49,7 @@
                 "description": "api_url",
                 "type": "string",
                 "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI示例：http://<base_url>/v1/chat/completions；VertexAI逆向可留空。"
+                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI示例：http://<base_url>/v1/chat/completions；VertexAI官方示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
             },
             "model": {
                 "description": "模型",
@@ -88,6 +89,7 @@
                 "options": [
                     "Gemini",
                     "OpenAI_Chat",
+                    "Vertex_AI",
                     "Vertex_AI_Anonymous"
                 ],
                 "default": "Gemini"
@@ -102,7 +104,7 @@
                 "description": "api_url",
                 "type": "string",
                 "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI示例：http://<base_url>/v1/chat/completions；VertexAI逆向可留空。"
+                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI示例：http://<base_url>/v1/chat/completions；VertexAI官方示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
             },
             "model": {
                 "description": "模型",
@@ -141,6 +143,7 @@
                 "options": [
                     "Gemini",
                     "OpenAI_Chat",
+                    "Vertex_AI",
                     "Vertex_AI_Anonymous"
                 ],
                 "default": "Gemini",
@@ -156,7 +159,7 @@
                 "description": "api_url",
                 "type": "string",
                 "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI示例：http://<base_url>/v1/chat/completions；VertexAI逆向可留空。"
+                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI示例：http://<base_url>/v1/chat/completions；VertexAI官方示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
             },
             "model": {
                 "description": "模型",
