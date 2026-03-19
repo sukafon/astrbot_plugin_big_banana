@@ -269,6 +269,7 @@ class BigBanana(Star):
             yield event.plain_result(f"⚠️ {target_id} 已在名单列表中。")
             return
 
+        self.conf.save_config()
         yield event.plain_result(f"✅ 已添加{msg_type}白名单：{target_id}")
 
     @filter.command("lm白名单删除", alias={"lmdwl"})
