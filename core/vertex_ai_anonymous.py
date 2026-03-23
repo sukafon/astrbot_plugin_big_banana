@@ -64,7 +64,7 @@ class VertexAIAnonymousProvider(BaseProvider):
             if i == self.vertex_ai_anonymous_config.max_retry - 1:
                 return None, err_msg or "图片生成失败：重试达到上限。"
             # 8:资源耗尽；3:Token失效/参数错误
-            if status == 3 or status == 8:  # 资源耗尽也刷新token，请求成功率会更高一些
+            if status == 3:
                 if status == 3 and err_msg and "Failed to verify action" in err_msg and captcha_try_count < 1:
                     captcha_try_count += 1
                     continue

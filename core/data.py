@@ -19,6 +19,7 @@ SUPPORTED_FILE_FORMATS = (
     "gif",
     "heic",
     "heif",
+    "mpo",
 )
 SUPPORTED_FILE_FORMATS_WITH_DOT = (
     ".png",
@@ -29,6 +30,7 @@ SUPPORTED_FILE_FORMATS_WITH_DOT = (
     ".gif",
     ".heic",
     ".heif",
+    ".mpo",
 )
 
 

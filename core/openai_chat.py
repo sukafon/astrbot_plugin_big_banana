@@ -46,35 +46,29 @@ class OpenAIChatProvider(BaseProvider):
             if response.status_code == 200:
                 b64_images = []
                 images_url = []
+                finish_reason = None
                 for item in result.get("choices", []):
-                    # 检查 finish_reason 状态
-                    finish_reason = item.get("finish_reason", "")
-                    if finish_reason == "stop":
-                        content = item.get("message", {}).get("content", "")
-                        match = re.search(r"!\[.*?\]\((.*?)\)", content)
-                        if match:
-                            img_src = match.group(1)
-                            if img_src.startswith("data:image/"):  # base64
-                                header, base64_data = img_src.split(",", 1)
-                                mime = header.split(";")[0].replace("data:", "")
-                                b64_images.append((mime, base64_data))
-                            else:  # URL
-                                images_url.append(img_src)
-                    else:
-                        logger.warning(
-                            f"[BIG BANANA] 图片生成失败, 响应内容: {response.text[:1024]}"
-                        )
-                        return None, 200, f"图片生成失败: {finish_reason}"
+                    content = item.get("message", {}).get("content", "")
+                    match = re.search(r"!\[.*?\]\((.*?)\)", content)
+                    finish_reason = item.get("finish_reason", "")[:100]
+                    if match:
+                        img_src = match.group(1)
+                        if img_src.startswith("data:image/"):  # base64
+                            header, base64_data = img_src.split(",", 1)
+                            mime = header.split(";")[0].replace("data:", "")
+                            b64_images.append((mime, base64_data))
+                        else:  # URL
+                            images_url.append(img_src)
                 # 最后再检查是否有图片数据
                 if not images_url and not b64_images:
                     logger.warning(
                         f"[BIG BANANA] 请求成功，但未返回图片数据, 响应内容: {response.text[:1024]}"
                     )
-                    return None, 200, "响应中未包含图片数据"
+                    return None, 200, finish_reason or "响应中未包含图片数据"
                 # 下载图片并转换为 base64
                 b64_images += await self.downloader.fetch_images(images_url)
                 if not b64_images:
-                    return None, 200, "图片下载失败"
+                    return None, 200, "图片下载或者处理失败"
                 return b64_images, 200, None
             else:
                 logger.error(
@@ -168,7 +162,7 @@ class OpenAIChatProvider(BaseProvider):
                 # 下载图片并转换为 base64（有时会出现连接被重置的错误，不知道什么原因，国外服务器也一样）
                 b64_images += await self.downloader.fetch_images(images_url)
                 if not b64_images:
-                    return None, 200, "图片下载失败"
+                    return None, 200, "图片下载或者处理失败"
                 return b64_images, 200, None
             else:
                 logger.error(

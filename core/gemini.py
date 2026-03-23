@@ -46,20 +46,16 @@ class GeminiProvider(BaseProvider):
             result = response.json()
             if response.status_code == 200:
                 b64_images = []
+                finishReason = None
+                finishMessage = None
                 for item in result.get("candidates", []):
-                    # 检查 finishReason 状态
-                    finishReason = item.get("finishReason", "")
-                    if finishReason == "STOP":
-                        parts = item.get("content", {}).get("parts", [])
-                        for part in parts:
-                            if "inlineData" in part and "data" in part["inlineData"]:
-                                data = part["inlineData"]
-                                b64_images.append((data["mimeType"], data["data"]))
-                    else:
-                        logger.warning(
-                            f"[BIG BANANA] 图片生成失败, 响应内容: {response.text[:1024]}"
-                        )
-                        return None, 200, f"图片生成失败，原因: {finishReason}"
+                    parts = item.get("content", {}).get("parts", [])
+                    for part in parts:
+                        if "inlineData" in part and "data" in part["inlineData"]:
+                            data = part["inlineData"]
+                            b64_images.append((data["mimeType"], data["data"]))
+                    finishReason = item.get("finishReason", "")[:128]
+                    finishMessage = item.get("finishMessage", "")[:128]
                 # 最后再检查是否有图片数据
                 if not b64_images:
                     logger.warning(
@@ -71,7 +67,7 @@ class GeminiProvider(BaseProvider):
                             200,
                             f"请求被内容安全系统拦截，原因：{result.get('promptFeedback', {}).get('blockReason', '未获取到原因')}",
                         )
-                    return None, 200, "响应中未包含图片数据"
+                    return None, 200, finishMessage or finishReason or "响应中未包含图片数据"
                 return b64_images, 200, None
             else:
                 logger.error(
@@ -199,6 +195,9 @@ class GeminiProvider(BaseProvider):
                 }
             ],
             "generationConfig": {
+                "temperature": 1,
+                "topP": 0.95,
+                "maxOutputTokens": 32768,
                 "responseModalities": responseModalities,
             },
             "safetySettings": [

@@ -872,8 +872,8 @@ class BigBanana(Star):
 
             # 如果 min_required_images 为 0，列表为空是允许的
             if not image_b64_list and min_required_images > 0:
-                logger.error("全部参考图片下载失败")
-                return None, "全部参考图片下载失败"
+                logger.error("全部图片下载失败或者图片格式不支持")
+                return None, "全部图片下载失败或者图片格式不支持"
         elif append_count < 0:
             logger.warning(
                 f"参考图片数量超过最大允许数量 {max_allowed_images}，跳过下载图片步骤"
