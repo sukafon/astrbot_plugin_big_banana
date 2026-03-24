@@ -1,3 +1,4 @@
+import asyncio
 import base64
 from io import BytesIO
 
@@ -11,7 +12,7 @@ from PIL import Image
 
 from astrbot.api import logger
 
-from .data import SUPPORTED_FILE_FORMATS, CommonConfig
+from .data import CommonConfig
 
 
 class Downloader:
@@ -44,43 +45,21 @@ class Downloader:
         return image_b64_list
 
     @staticmethod
-    def _handle_image(image_bytes: bytes) -> tuple[str, str] | None:
-        if len(image_bytes) > 50 * 1024 * 1024:
-            logger.warning("[BIG BANANA] 图片超过 50MB，跳过处理")
-            return None
+    def _handle_image(image_bytes: bytes) -> tuple[str, str]:
+        """ 尝试把图片统一转换成 jpeg 格式, 返回 (mime, base64) """
         try:
             with Image.open(BytesIO(image_bytes)) as img:
-                fmt = (img.format or "").lower()
-                if fmt not in SUPPORTED_FILE_FORMATS:
-                    logger.warning(f"[BIG BANANA] 不支持的图片格式: {fmt}")
-                    return None
-                if fmt == "gif":
-                    # 处理 GIF
-                    buf = BytesIO()
-                    # 取第一帧
+                if getattr(img, "is_animated", False):
                     img.seek(0)
-                    img = img.convert("RGBA")
-                    img.save(buf, format="PNG")
-                    b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-                    return ("image/png", b64)
-                if fmt == "mpo":
-                    # 处理 MPO
-                    buf = BytesIO()
-                    # 取第一帧
-                    img.seek(0)
-                    img.save(buf, format="JPEG")
-                    b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-                    return ("image/jpeg", b64)
-                # 处理其他格式
-                if fmt == "jpg":
-                    mime = "image/jpeg"
-                else:
-                    mime = f"image/{fmt}"
-                b64 = base64.b64encode(image_bytes).decode("utf-8")
-                return (mime, b64)
+                img = img.convert("RGB")
+                buf = BytesIO()
+                img.save(buf, format="JPEG", quality=100)
+                b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+                return ("image/jpeg", b64)
         except Exception as e:
-            logger.warning(f"[BIG BANANA] GIF 处理失败: {e}")
-            return None
+            logger.warning(f"[BIG BANANA] 图片处理失败: {e}")
+            b64 = base64.b64encode(image_bytes).decode("utf-8")
+            return ("image/jpeg", b64)
 
     async def _download_image(self, url: str) -> tuple[tuple[str, str] | None, bool]:
         """ 下载图片并返回 (mime, base64) 和是否下载成功的标志"""
@@ -90,22 +69,28 @@ class Downloader:
                 proxy=self.def_common_config.proxy,
                 timeout=30,
             )
-            if response.status_code != 200 or not response.content:
+            if response.status_code != 200:
                 logger.warning(
                     f"[BIG BANANA] 图片下载失败，状态码: {response.status_code}"
                 )
                 return None, False
-            content = Downloader._handle_image(response.content)
+            if not response.content or len(response.content) > 50 * 1024 * 1024:
+                logger.warning("[BIG BANANA] 图片超过 50MB，跳过处理")
+                return None, True
+            content = await asyncio.to_thread(Downloader._handle_image, response.content)
             return content, True
         except (SSLError, CertificateVerifyError):
             # 关闭SSL验证
             response = await self.session.get(url, timeout=30, verify=False)
-            if response.status_code != 200 or not response.content:
+            if response.status_code != 200:
                 logger.warning(
                     f"[BIG BANANA] 图片下载失败，状态码: {response.status_code}"
                 )
                 return None, False
-            content = Downloader._handle_image(response.content)
+            if not response.content or len(response.content) > 50 * 1024 * 1024:
+                logger.warning("[BIG BANANA] 图片超过 50MB，跳过处理")
+                return None, True
+            content = await asyncio.to_thread(Downloader._handle_image, response.content)
             return content, True
         except Timeout as e:
             logger.error(f"[BIG BANANA] 网络请求超时: {url}，错误信息：{e}")

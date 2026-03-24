@@ -1,5 +1,6 @@
 import base64
 import mimetypes
+import random
 from datetime import datetime
 from pathlib import Path
 
@@ -64,8 +65,4 @@ def clear_cache(temp_dir: Path):
 
 
 def random_string(length: int) -> str:
-    import random
-    import string
-
-    letters = string.ascii_letters + string.digits
-    return "".join(random.choice(letters) for _ in range(length))
+    return "".join(random.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(length))
