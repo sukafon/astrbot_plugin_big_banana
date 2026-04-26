@@ -34,6 +34,7 @@
                 "options": [
                     "Gemini",
                     "OpenAI_Chat",
+                    "OpenAI_Images",
                     "Vertex_AI_Anonymous"
                 ],
                 "default": "Vertex_AI_Anonymous"
@@ -42,19 +43,19 @@
                 "description": "API密钥",
                 "type": "list",
                 "default": [],
-                "hint": "API Key列表。对于 OpenAI 规范，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。"
+                "hint": "API Key列表。对于 OpenAI_Images 和 OpenAI_Chat，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。"
             },
             "api_url": {
                 "description": "api_url",
                 "type": "string",
                 "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
+                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI_Images 官方示例：https://api.openai.com/v1/images；OpenAI_Chat 兼容层示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
             },
             "model": {
                 "description": "模型",
                 "type": "string",
                 "default": "gemini-3-pro-image-preview",
-                "hint": "默认值 gemini-3-pro-image-preview"
+                "hint": "默认值 gemini-3-pro-image-preview。OpenAI_Images 推荐填写 gpt-image-2。"
             },
             "stream": {
                 "description": "流式",
@@ -88,13 +89,14 @@
                 "options": [
                     "Gemini",
                     "OpenAI_Chat",
+                    "OpenAI_Images",
                     "Vertex_AI_Anonymous"
                 ],
                 "default": "Gemini"
             },
             "keys": {
                 "description": "API密钥",
-                "hint": "API Key列表。对于 OpenAI 规范，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
+                "hint": "API Key列表。对于 OpenAI_Images 和 OpenAI_Chat，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
                 "type": "list",
                 "default": []
             },
@@ -102,13 +104,13 @@
                 "description": "api_url",
                 "type": "string",
                 "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
+                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI_Images 官方示例：https://api.openai.com/v1/images；OpenAI_Chat 兼容层示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
             },
             "model": {
                 "description": "模型",
                 "type": "string",
                 "default": "gemini-3-pro-image-preview",
-                "hint": "默认值 gemini-3-pro-image-preview"
+                "hint": "默认值 gemini-3-pro-image-preview。OpenAI_Images 推荐填写 gpt-image-2。"
             },
             "stream": {
                 "description": "流式",
@@ -141,6 +143,7 @@
                 "options": [
                     "Gemini",
                     "OpenAI_Chat",
+                    "OpenAI_Images",
                     "Vertex_AI_Anonymous"
                 ],
                 "default": "Gemini",
@@ -148,7 +151,7 @@
             },
             "keys": {
                 "description": "API密钥",
-                "hint": "API Key列表。对于 OpenAI 规范，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
+                "hint": "API Key列表。对于 OpenAI_Images 和 OpenAI_Chat，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
                 "type": "list",
                 "default": []
             },
@@ -156,13 +159,13 @@
                 "description": "api_url",
                 "type": "string",
                 "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
+                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI_Images 官方示例：https://api.openai.com/v1/images；OpenAI_Chat 兼容层示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
             },
             "model": {
                 "description": "模型",
                 "type": "string",
                 "default": "gemini-3-pro-image-preview",
-                "hint": "默认值 gemini-3-pro-image-preview"
+                "hint": "默认值 gemini-3-pro-image-preview。OpenAI_Images 推荐填写 gpt-image-2。"
             },
             "stream": {
                 "description": "流式",

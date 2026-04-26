@@ -2,12 +2,13 @@ from dataclasses import dataclass
 from typing import Literal
 
 # 常数
-DEF_OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+DEF_OPENAI_CHAT_API_URL = "https://api.openai.com/v1/chat/completions"
+DEF_OPENAI_IMAGES_API_URL = "https://api.openai.com/v1/images"
 DEF_GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 DEF_VERTEX_AI_ANONYMOUS_BASE_API = "https://cloudconsole-pa.clients6.google.com"
 
 # 类型枚举
-_API_Type = Literal["Gemini", "OpenAI_Chat", "Vertex_AI_Anonymous"]
+_API_Type = Literal["Gemini", "OpenAI_Chat", "OpenAI_Images", "Vertex_AI_Anonymous"]
 
 # 支持的文件格式
 SUPPORTED_FILE_FORMATS = (
