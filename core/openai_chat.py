@@ -10,7 +10,7 @@ from .data import ProviderConfig
 
 
 class OpenAIChatProvider(BaseProvider):
-    """OpenAI Chat 提供商"""
+    """兼容 OpenAI-like Chat 图片返回服务的提供商"""
 
     api_type: str = "OpenAI_Chat"
 
