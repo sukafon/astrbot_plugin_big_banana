@@ -64,9 +64,6 @@ class OpenAIImagesProvider(BaseProvider):
                 self._extract_error_message(result)
                 or f"图片生成失败: 状态码 {response.status_code}",
             )
-        except ValueError as e:
-            logger.error(f"[BIG BANANA] OpenAI Images 输入图片处理失败: {e}")
-            return None, None, str(e)
         except Timeout as e:
             logger.error(f"[BIG BANANA] OpenAI Images 网络请求超时: {e}")
             return None, 408, "图片生成失败：响应超时"
