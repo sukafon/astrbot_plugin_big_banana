@@ -1,5 +1,6 @@
 import base64
 import json
+import math
 from io import BytesIO
 
 from curl_cffi import CurlMime
@@ -17,6 +18,79 @@ class OpenAIImagesProvider(BaseProvider):
 
     api_type: str = "OpenAI_Images"
 
+    @staticmethod
+    def _determine_size(params: dict, image_b64_list: list[tuple[str, str]]) -> str:
+        if "size" in params:
+            return params["size"]
+
+        prompt = params.get("prompt", "")
+        if "横屏" in prompt:
+            return "1536x1024"
+        if "竖屏" in prompt or "手机" in prompt:
+            return "1024x1536"
+
+        if image_b64_list:
+            mime, b64_data = image_b64_list[0]
+            raw_bytes = base64.b64decode(b64_data)
+            try:
+                with Image.open(BytesIO(raw_bytes)) as img:
+                    w, h = img.size
+
+                if w > 3 * h:
+                    w = 3 * h
+                elif h > 3 * w:
+                    h = 3 * w
+
+                max_area = 8294400
+                min_area = 655360
+                max_edge = 3840
+
+                scale = 1.0
+                if w * h > max_area:
+                    scale = math.sqrt(max_area / (w * h))
+                elif w * h < min_area:
+                    scale = math.sqrt(min_area / (w * h))
+
+                w = int(w * scale)
+                h = int(h * scale)
+
+                if w > max_edge:
+                    scale = max_edge / w
+                    w = max_edge
+                    h = int(h * scale)
+                if h > max_edge:
+                    scale = max_edge / h
+                    h = max_edge
+                    w = int(w * scale)
+
+                w = max(16, round(w / 16) * 16)
+                h = max(16, round(h / 16) * 16)
+
+                if w > 3 * h:
+                    w = 3 * h
+                    w = max(16, round(w / 16) * 16)
+                elif h > 3 * w:
+                    h = 3 * w
+                    h = max(16, round(h / 16) * 16)
+
+                while w * h > max_area or max(w, h) > max_edge:
+                    if w > h:
+                        w -= 16
+                    else:
+                        h -= 16
+
+                while w * h < min_area:
+                    if w < h:
+                        w += 16
+                    else:
+                        h += 16
+
+                return f"{w}x{h}"
+            except Exception as e:
+                logger.warning(f"[BIG BANANA] 获取参考图分辨率失败: {e}，将使用默认尺寸 auto")
+
+        return "auto"
+
     async def _call_api(
         self,
         provider_config: ProviderConfig,
@@ -25,6 +99,7 @@ class OpenAIImagesProvider(BaseProvider):
         params: dict,
     ) -> tuple[list[tuple[str, str]] | None, int | None, str | None]:
         headers = {"Authorization": f"Bearer {api_key}"}
+        size = self._determine_size(params, image_b64_list)
         try:
             if image_b64_list:
                 response = await self._post_image_edits(
@@ -32,6 +107,7 @@ class OpenAIImagesProvider(BaseProvider):
                     headers=headers,
                     image_b64_list=image_b64_list,
                     params=params,
+                    size=size,
                 )
             else:
                 response = await self.session.post(
@@ -40,6 +116,8 @@ class OpenAIImagesProvider(BaseProvider):
                     json={
                         "model": provider_config.model,
                         "prompt": params.get("prompt", "anything"),
+                        "n": params.get("n", 1),
+                        "size": size,
                     },
                     timeout=self.def_common_config.timeout,
                     proxy=self.def_common_config.proxy,
@@ -99,6 +177,7 @@ class OpenAIImagesProvider(BaseProvider):
         headers: dict,
         image_b64_list: list[tuple[str, str]],
         params: dict,
+        size: str,
     ):
         logger.info(
             f"[BIG BANANA] OpenAI Images 正在请求 /images/edits，上传参考图 {len(image_b64_list)} 张"
@@ -106,6 +185,8 @@ class OpenAIImagesProvider(BaseProvider):
         data = {
             "model": provider_config.model,
             "prompt": params.get("prompt", "anything"),
+            "n": params.get("n", 1),
+            "size": size,
         }
         multipart = CurlMime()
         for index, (mime, b64_data) in enumerate(image_b64_list, start=1):

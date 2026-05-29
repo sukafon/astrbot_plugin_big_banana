@@ -33,6 +33,8 @@ PARAMS_LIST = [
     "preset_append",
     "gather_mode",
     "providers",
+    "n",
+    "size"
 ]
 
 # 提供商配置键列表
