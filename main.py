@@ -950,16 +950,21 @@ class BigBanana(Star):
                             self.context.provider_manager, "inst_map", {}
                         )
                         for k, inst in inst_map.items():
-                            if k.lower() == p_id.lower():
+                            k_lower = k.lower()
+                            p_id_lower = p_id.lower()
+                            if k_lower == p_id_lower or k_lower.startswith(
+                                p_id_lower + "/"
+                            ):
                                 native_prov = inst
                                 break
                             meta = getattr(inst, "meta", None)
                             if meta and callable(meta):
                                 try:
                                     m = meta()
-                                    if (
-                                        m
-                                        and getattr(m, "id", "").lower() == p_id.lower()
+                                    m_id = getattr(m, "id", "").lower()
+                                    if m and (
+                                        m_id == p_id_lower
+                                        or m_id.startswith(p_id_lower + "/")
                                     ):
                                         native_prov = inst
                                         break
@@ -967,10 +972,14 @@ class BigBanana(Star):
                                     pass
                             prov_config = getattr(inst, "provider_config", {})
                             if prov_config:
-                                if prov_config.get("id", "").lower() == p_id.lower():
-                                    native_prov = inst
-                                    break
-                                if prov_config.get("name", "").lower() == p_id.lower():
+                                conf_id = prov_config.get("id", "").lower()
+                                conf_name = prov_config.get("name", "").lower()
+                                if (
+                                    conf_id == p_id_lower
+                                    or conf_id.startswith(p_id_lower + "/")
+                                    or conf_name == p_id_lower
+                                    or conf_name.startswith(p_id_lower + "/")
+                                ):
                                     native_prov = inst
                                     break
                 except Exception as e:

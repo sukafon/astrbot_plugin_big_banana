@@ -42,7 +42,7 @@ class AgnesImagesProvider(BaseProvider):
             )
             result = response.json()
             if response.status_code == 200:
-                images_result, err = await self._parse_images_response(result)
+                images_result, err = await self._parse_images_response(result, params)
                 if images_result:
                     return images_result, 200, None
                 logger.warning(
@@ -123,6 +123,7 @@ class AgnesImagesProvider(BaseProvider):
     async def _parse_images_response(
         self,
         result: dict,
+        params: dict,
     ) -> tuple[list[tuple[str, str]] | None, str | None]:
         image_result: list[tuple[str, str]] = []
         image_urls: list[str] = []
@@ -137,8 +138,8 @@ class AgnesImagesProvider(BaseProvider):
             if isinstance(image_url, str) and image_url:
                 image_urls.append(image_url)
         self.last_result_urls = list(image_urls)
-        if image_urls and not image_result:
-            return image_result, None
+        if params.get("url", False):
+            return [], None
         if image_urls:
             image_result.extend(await self._fetch_images_from_urls(image_urls))
         if image_result:
