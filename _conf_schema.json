@@ -178,6 +178,118 @@
             }
         }
     },
+    "back_provider3": {
+        "description": "备用提供商3",
+        "type": "object",
+        "hint": "",
+        "items": {
+            "enabled": {
+                "description": "启用接口",
+                "type": "bool",
+                "default": false,
+                "hint": "这个选项本质上是控制--providers默认参数，可以在提示词中指定加以覆盖"
+            },
+            "api_name": {
+                "description": "提供商名称",
+                "type": "string",
+                "default": "备用提供商3",
+                "hint": "用于信息回显时识别具体的提供商，以及在参数中指定提供商。"
+            },
+            "api_type": {
+                "description": "接口规范类型",
+                "type": "string",
+                "options": [
+                    "Gemini",
+                    "OpenAI_Chat",
+                    "OpenAI_Images",
+                    "Agnes_Images",
+                    "Vertex_AI_Anonymous"
+                ],
+                "default": "Gemini",
+                "hint": "这个API接口使用的规范类型。"
+            },
+            "keys": {
+                "description": "API密钥",
+                "hint": "API Key列表。对于 OpenAI_Images 和 OpenAI_Chat，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
+                "type": "list",
+                "default": []
+            },
+            "api_url": {
+                "description": "api_url",
+                "type": "string",
+                "default": "https://generativelanguage.googleapis.com/v1beta/models",
+                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI_Images 官方示例：https://api.openai.com/v1/images；Agnes_Images 示例：https://apihub.agnes-ai.com/v1/images；OpenAI_Chat 兼容层示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
+            },
+            "model": {
+                "description": "模型",
+                "type": "string",
+                "default": "gemini-3-pro-image-preview",
+                "hint": "默认值 gemini-3-pro-image-preview。OpenAI_Images 推荐填写 gpt-image-2。Agnes_Images 推荐填写 agnes-image-2.1-flash。"
+            },
+            "stream": {
+                "description": "流式",
+                "type": "bool",
+                "default": false,
+                "hint": "需提供商支持"
+            }
+        }
+    },
+    "back_provider4": {
+        "description": "备用提供商4",
+        "type": "object",
+        "hint": "",
+        "items": {
+            "enabled": {
+                "description": "启用接口",
+                "type": "bool",
+                "default": false,
+                "hint": "这个选项本质上是控制--providers默认参数，可以在提示词中指定加以覆盖"
+            },
+            "api_name": {
+                "description": "提供商名称",
+                "type": "string",
+                "default": "备用提供商4",
+                "hint": "用于信息回显时识别具体的提供商，以及在参数中指定提供商。"
+            },
+            "api_type": {
+                "description": "接口规范类型",
+                "type": "string",
+                "options": [
+                    "Gemini",
+                    "OpenAI_Chat",
+                    "OpenAI_Images",
+                    "Agnes_Images",
+                    "Vertex_AI_Anonymous"
+                ],
+                "default": "Gemini",
+                "hint": "这个API接口使用的规范类型。"
+            },
+            "keys": {
+                "description": "API密钥",
+                "hint": "API Key列表。对于 OpenAI_Images 和 OpenAI_Chat，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
+                "type": "list",
+                "default": []
+            },
+            "api_url": {
+                "description": "api_url",
+                "type": "string",
+                "default": "https://generativelanguage.googleapis.com/v1beta/models",
+                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI_Images 官方示例：https://api.openai.com/v1/images；Agnes_Images 示例：https://apihub.agnes-ai.com/v1/images；OpenAI_Chat 兼容层示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
+            },
+            "model": {
+                "description": "模型",
+                "type": "string",
+                "default": "gemini-3-pro-image-preview",
+                "hint": "默认值 gemini-3-pro-image-preview。OpenAI_Images 推荐填写 gpt-image-2。Agnes_Images 推荐填写 agnes-image-2.1-flash。"
+            },
+            "stream": {
+                "description": "流式",
+                "type": "bool",
+                "default": false,
+                "hint": "需提供商支持"
+            }
+        }
+    },
     "prompt_config": {
         "description": "提示词默认参数",
         "type": "object",

@@ -126,6 +126,9 @@ class AgnesImagesProvider(BaseProvider):
             image_url = item.get("url")
             if isinstance(image_url, str) and image_url:
                 image_urls.append(image_url)
+        self.last_result_urls = list(image_urls)
+        if image_urls and not image_result:
+            return image_result, None
         if image_urls:
             image_result.extend(await self._fetch_images_from_urls(image_urls))
         if image_result:

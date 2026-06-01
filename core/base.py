@@ -25,6 +25,7 @@ class BaseProvider(ABC):
     def_common_config: CommonConfig
     def_prompt_config: PromptConfig
     downloader: Downloader
+    last_result_urls: list[str]
 
     # 可重试状态码
     RETRY_STATUS_CODES = frozenset({408, 500, 502, 503, 504})
@@ -44,6 +45,7 @@ class BaseProvider(ABC):
         self.def_common_config = common_config
         self.session = session
         self.downloader = downloader
+        self.last_result_urls = []
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -70,6 +72,7 @@ class BaseProvider(ABC):
         if key_list_len == 0:
             return None, "图片生成失败：未配置 API Key"
         current_index = random.randrange(key_list_len)
+        self.last_result_urls = []
         # 轮询使用 API Key
         err = None
         for key_ in range(key_list_len):
@@ -91,7 +94,7 @@ class BaseProvider(ABC):
                         params=params,
                         image_b64_list=image_b64_list,
                     )
-                if images_result:
+                if images_result is not None and not err:
                     return images_result, None
                 if self.def_common_config.smart_retry and not self.should_retry(status):
                     break
