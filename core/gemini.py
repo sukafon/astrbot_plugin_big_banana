@@ -67,7 +67,11 @@ class GeminiProvider(BaseProvider):
                             200,
                             f"请求被内容安全系统拦截，原因：{result.get('promptFeedback', {}).get('blockReason', '未获取到原因')}",
                         )
-                    return None, 200, finishMessage or finishReason or "响应中未包含图片数据"
+                    return (
+                        None,
+                        200,
+                        finishMessage or finishReason or "响应中未包含图片数据",
+                    )
                 return b64_images, 200, None
             else:
                 logger.error(
@@ -155,7 +159,11 @@ class GeminiProvider(BaseProvider):
                 logger.error(
                     f"[BIG BANANA] 图片生成失败，状态码: {response.status_code}, 响应内容: {result[:1024]}"
                 )
-                return None, response.status_code, f"图片生成失败：状态码 {response.status_code}"
+                return (
+                    None,
+                    response.status_code,
+                    f"图片生成失败：状态码 {response.status_code}",
+                )
         except Timeout as e:
             logger.error(f"[BIG BANANA] 网络请求超时: {e}")
             return None, 408, "图片生成失败：响应超时"

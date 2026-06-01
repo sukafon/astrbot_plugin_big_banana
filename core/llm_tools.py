@@ -240,7 +240,8 @@ class BigBananaTool(FunctionTool[AstrAgentContext]):
         task_id = event.message_obj.message_id
         plugin.running_tasks[task_id] = task
         try:
-            results, err_msg, result_urls = await task
+            results, err_msg = await task
+            result_urls = getattr(task, "result_urls", None)
             if err_msg:
                 return err_msg or "图片生成失败，未返回任何结果。"
 

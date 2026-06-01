@@ -38,13 +38,27 @@ PARAMS_LIST = [
     "url",
 ]
 
-# 提供商配置键列表
-provider_list = ["main_provider", "back_provider", "back_provider2", "back_provider3", "back_provider4"]
-
 # 部分平台对单张图片大小有限制，超过限制需要作为文件发送
 MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 # 预计算 Base64 长度阈值 (向下取整)，base64编码约为原始数据的4/3倍
 MAX_SIZE_B64_LEN = int(MAX_SIZE_BYTES * 4 / 3)
+
+
+def get_images_url_from_api_base(api_base: str) -> str:
+    if not api_base:
+        return "https://api.openai.com/v1/images"
+    # Remove trailing slash
+    url = api_base.rstrip("/")
+    # Remove /chat/completions or /chat
+    if url.endswith("/chat/completions"):
+        url = url[:-17]
+    elif url.endswith("/chat"):
+        url = url[:-5]
+    url = url.rstrip("/")
+    # If it doesn't end with /images, append it
+    if not url.endswith("/images"):
+        url = f"{url}/images"
+    return url
 
 
 class BigBanana(Star):
@@ -113,45 +127,10 @@ class BigBanana(Star):
 
     def init_providers(self):
         """解析提供商配置"""
-        # 默认启用的提供商
-        self.def_enabled_providers: list[str] = []
         # 提供商配置列表
         self.providers_config: dict[str, ProviderConfig] = {}
         # 提供商实例映射
         self.provider_map: dict[str, BaseProvider] = {}
-        # 注册提供商+实例化提供商类
-        for item in provider_list:
-            provider = self.conf.get(item, {})
-            api_type = provider["api_type"]
-            provider_cls = BaseProvider.get_provider_class(api_type)
-            if provider_cls is None:
-                logger.warning(
-                    f"未找到提供商类型对应的提供商类：{api_type}，跳过该提供商配置"
-                )
-                continue
-            # 添加到提供商配置列表
-            self.providers_config[provider["api_name"]] = ProviderConfig(**provider)
-            # 实例化提供商类
-            self.provider_map[api_type] = provider_cls(
-                config=self.conf,
-                common_config=self.common_config,
-                prompt_config=self.prompt_config,
-                session=self.http_manager._get_curl_session(),
-                downloader=self.downloader,
-            )
-            # 将启用的提供商加入默认提供商列表中
-            if provider.get("enabled", False):
-                api_name = provider.get("api_name", "")
-                if not api_name:
-                    logger.warning(f"提供商类型 {api_type} 未设置提供商名称，无法启用")
-                    continue
-                if api_name in self.def_enabled_providers:
-                    logger.warning(
-                        f"提供商名称 {api_name} 已存在于启用列表中，跳过重复添加"
-                    )
-                    continue
-                self.def_enabled_providers.append(api_name)
-                logger.info(f"已启用提供商：{api_name}")
 
     def init_prompts(self):
         """初始化提示词配置"""
@@ -165,7 +144,9 @@ class BigBanana(Star):
             if alias and param:
                 self.params_alias_map[alias] = param
             elif not alias or not param:
-                logger.warning(f"参数别名映射配置错误，未指定参数名称：{item}，跳过处理")
+                logger.warning(
+                    f"参数别名映射配置错误，未指定参数名称：{item}，跳过处理"
+                )
         # 解析预设提示词
         for item in self.prompt_list:
             cmd_list, params = self.parsing_prompt_params(item)
@@ -728,7 +709,8 @@ class BigBanana(Star):
         self.running_tasks[task_id] = task
 
         try:
-            results, err_msg, result_urls = await task
+            results, err_msg = await task
+            result_urls = getattr(task, "result_urls", None)
             if err_msg:
                 yield event.chain_result(
                     [
@@ -763,8 +745,8 @@ class BigBanana(Star):
         image_urls: list[str] | None = None,
         referer_id: list[str] | None = None,
         is_llm_tool: bool = False,
-    ) -> tuple[list[tuple[str, str]] | None, str | None, list[str] | None]:
-        """负责参数处理、调度提供商、保存图片等逻辑，返回图片、错误信息和可选URL"""
+    ) -> tuple[list[tuple[str, str]] | None, str | None]:
+        """负责参数处理、调度提供商、保存图片等逻辑，返回图片和错误信息（通过 task.result_urls 传递 URL）"""
         # 收集图片URL，后面统一处理
         if image_urls is None:
             image_urls = []
@@ -864,7 +846,7 @@ class BigBanana(Star):
         if len(image_urls) + len(image_b64_list) < min_required_images:
             warn_msg = f"图片数量不足，最少需要 {min_required_images} 张图片，当前仅 {len(image_urls) + len(image_b64_list)} 张"
             logger.warning(warn_msg)
-            return None, warn_msg, None
+            return None, warn_msg
 
         # 检查图片数量是否超过最大允许数量，不超过则可从url中下载图片
         append_count = max_allowed_images - len(image_b64_list)
@@ -881,7 +863,7 @@ class BigBanana(Star):
             # 如果 min_required_images 为 0，列表为空是允许的
             if not image_b64_list and min_required_images > 0:
                 logger.error("全部图片下载失败或者图片格式不支持")
-                return None, "全部图片下载失败或者图片格式不支持", None
+                return None, "全部图片下载失败或者图片格式不支持"
         elif append_count < 0:
             logger.warning(
                 f"参考图片数量超过最大允许数量 {max_allowed_images}，跳过下载图片步骤"
@@ -892,13 +874,21 @@ class BigBanana(Star):
 
         # 调度提供商生成图片
         images_result, err, result_urls = await self._dispatch(
-            params=params, image_b64_list=image_b64_list
+            event=event, params=params, image_b64_list=image_b64_list
         )
+
+        # 将 result_urls 挂载到当前 task 对象上，实现向前/向后兼容的多返回值传递
+        try:
+            current_task = asyncio.current_task()
+            if current_task:
+                current_task.result_urls = result_urls
+        except Exception:
+            pass
 
         if params.get("url", False):
             if result_urls:
-                return [], None, result_urls
-            return None, "当前提供商未返回可用的图片URL", None
+                return [], None
+            return None, "当前提供商未返回可用的图片URL"
 
         # 再次检查图片结果是否为空
         valid_results = [(mime, b64) for mime, b64 in (images_result or []) if b64]
@@ -907,62 +897,190 @@ class BigBanana(Star):
             if not err:
                 err = "图片生成失败：响应中未包含图片数据"
                 logger.error(err)
-            return None, err, result_urls
+            return None, err
 
         # 保存图片到本地
         if self.save_images:
             save_images(valid_results, self.save_dir)
 
-        return valid_results, None, result_urls
+        return valid_results, None
 
     async def _dispatch(
         self,
+        event: AstrMessageEvent,
         params: dict,
         image_b64_list: list[tuple[str, str]] | None = None,
     ) -> tuple[list[tuple[str, str]] | None, str | None, list[str] | None]:
         """提供商调度器"""
-        err = None
+        last_err = None
 
-        # 处理需要启用的提供商列表参数
-        active_providers = params.get("providers", self.def_enabled_providers)
-        if isinstance(active_providers, str):
-            active_providers = active_providers.split(",")
+        # 1. 获取要尝试的提供商 ID 列表：优先取命令参数中指定的 provider，否则使用配置中的 provider，最后使用当前对话的 provider
+        provider_param = params.get("providers")
+        provider_ids = []
+        if provider_param:
+            if isinstance(provider_param, list):
+                provider_ids = [str(p).strip() for p in provider_param if p]
+            elif isinstance(provider_param, str):
+                provider_ids = [
+                    p.strip() for p in provider_param.split(",") if p.strip()
+                ]
+        else:
+            conf_providers = self.conf.get("image_generation_providers", [])
+            if isinstance(conf_providers, list):
+                provider_ids = [str(p).strip() for p in conf_providers if p]
+            elif isinstance(conf_providers, str):
+                provider_ids = [
+                    p.strip() for p in conf_providers.split(",") if p.strip()
+                ]
 
-        # 调度提供商
-        for i, api_name in enumerate(active_providers):
-            # 获取提供商配置
-            provider_config = self.providers_config.get(api_name)
-            if not provider_config:
-                logger.warning(f"未找到提供商配置：{api_name}，跳过该提供商")
+        if not provider_ids:
+            provider_ids = [None]
+
+        # 2. 按顺序遍历提供商列表尝试生成
+        for p_id in provider_ids:
+            native_prov = None
+            if p_id is not None:
+                try:
+                    native_prov = (
+                        await self.context.provider_manager.get_provider_by_id(p_id)
+                    )
+                except Exception as e:
+                    logger.warning(f"[BIG BANANA] 获取原生提供商 {p_id} 失败: {e}")
+            else:
+                umo = event.unified_msg_origin if event else None
+                try:
+                    native_prov = self.context.get_using_provider(umo)
+                except Exception as e:
+                    logger.warning(
+                        f"[BIG BANANA] 获取当前会话正在使用的提供商失败: {e}"
+                    )
+
+            if not native_prov:
+                last_err = f"未找到可用的提供商实例 (ID: {p_id})"
+                logger.warning(f"[BIG BANANA] {last_err}")
                 continue
-            # 获取提供商实例，并调用生成方法
-            images_result, err = await self.provider_map[
-                provider_config.api_type
-            ].generate_images(
-                provider_config=provider_config,
-                params=params,
-                image_b64_list=image_b64_list,
+
+            # 3. 动态解析并构造 ProviderConfig
+            native_type = native_prov.meta().type.lower()
+            native_keys = native_prov.get_keys()
+
+            model_name = (
+                params.get("model")
+                or native_prov.get_model()
+                or native_prov.provider_config.get("model", "")
             )
-            provider_result_urls = list(
-                self.provider_map[provider_config.api_type].last_result_urls
+            if not model_name:
+                if "gemini" in native_type or "google" in native_type:
+                    model_name = "gemini-3-pro-image-preview"
+                else:
+                    model_name = "dall-e-3"
+
+            stream_val = self.conf.get("stream", False)
+
+            api_type = "OpenAI_Images"
+            api_url = ""
+
+            api_base_val = native_prov.provider_config.get("api_base", "") or ""
+            prov_id_val = native_prov.meta().id or ""
+            prov_name_val = native_prov.provider_config.get("name", "") or ""
+
+            is_agnes = (
+                "agnes" in native_type
+                or "agnes" in prov_id_val.lower()
+                or "agnes" in prov_name_val.lower()
+                or "agnes" in api_base_val.lower()
+                or (model_name and "agnes" in model_name.lower())
             )
-            if images_result is not None or provider_result_urls:
-                logger.info(f"{provider_config.api_name} 图片生成成功")
-                return (
-                    images_result,
-                    None,
-                    provider_result_urls,
+
+            if "gemini" in native_type or "google" in native_type:
+                api_type = "Gemini"
+                api_base = native_prov.provider_config.get("api_base")
+                if api_base:
+                    api_url = api_base.rstrip("/")
+                else:
+                    api_url = "https://generativelanguage.googleapis.com/v1beta/models"
+            elif is_agnes:
+                api_type = "Agnes_Images"
+                api_base = api_base_val
+                if api_base:
+                    api_url = api_base.rstrip("/")
+                    if api_url.endswith("/chat/completions"):
+                        api_url = api_url[:-17]
+                    elif api_url.endswith("/chat"):
+                        api_url = api_url[:-5]
+                    elif api_url.endswith("/images"):
+                        api_url = api_url[:-7]
+                    elif api_url.endswith("/generations"):
+                        api_url = api_url[:-12]
+                    api_url = api_url.rstrip("/")
+                else:
+                    api_url = ""
+            else:
+                api_type = "OpenAI_Images"
+                api_base = native_prov.provider_config.get("api_base", "")
+                api_url = get_images_url_from_api_base(api_base)
+
+            provider_config = ProviderConfig(
+                api_name=native_prov.meta().id,
+                enabled=True,
+                api_type=api_type,  # type: ignore
+                keys=native_keys,
+                api_url=api_url,
+                model=model_name,
+                stream=stream_val,
+            )
+
+            # 4. 动态加载/获取提供商实例
+            provider_inst = self.provider_map.get(api_type)
+            if provider_inst is None:
+                provider_cls = BaseProvider.get_provider_class(api_type)
+                if provider_cls is not None:
+                    provider_inst = provider_cls(
+                        config=self.conf,
+                        common_config=self.common_config,
+                        prompt_config=self.prompt_config,
+                        session=self.http_manager._get_curl_session(),
+                        downloader=self.downloader,
+                    )
+                    self.provider_map[api_type] = provider_inst
+                else:
+                    last_err = f"未找到提供商类型对应的提供商类：{api_type}"
+                    logger.error(f"[BIG BANANA] {last_err}")
+                    continue
+
+            # 5. 调用生成方法
+            try:
+                images_result, gen_err = await provider_inst.generate_images(
+                    provider_config=provider_config,
+                    params=params,
+                    image_b64_list=image_b64_list,
                 )
-            if i < len(active_providers) - 1:
-                logger.warning(
-                    f"{provider_config.api_name} 生成图片失败，尝试使用下一个提供商..."
+                provider_result_urls = list(
+                    getattr(provider_inst, "last_result_urls", [])
                 )
 
-        # 处理错误信息
-        if len(active_providers) == 0:
-            err = "当前无可用提供商，请检查插件配置。"
-            logger.error(err)
-        return None, err, None
+                if images_result is not None or provider_result_urls:
+                    logger.info(
+                        f"[BIG BANANA] 提供商 {provider_config.api_name} 图片生成成功"
+                    )
+                    return (
+                        images_result,
+                        None,
+                        provider_result_urls,
+                    )
+                else:
+                    last_err = gen_err or "图片生成失败：未知错误"
+                    logger.warning(
+                        f"[BIG BANANA] 提供商 {provider_config.api_name} 图片生成失败: {last_err}"
+                    )
+            except Exception as e:
+                last_err = f"生成图片异常: {e}"
+                logger.error(
+                    f"[BIG BANANA] 提供商 {provider_config.api_name} 运行出错: {e}",
+                    exc_info=True,
+                )
+
+        return None, last_err or "所有选定的提供商均生成图片失败", None
 
     def build_message_chain(
         self,

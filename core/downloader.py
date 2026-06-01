@@ -46,7 +46,7 @@ class Downloader:
 
     @staticmethod
     def _handle_image(image_bytes: bytes) -> tuple[str, str]:
-        """ 尝试把图片统一转换成 jpeg 格式, 返回 (mime, base64) """
+        """尝试把图片统一转换成 jpeg 格式, 返回 (mime, base64)"""
         try:
             with Image.open(BytesIO(image_bytes)) as img:
                 if getattr(img, "is_animated", False):
@@ -62,7 +62,7 @@ class Downloader:
             return ("image/jpeg", b64)
 
     async def _download_image(self, url: str) -> tuple[tuple[str, str] | None, bool]:
-        """ 下载图片并返回 (mime, base64) 和是否下载成功的标志"""
+        """下载图片并返回 (mime, base64) 和是否下载成功的标志"""
         try:
             response = await self.session.get(
                 url,
@@ -77,7 +77,9 @@ class Downloader:
             if not response.content or len(response.content) > 50 * 1024 * 1024:
                 logger.warning("[BIG BANANA] 图片超过 50MB，跳过处理")
                 return None, True
-            content = await asyncio.to_thread(Downloader._handle_image, response.content)
+            content = await asyncio.to_thread(
+                Downloader._handle_image, response.content
+            )
             return content, True
         except (SSLError, CertificateVerifyError):
             # 关闭SSL验证
@@ -90,7 +92,9 @@ class Downloader:
             if not response.content or len(response.content) > 50 * 1024 * 1024:
                 logger.warning("[BIG BANANA] 图片超过 50MB，跳过处理")
                 return None, True
-            content = await asyncio.to_thread(Downloader._handle_image, response.content)
+            content = await asyncio.to_thread(
+                Downloader._handle_image, response.content
+            )
             return content, True
         except Timeout as e:
             logger.error(f"[BIG BANANA] 网络请求超时: {url}，错误信息：{e}")

@@ -29,7 +29,9 @@ class AgnesImagesProvider(BaseProvider):
             "Content-Type": "application/json",
         }
         size = OpenAIImagesProvider._determine_size(params, image_b64_list)
-        payload = self._build_payload(provider_config.model, params, image_b64_list, size)
+        payload = self._build_payload(
+            provider_config.model, params, image_b64_list, size
+        )
         try:
             response = await self.session.post(
                 url=self._build_api_url(provider_config.api_url),
@@ -88,7 +90,15 @@ class AgnesImagesProvider(BaseProvider):
 
     @staticmethod
     def _build_api_url(api_url: str) -> str:
-        return f"{api_url.rstrip('/')}/generations"
+        if not api_url:
+            return "https://apihub.agnes-ai.com/v1/images/generations"
+        url = api_url.rstrip("/")
+        if url.endswith("/generations"):
+            url = url[:-12]
+        url = url.rstrip("/")
+        if not url.endswith("/images"):
+            url = f"{url}/images"
+        return f"{url}/generations"
 
     @staticmethod
     def _build_payload(

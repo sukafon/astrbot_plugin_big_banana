@@ -12,7 +12,9 @@ def get_key_index(current_index: int, item_len: int) -> int:
     return (current_index + 1) % item_len
 
 
-def save_images(image_result: list[tuple[str, str]], path_dir: Path) -> list[tuple[str, Path]]:
+def save_images(
+    image_result: list[tuple[str, str]], path_dir: Path
+) -> list[tuple[str, Path]]:
     """保存图片到本地文件系统，返回 元组(文件名, 文件路径) 列表"""
     # 假设它支持返回多张图片
     saved_paths: list[tuple[str, Path]] = []
@@ -65,4 +67,6 @@ def clear_cache(temp_dir: Path):
 
 
 def random_string(length: int) -> str:
-    return "".join(random.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(length))
+    return "".join(
+        random.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(length)
+    )
