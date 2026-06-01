@@ -1,3 +1,4 @@
+from .agnes_images import AgnesImagesProvider
 from .base import BaseProvider
 from .downloader import Downloader
 from .gemini import GeminiProvider
@@ -10,6 +11,7 @@ __all__ = [
     "HttpManager",
     "Downloader",
     "BaseProvider",
+    "AgnesImagesProvider",
     "GeminiProvider",
     "OpenAIChatProvider",
     "OpenAIImagesProvider",
