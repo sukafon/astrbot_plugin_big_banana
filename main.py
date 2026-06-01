@@ -944,6 +944,35 @@ class BigBanana(Star):
                     native_prov = (
                         await self.context.provider_manager.get_provider_by_id(p_id)
                     )
+                    if not native_prov:
+                        # Case-insensitive fallback check for ID/name in inst_map
+                        inst_map = getattr(
+                            self.context.provider_manager, "inst_map", {}
+                        )
+                        for k, inst in inst_map.items():
+                            if k.lower() == p_id.lower():
+                                native_prov = inst
+                                break
+                            meta = getattr(inst, "meta", None)
+                            if meta and callable(meta):
+                                try:
+                                    m = meta()
+                                    if (
+                                        m
+                                        and getattr(m, "id", "").lower() == p_id.lower()
+                                    ):
+                                        native_prov = inst
+                                        break
+                                except Exception:
+                                    pass
+                            prov_config = getattr(inst, "provider_config", {})
+                            if prov_config:
+                                if prov_config.get("id", "").lower() == p_id.lower():
+                                    native_prov = inst
+                                    break
+                                if prov_config.get("name", "").lower() == p_id.lower():
+                                    native_prov = inst
+                                    break
                 except Exception as e:
                     logger.warning(f"[BIG BANANA] 获取原生提供商 {p_id} 失败: {e}")
             else:
