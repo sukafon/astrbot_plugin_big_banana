@@ -81,6 +81,30 @@
 
 \*[7] 仅在提供商实际返回图片 URL 时生效，例如部分 OpenAI_Chat 兼容接口或 Agnes_Images。若提供商只返回图片数据而不返回 URL，则会提示当前提供商不支持仅返回 URL。
 
+## 图床配置
+
+如果你希望 `--url` 在 provider 只返回 `b64_json` 时也能工作，可以配置你自己的图床上传入口。当前内置适配了 Cloudflare Worker + R2 的简单 PUT 上传方式。
+
+仓库中已提供可直接部署的 Worker 示例文件：`js/cloudflare_worker_R2.js`
+
+推荐把 Worker 配置为：
+
+- `PUT /<文件路径>`：接收图片上传，校验 `X-Auth-Token`
+- `GET /<文件路径>`：公开返回图片内容
+
+插件侧需要配置：
+
+- `image_hosting.enabled`：是否启用图床上传
+- `image_hosting.upload_url`：上传入口基础地址
+- `image_hosting.public_base_url`：公开访问基础地址
+- `image_hosting.auth_token`：请求头 `X-Auth-Token` 对应的鉴权令牌
+- `image_hosting.path_prefix`：上传文件的路径前缀
+
+启用后，`--url` 的行为是：
+
+- provider 原生返回 URL：直接返回原始 URL
+- provider 只返回 base64：插件自动上传到图床，再返回图床 URL
+
 ## 默认预设提示词
 
 - `bnn` 图生图，至少 1 张图片，若消息中不包含图片且消息平台是 QQ 个人号，将自动取用户头像作为参考图。
