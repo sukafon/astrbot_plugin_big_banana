@@ -11,10 +11,11 @@ from astrbot.core.message.components import BaseMessageComponent
 from astrbot.core.message.message_event_result import MessageChain
 from astrbot.core.utils.session_waiter import SessionController, session_waiter
 
-from .core import BaseProvider, Downloader, HttpManager
+from .core import BaseProvider, Downloader, HttpManager, R2ImageHoster
 from .core.data import (
     SUPPORTED_FILE_FORMATS_WITH_DOT,
     CommonConfig,
+    ImageHostingConfig,
     PreferenceConfig,
     PromptConfig,
     ProviderConfig,
@@ -116,9 +117,14 @@ class BigBanana(Star):
         self.preference_config = PreferenceConfig(
             **self.conf.get("preference_config", {})
         )
+        self.image_hosting_config = ImageHostingConfig(
+            **self.conf.get("image_hosting", {})
+        )
         self.http_manager = HttpManager()
         curl_session = self.http_manager._get_curl_session()
+        aiohttp_session = self.http_manager._get_aiohttp_session()
         self.downloader = Downloader(curl_session, self.common_config)
+        self.image_hoster = R2ImageHoster(aiohttp_session, self.image_hosting_config)
 
         # 注册提供商类型实例
         self.init_providers()
@@ -955,21 +961,27 @@ class BigBanana(Star):
             event=event, params=params, image_b64_list=image_b64_list
         )
 
-        # 将 result_urls 挂载到当前 task 对象上，实现向前/向后兼容的多返回值传递
-        try:
-            current_task = asyncio.current_task()
-            if current_task:
-                current_task.result_urls = result_urls
-        except Exception:
-            pass
-
-        if params.get("url", False):
-            if result_urls:
-                return [], None
-            return None, "当前提供商未返回可用的图片URL"
-
         # 再次检查图片结果是否为空
         valid_results = [(mime, b64) for mime, b64 in (images_result or []) if b64]
+
+        # 确定最终的 result_urls
+        final_urls = result_urls
+        if params.get("url", False) and not final_urls and valid_results:
+            final_urls = await self._upload_results_for_url_mode(valid_results)
+
+        # 将 result_urls 挂载到当前 task 对象上，实现向前/向后兼容的多返回值传递
+        if final_urls:
+            try:
+                current_task = asyncio.current_task()
+                if current_task:
+                    current_task.result_urls = final_urls
+            except Exception:
+                pass
+
+        if params.get("url", False):
+            if final_urls:
+                return [], None
+            return None, "当前提供商未返回可用的图片URL"
 
         if not valid_results:
             if not err:
@@ -982,6 +994,18 @@ class BigBanana(Star):
             save_images(valid_results, self.save_dir)
 
         return valid_results, None
+
+    async def _upload_results_for_url_mode(
+        self, results: list[tuple[str, str]]
+    ) -> list[str] | None:
+        if not self.image_hoster.is_enabled():
+            logger.warning("[BIG BANANA] 未配置图床上传，无法将图片转换为URL返回")
+            return None
+        try:
+            return await self.image_hoster.upload_images(results)
+        except Exception as e:
+            logger.error(f"[BIG BANANA] 图床上传失败: {e}")
+            return None
 
     async def _dispatch(
         self,
