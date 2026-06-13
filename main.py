@@ -906,18 +906,22 @@ class BigBanana(Star):
                     if raw_tags:
                         import importlib
 
-                        config_mod = importlib.import_module(
-                            f"{meme_manager_module_name}.config"
-                        )
+                        # Get the package name by removing the module name suffix (e.g. '.main')
+                        if "." in meme_manager_module_name:
+                            package_name = meme_manager_module_name.rsplit(".", 1)[0]
+                        else:
+                            package_name = meme_manager_module_name
+
+                        config_mod = importlib.import_module(f"{package_name}.config")
                         MEMES_DIR = config_mod.MEMES_DIR
 
                         handler_mod = importlib.import_module(
-                            f"{meme_manager_module_name}.backend.core.emotion_handler"
+                            f"{package_name}.backend.core.emotion_handler"
                         )
                         get_direct_trigger_memes = handler_mod.get_direct_trigger_memes
 
                         helper_mod = importlib.import_module(
-                            f"{meme_manager_module_name}.backend.core.helpers"
+                            f"{package_name}.backend.core.helpers"
                         )
                         convert_to_gif = helper_mod.convert_to_gif
 
