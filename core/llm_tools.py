@@ -131,10 +131,9 @@ class BigBananaTool(FunctionTool[AstrAgentContext]):
 "in the user's current message or in the message they are replying to. Textual pointers"
 'such as "that one" "the one above" or similar expressions are not acceptable as valid'
 "image inputs. The user must provide an actual image file for the request to proceed."
-"In special cases, if the user says to use their avatar or mentions another user's avatar,"
-"there is no need to explicitly provide an image. The tool will automatically fetch"
-"the corresponding user avatar as a reference. But you must first ensure that the message"
-"has @-mentioned the target user, or that it is using the sender's own avatar."
+"In special cases, if the image needs to reference specific users' avatars (such as the sender's own avatar,"
+"the bot's own avatar, or another mentioned user's avatar), you can pass their IDs to the referer_id parameter."
+"The tool will download their avatars and use them as reference images."
 "Prioritize the tool response as the highest priority event,"
 "taking precedence over chat history.")  # 工具描述
     parameters: dict = Field(
@@ -148,7 +147,11 @@ class BigBananaTool(FunctionTool[AstrAgentContext]):
 "in a logical sequence that explicitly describes specific physical actions, nuanced facial"
 "expressions, and the overall color scheme with lighting atmosphere. This parameter must be"
 "populated with the full, descriptive prompt content rather than just a preset name,"
-"even if derived from one, to guarantee the generation of a vivid and strictly defined image."),
+"even if derived from one, to guarantee the generation of a vivid and strictly defined image."
+"IMPORTANT: If reference avatars are provided via referer_id, do NOT describe or invent specific visual appearance details"
+"(such as hair color, clothing style, or facial features) of those referenced characters in the prompt (especially the bot itself / the AI assistant),"
+"since their visual identity will be derived directly from the reference images. Doing so will cause conflicts."
+"Instead, focus on describing their actions, poses, interactions, expressions, and the background setting."),
                 },
                 "preset_name": {
                     "type": "string",
@@ -161,8 +164,9 @@ class BigBananaTool(FunctionTool[AstrAgentContext]):
                 "referer_id": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": ("If the user requests to use another person's avatar,"
-"please enter the target user's ID here. Pass this parameter together with the prompt parameter."),
+                    "description": ("An array of user IDs (QQ numbers) whose avatars should be used as reference images"
+"for the generation. You can include multiple IDs (e.g., the sender's ID, the bot's own ID, or any other mentioned user's ID)"
+"when the image involves multiple characters (e.g., 'feed me', 'hug me'). Pass this parameter together with the prompt parameter."),
                 },
             },
             "required": ["prompt"],
