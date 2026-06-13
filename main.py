@@ -71,49 +71,83 @@ class BigBanana(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.conf = config
-        # 初始化常规配置和图片生成配置
+        self.refresh_config()
+
+        # Data directory setup
+        data_dir = StarTools.get_data_dir("astrbot_plugin_big_banana")
+        self.refer_images_dir = data_dir / "refer_images"
+        self.save_dir = data_dir / "save_images"
+        # Temporary file directory
+        self.temp_dir = data_dir / "temp_images"
+
+        # Active task mapping
+        self.running_tasks: dict[str, asyncio.Task] = {}
+
+        # Instantiate Web API and register routes
+        from .web.web_api import BigBananaWebApi
+
+        self.web_api = BigBananaWebApi(self)
+        self.web_api.register_routes()
+
+    def refresh_config(self):
+        """Refresh configuration attributes from updated self.conf."""
+        # Initialize regular configuration and image generation configuration
         self.common_config = CommonConfig(**self.conf.get("common_config", {}))
         self.prompt_config = PromptConfig(**self.conf.get("prompt_config", {}))
-        # 参数别名列表
+        # Parameter alias list
         self.params_alias = self.conf.get("params_alias_map", {})
-        # 初始化提示词配置
+        # Initialize prompt configuration
         self.init_prompts()
-        # 白名单配置
+        # Whitelist configuration
         self.whitelist_config = self.conf.get("whitelist_config", {})
-        # 群组白名单，列表是引用类型
+        # Group whitelist
         self.group_whitelist_enabled = self.whitelist_config.get("enabled", False)
         self.group_whitelist = self.whitelist_config.get("whitelist", [])
-        # 用户白名单
+        # User whitelist
         self.user_whitelist_enabled = self.whitelist_config.get("user_enabled", False)
         self.user_whitelist = self.whitelist_config.get("user_whitelist", [])
 
-        # 前缀配置
+        # Prefix configuration
         prefix_config = self.conf.get("prefix_config", {})
         self.coexist_enabled = prefix_config.get("coexist_enabled", False)
         self.prefix_list = prefix_config.get("prefix_list", [])
 
-        # 数据目录
-        data_dir = StarTools.get_data_dir("astrbot_plugin_big_banana")
-        self.refer_images_dir = data_dir / "refer_images"
-        self.save_dir = data_dir / "save_images"
-        # 临时文件目录
-        self.temp_dir = data_dir / "temp_images"
-
-        # 图片持久化
+        # Image persistence
         self.save_images = self.conf.get("save_images", {}).get("local_save", False)
 
-        # 正在运行的任务映射
-        self.running_tasks: dict[str, asyncio.Task] = {}
+        # Update sub-configurations if instantiated
+        if hasattr(self, "downloader"):
+            self.preference_config = PreferenceConfig(
+                **self.conf.get("preference_config", {})
+            )
+            self.image_hosting_config = ImageHostingConfig(
+                **self.conf.get("image_hosting", {})
+            )
+            self.downloader.common_config = self.common_config
+            self.image_hoster.config = self.image_hosting_config
+
+        # Check and update LLM tools registry dynamically
+        if getattr(self, "context", None):
+            remove_tools(self.context)
+            if self.conf.get("llm_tool_settings", {}).get("llm_tool_enabled", False):
+                self.context.add_llm_tools(BigBananaReferenceTool(plugin=self))
+                logger.info(
+                    "已注册函数调用工具: banana_image_generation_with_reference"
+                )
+                self.context.add_llm_tools(BigBananaAvatarTool(plugin=self))
+                logger.info("已注册函数调用工具: banana_image_generation_with_avatar")
+                self.context.add_llm_tools(BigBananaPromptTool(plugin=self))
+                logger.info("已注册函数调用工具: banana_preset_prompt")
 
     async def initialize(self):
-        """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
-        # 初始化文件目录
+        """Optional async initialization method called after class instantiation."""
+        # Initialize file directories
         os.makedirs(self.refer_images_dir, exist_ok=True)
         os.makedirs(self.temp_dir, exist_ok=True)
         if self.save_images:
             os.makedirs(self.save_dir, exist_ok=True)
 
-        # 实例化类
+        # Instantiate services
         self.preference_config = PreferenceConfig(
             **self.conf.get("preference_config", {})
         )
@@ -126,10 +160,10 @@ class BigBanana(Star):
         self.downloader = Downloader(curl_session, self.common_config)
         self.image_hoster = R2ImageHoster(aiohttp_session, self.image_hosting_config)
 
-        # 注册提供商类型实例
+        # Register provider type instances
         self.init_providers()
 
-        # 检查配置是否启用函数调用工具
+        # Register function calling tools if enabled
         if self.conf.get("llm_tool_settings", {}).get("llm_tool_enabled", False):
             self.context.add_llm_tools(BigBananaReferenceTool(plugin=self))
             logger.info("已注册函数调用工具: banana_image_generation_with_reference")
