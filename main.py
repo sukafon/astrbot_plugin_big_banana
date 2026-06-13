@@ -870,7 +870,63 @@ class BigBanana(Star):
             )
 
         # 发送绘图中提示
-        await event.send(MessageChain().message(self.preference_config.drawing_message))
+        import re
+
+        text = self.preference_config.drawing_message
+        clean_text = re.sub(
+            r"<emotions>.*?</emotions>", "", text, flags=re.DOTALL | re.IGNORECASE
+        ).strip()
+        sent_meme = False
+        if "<emotions>" in text.lower():
+            try:
+                from astrbot.core.star.star import star_map
+
+                meme_manager = None
+                for star in star_map.values():
+                    if (
+                        star.root_dir_name == "astrbot_plugin_meme_manager"
+                        and star.star_cls
+                    ):
+                        meme_manager = star.star_cls
+                        break
+
+                if meme_manager:
+                    raw_tags = []
+                    for match in re.finditer(
+                        r"<emotions>(.*?)</emotions>", text, re.DOTALL | re.IGNORECASE
+                    ):
+                        inner_content = match.group(1)
+                        for tag in re.split(r"[,，\s]+", inner_content):
+                            tag = tag.strip()
+                            if tag:
+                                raw_tags.append(tag)
+
+                    if raw_tags:
+                        from astrbot_plugin_meme_manager.backend.core.emotion_handler import (
+                            get_direct_trigger_memes,
+                        )
+                        from astrbot_plugin_meme_manager.backend.core.helpers import (
+                            convert_to_gif,
+                        )
+                        from astrbot_plugin_meme_manager.config import MEMES_DIR
+
+                        selected_memes = await get_direct_trigger_memes(
+                            meme_manager, event, raw_tags
+                        )
+                        if selected_memes:
+                            meme_file = os.path.join(MEMES_DIR, selected_memes[0])
+                            final_meme_file = convert_to_gif(meme_file, meme_manager)
+                            img = Comp.Image.fromFileSystem(final_meme_file)
+                            object.__setattr__(img, "sub_type", 1)
+                            await event.send(
+                                MessageChain([Comp.Plain(clean_text), img])
+                            )
+                            sent_meme = True
+            except Exception as e:
+                logger.warning(f"[BIG BANANA] 尝试从 meme_manager 获取表情包失败: {e}")
+
+        if not sent_meme:
+            await event.send(MessageChain().message(clean_text))
 
         # 调度提供商生成图片
         images_result, err, result_urls = await self._dispatch(
