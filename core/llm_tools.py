@@ -141,8 +141,7 @@ class BigBananaReferenceTool(FunctionTool[AstrAgentContext]):
                     "type": "string",
                     "description": ("Detailed image description. Refine user input with explicit physical actions, "
 "facial expressions, background elements, and lighting atmosphere. "
-"Additionally, specify a consistent art style (e.g. anime, digital painting, realistic) matching your own persona/settings, "
-"without being overly rigid or specific, to let your character define the artistic direction."),
+"If the user hasn't specified an art style, you may optionally choose one matching your persona."),
                 },
                 "preset_name": {
                     "type": "string",
@@ -286,7 +285,7 @@ class BigBananaAvatarTool(FunctionTool[AstrAgentContext]):
 "Instead, focus on actions, poses, expressions, and background. "
 "Link referenced characters to images by explicitly referring to them as 'the character in image 1' and 'the character in image 2' matching the order of IDs in referer_id. "
 "Example: If referer_id is [bot_id, user_id], write 'The character in image 1 (bot) is feeding the character in image 2 (user) dinner'. "
-"As the reference avatars may have different art styles, specify a unified and consistent art style (e.g. anime, manga, sketch, 3D render) for the entire generated image. Choose/refine this style dynamically based on your own persona and character settings, without being overly rigid or specific, to ensure a harmonious visual blend."),
+"If the user hasn't specified an art style, you may optionally choose one matching your persona."),
                 },
                 "referer_id": {
                     "type": "array",
