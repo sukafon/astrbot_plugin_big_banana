@@ -43,7 +43,9 @@ class AgnesImagesProvider(BaseProvider):
             result = response.json()
             if response.status_code == 200:
                 images_result, err = await self._parse_images_response(result, params)
-                if images_result or (params.get("url", False) and self.last_result_urls):
+                if images_result or (
+                    params.get("url", False) and self.last_result_urls
+                ):
                     return images_result, 200, None
                 logger.warning(
                     f"[BIG BANANA] Agnes Images 请求成功，但未返回图片数据, 响应内容: {response.text[:1024]}"
