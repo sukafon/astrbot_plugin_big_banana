@@ -134,34 +134,45 @@ function triggerPersonaImageUpload(cardId) {
   if (fileInput) fileInput.click();
 }
 
-// Handle local image file upload and display the filename on success
 function handlePersonaImageUpload(fileInput, cardId) {
   var file = fileInput.files[0];
   if (!file) return;
 
   var SDK = window.AstrBotPluginPage;
-  if (!SDK || !SDK.upload) {
-    showToast('SDK upload function not available');
+  if (!SDK) {
+    showToast('SDK not available');
     return;
   }
 
-  showToast('正在上传图片...');
-  SDK.upload('upload_image', file)
-    .then(function (res) {
-      var data = parseResponse(res);
-      if (data && data.filename) {
-        addPersonaImageRow(cardId, data.filename);
-        showToast('图片上传成功');
-      } else {
-        throw new Error(res.message || '未知错误');
-      }
+  showToast('正在读取文件...');
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    var base64Data = e.target.result;
+    showToast('正在上传图片...');
+    SDK.apiPost('upload_image', {
+      filename: file.name,
+      base64: base64Data
     })
-    .catch(function (err) {
-      showToast('图片上传失败: ' + err.message);
-    })
-    .finally(function () {
-      fileInput.value = ''; // clear input
-    });
+      .then(function (res) {
+        var data = parseResponse(res);
+        if (data && data.filename) {
+          addPersonaImageRow(cardId, data.filename);
+          showToast('图片上传成功');
+        } else {
+          throw new Error(res.message || '未知错误');
+        }
+      })
+      .catch(function (err) {
+        showToast('图片上传失败: ' + err.message);
+      });
+  };
+  reader.onerror = function () {
+    showToast('读取图片文件失败');
+  };
+  reader.readAsDataURL(file);
+
+  // Clear input
+  fileInput.value = '';
 }
 
 // Helper to add a dynamic whitelist item card (for users or groups)

@@ -152,18 +152,39 @@ class BigBananaWebApi:
     async def api_upload_image(self):
         """POST handler: receive an uploaded file and save it to refer_images directory."""
         try:
+            import base64
+            import os
+            import uuid
+
+            # 1. Check if request is JSON (base64 upload)
+            if qreq.is_json:
+                body = await qreq.get_json()
+                if body and "base64" in body:
+                    raw_filename = body.get("filename", "")
+                    b64_data = body["base64"]
+                    if "," in b64_data:
+                        b64_data = b64_data.split(",", 1)[1]
+
+                    file_bytes = base64.b64decode(b64_data)
+                    filename = os.path.basename(raw_filename)
+                    if not filename:
+                        filename = f"upload_{uuid.uuid4().hex}.jpg"
+
+                    os.makedirs(self.plugin.refer_images_dir, exist_ok=True)
+                    file_path = self.plugin.refer_images_dir / filename
+                    with open(file_path, "wb") as f:
+                        f.write(file_bytes)
+                    return jsonify({"status": "ok", "data": {"filename": filename}})
+
+            # 2. Fallback to multipart file upload
             files = await qreq.files
             file = files.get("file")
             if not file:
                 return jsonify({"status": "error", "message": "No file uploaded"})
 
             # Secure filename and prevent path traversal
-            import os
-
             filename = os.path.basename(file.filename)
             if not filename:
-                import uuid
-
                 filename = f"upload_{uuid.uuid4().hex}.jpg"
 
             os.makedirs(self.plugin.refer_images_dir, exist_ok=True)
