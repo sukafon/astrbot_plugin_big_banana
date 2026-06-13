@@ -90,11 +90,11 @@ function addPersonaReplaceItem(targetId, imgList) {
       </div>
       <div class="form-group">
         <label>参考图片列表</label>
-        <div class="images-sub-list" style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+        <div class="images-sub-list" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 12px;">
           <!-- Existing images go here -->
         </div>
         <div style="margin-top: 12px; display: flex; gap: 10px;">
-          <button class="btn btn-secondary btn-sm" onclick="addPersonaImageRow('${cardId}')" type="button">＋ 添加图片 URL</button>
+          <button class="btn btn-secondary btn-sm" onclick="promptPersonaImageUrl('${cardId}')" type="button">＋ 添加图片 URL</button>
           <button class="btn btn-secondary btn-sm" onclick="triggerPersonaImageUpload('${cardId}')" type="button">＋ 上传本地图片</button>
           <input type="file" id="file_${cardId}" style="display: none;" accept="image/*" onchange="handlePersonaImageUpload(this, '${cardId}')">
         </div>
@@ -109,21 +109,41 @@ function addPersonaReplaceItem(targetId, imgList) {
   });
 }
 
+// Prompt the user for an image URL and add it
+function promptPersonaImageUrl(cardId) {
+  var url = prompt("请输入图片 URL:");
+  if (url && url.trim()) {
+    addPersonaImageRow(cardId, url.trim());
+  }
+}
+
 // Helper to add a row to the image references inside a persona rule card
 function addPersonaImageRow(cardId, url) {
-  url = url || '';
+  if (!url) return;
   var card = document.getElementById(cardId);
   if (!card) return;
   var list = card.querySelector('.images-sub-list');
   var row = document.createElement('div');
   row.className = 'image-row';
-  row.style.display = 'flex';
-  row.style.alignItems = 'center';
-  row.style.gap = '8px';
-  row.style.marginBottom = '6px';
+  row.style.position = 'relative';
+  row.style.display = 'inline-block';
+  row.style.width = '80px';
+  row.style.height = '80px';
+  row.style.borderRadius = '8px';
+  row.style.overflow = 'hidden';
+  row.style.border = '1px solid var(--input-border)';
+  row.style.background = 'var(--input-bg)';
+  row.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
+  
+  var displayUrl = url;
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    displayUrl = '/api/plug/astrbot_plugin_big_banana/image/' + encodeURIComponent(url);
+  }
+  
   row.innerHTML = `
-    <input type="text" class="text-input image-url-input" value="${url}" placeholder="图片 URL 或本地文件名">
-    <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding: 6px 10px; min-width: auto;" type="button">&times;</button>
+    <img src="${displayUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="avatar">
+    <input type="hidden" class="image-url-input" value="${url}">
+    <button class="remove-btn" onclick="this.parentElement.remove()" style="position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; font-size: 10px; padding: 0; display: flex; align-items: center; justify-content: center; background: rgba(255, 59, 48, 0.85); color: white; border-radius: 50%; border: none; cursor: pointer; font-weight: bold; transition: background 0.2s;" type="button" onmouseover="this.style.background='rgba(255, 59, 48, 1)'" onmouseout="this.style.background='rgba(255, 59, 48, 0.85)'">&times;</button>
   `;
   list.appendChild(row);
 }

@@ -52,6 +52,12 @@ class BigBananaWebApi:
             ["POST"],
             "上传人设参考图片",
         )
+        self.context.register_web_api(
+            f"/{PLUGIN_NAME}/image/<filename>",
+            self.api_serve_image,
+            ["GET"],
+            "获取人设参考图片内容",
+        )
 
     async def api_config_get(self):
         """GET handler: return the current configuration as JSON."""
@@ -195,3 +201,21 @@ class BigBananaWebApi:
         except Exception as e:
             self.logger.exception(f"Failed to upload image: {e}")
             return jsonify({"status": "error", "message": str(e)})
+
+    async def api_serve_image(self, filename):
+        """GET handler: serve an image file from the refer_images directory."""
+        try:
+            import os
+
+            from quart import send_file
+
+            # Secure filename and prevent path traversal
+            filename = os.path.basename(filename)
+            file_path = self.plugin.refer_images_dir / filename
+            if not file_path.exists():
+                return jsonify({"status": "error", "message": "File not found"}), 404
+
+            return await send_file(str(file_path))
+        except Exception as e:
+            self.logger.exception(f"Failed to serve image: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
