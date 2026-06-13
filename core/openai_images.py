@@ -275,6 +275,12 @@ class OpenAIImagesProvider(BaseProvider):
             "size": size,
         }
         multipart = CurlMime()
+        for key, val in data.items():
+            if val is not None:
+                multipart.addpart(
+                    name=key,
+                    data=str(val).encode("utf-8"),
+                )
         for index, (mime, b64_data) in enumerate(image_b64_list, start=1):
             file_name, image_bytes, file_mime = self._normalize_image_payload(
                 mime, b64_data, index
@@ -289,7 +295,6 @@ class OpenAIImagesProvider(BaseProvider):
             return await self.session.post(
                 url=self._build_api_url(provider_config.api_url, "edits"),
                 headers=headers,
-                data=data,
                 multipart=multipart,
                 timeout=self.def_common_config.timeout,
                 proxy=self.def_common_config.proxy,
