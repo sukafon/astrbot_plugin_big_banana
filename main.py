@@ -800,7 +800,9 @@ class BigBanana(Star):
 
         if referer_id is None:
             referer_id = []
-        # 小标记，用于优化At头像。当At对象是被引用消息的发送者时，跳过一次。
+        # Local bot reference images list
+        bot_local_refs = []
+        # Flag to optimize At avatar by skipping it if At target is reply sender
         skipped_at_qq = False
         reply_sender_id = ""
         for comp in event.get_messages():
@@ -816,31 +818,44 @@ class BigBanana(Star):
                         and quote.url.lower().endswith(SUPPORTED_FILE_FORMATS_WITH_DOT)
                     ):
                         image_urls.append(quote.url)
-            # 处理At对象的QQ头像（对于艾特机器人的问题，还没有特别好的解决方案）
+            # Process At targets
             elif (
                 isinstance(comp, Comp.At)
                 and comp.qq
                 and event.platform_meta.name == "aiocqhttp"
             ):
                 qq = str(comp.qq)
-                self_id = event.get_self_id()
+                self_id = str(event.get_self_id())
                 if not skipped_at_qq and (
-                    # 如果At对象是被引用消息的发送者，跳过一次
+                    # If At target is the reply sender, skip once
                     (qq == reply_sender_id and self.preference_config.skip_quote_first)
                     or (
                         qq == self_id
                         and event.is_at_or_wake_command
                         and self.preference_config.skip_at_first
-                    )  # 通过At唤醒机器人，跳过一次
+                    )  # Skipped first At wake
                     or (
                         qq == self_id
                         and self.preference_config.skip_llm_at_first
                         and is_llm_tool
-                    )  # 通过At唤醒机器人，且是函数调用工具，跳过一次
+                    )  # Skipped first At tool invocation
                 ):
                     skipped_at_qq = True
                     continue
-                image_urls.append(f"https://q.qlogo.cn/g?b=qq&s=0&nk={comp.qq}")
+
+                # Substitute bot avatar with persona reference images if configured
+                if qq == self_id and self.preference_config.bot_persona_references:
+                    import random
+
+                    ref_img = random.choice(
+                        self.preference_config.bot_persona_references
+                    )
+                    if ref_img.startswith("http"):
+                        image_urls.append(ref_img)
+                    else:
+                        bot_local_refs.append(ref_img)
+                else:
+                    image_urls.append(f"https://q.qlogo.cn/g?b=qq&s=0&nk={comp.qq}")
             elif isinstance(comp, Comp.Image) and comp.url:
                 image_urls.append(comp.url)
             elif (
@@ -851,31 +866,58 @@ class BigBanana(Star):
             ):
                 image_urls.append(comp.url)
 
-        # 处理referer_id参数，获取指定用户头像
+        # Process referer_id argument and fetch user avatars
         if is_llm_tool and referer_id and event.platform_meta.name == "aiocqhttp":
             for target_id in referer_id:
                 target_id = target_id.strip()
                 if target_id:
-                    build_url = f"https://q.qlogo.cn/g?b=qq&s=0&nk={target_id}"
-                    if build_url not in image_urls:
-                        image_urls.append(
-                            f"https://q.qlogo.cn/g?b=qq&s=0&nk={target_id}"
+                    self_id = str(event.get_self_id())
+                    # Substitute bot avatar with persona reference images if configured
+                    if (
+                        target_id == self_id
+                        and self.preference_config.bot_persona_references
+                    ):
+                        import random
+
+                        ref_img = random.choice(
+                            self.preference_config.bot_persona_references
                         )
+                        if ref_img.startswith("http"):
+                            if ref_img not in image_urls:
+                                image_urls.append(ref_img)
+                        else:
+                            bot_local_refs.append(ref_img)
+                    else:
+                        build_url = f"https://q.qlogo.cn/g?b=qq&s=0&nk={target_id}"
+                        if build_url not in image_urls:
+                            image_urls.append(build_url)
 
         min_required_images = params.get("min_images", self.prompt_config.min_images)
         max_allowed_images = params.get("max_images", self.prompt_config.max_images)
-        # 如果图片数量不满足最小要求，且消息平台是Aiocqhttp，取消息发送者头像作为参考图片
+        # If total images are less than minimum required, fall back to sender avatar
         if (
-            len(image_urls) < min_required_images
+            len(image_urls) + len(bot_local_refs) < min_required_images
             and event.platform_meta.name == "aiocqhttp"
         ):
             image_urls.append(
                 f"https://q.qlogo.cn/g?b=qq&s=0&nk={event.get_sender_id()}"
             )
 
-        # 图片b64列表
+        # Base64 images list
         image_b64_list: list[tuple[str, str]] = []
-        # 处理 refer_images 参数
+
+        # Load local bot reference images first
+        for filename in bot_local_refs:
+            if len(image_b64_list) >= max_allowed_images:
+                break
+            filename = filename.strip()
+            if filename:
+                path = self.refer_images_dir / filename
+                mime_type, b64_data = await asyncio.to_thread(read_file, path)
+                if mime_type and b64_data:
+                    image_b64_list.append((mime_type, b64_data))
+
+        # Load refer_images configurations
         refer_images = params.get("refer_images", self.prompt_config.refer_images)
         if refer_images:
             for filename in refer_images.split(","):

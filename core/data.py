@@ -111,6 +111,8 @@ class PreferenceConfig:
     """ 跳过第一次LLM@ """
     drawing_message: str = "🎨 在画了，请稍等一会..."
     """ 图片生成中提示消息 """
+    bot_persona_references: list = None
+    """ Bot persona reference images list """
 
 
 @dataclass(repr=False, slots=True)

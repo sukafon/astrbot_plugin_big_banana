@@ -261,6 +261,12 @@
                 "type": "string",
                 "default": "🎨 在画了，请稍等一会...",
                 "hint": "开始生成图片时，发送给用户的提示文字。"
+            },
+            "bot_persona_references": {
+                "description": "bot人设参考图片",
+                "type": "list",
+                "default": [],
+                "hint": "当艾特或提及机器人时，用人设参考图代替机器人的实际头像。可以填写多个本地文件名（放在 refer_images 目录下）或图片URL。使用时会随机选择一张。"
             }
         }
     },

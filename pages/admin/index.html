@@ -226,6 +226,15 @@
     </div>
 
     <div class="config-card">
+      <h2 class="section-title">Bot 人设参考图片</h2>
+      <div class="hint-text" style="margin-bottom: 12px;">
+        当艾特或提及机器人时，随机选择此列表中的一张参考图片代替其真实 QQ 头像。支持本地文件名（放在 refer_images 目录下）或图片 URL。
+      </div>
+      <div class="list-container" id="bot-persona-refs-list"></div>
+      <button class="add-btn" onclick="addPersonaRefItem()">＋ 添加人设参考图片</button>
+    </div>
+
+    <div class="config-card">
       <h2 class="section-title">函数调用工具</h2>
       <div class="form-group checkbox-row">
         <label for="tools_llm_tool_enabled">启用 LLM 函数调用工具</label>

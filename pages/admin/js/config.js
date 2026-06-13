@@ -69,6 +69,24 @@ function addAliasItem(data) {
   container.appendChild(card);
 }
 
+// Helper to add a dynamic bot persona reference item card
+function addPersonaRefItem(value) {
+  value = value || '';
+  var container = document.getElementById('bot-persona-refs-list');
+  var card = document.createElement('div');
+  card.className = 'list-item-card';
+  card.innerHTML = `
+    <button class="remove-btn" onclick="this.parentElement.remove()">&times;</button>
+    <div class="list-grid">
+      <div class="form-group" style="grid-column: span 3">
+        <label>文件名或图片 URL</label>
+        <input type="text" class="text-input persona-ref-value" value="${value}" placeholder="例如: bot_ref.jpg 或 https://example.com/bot.png">
+      </div>
+    </div>
+  `;
+  container.appendChild(card);
+}
+
 // Helper to add a dynamic whitelist item card (for users or groups)
 function addWhitelistItem(containerId, value, placeholder) {
   value = value || '';
@@ -237,6 +255,13 @@ function loadData() {
       addPrefixItem(val);
     });
 
+    // Render bot persona reference images list
+    var botPersonaRefsList = document.getElementById('bot-persona-refs-list');
+    botPersonaRefsList.innerHTML = '';
+    (pref.bot_persona_references || []).forEach(function (val) {
+      addPersonaRefItem(val);
+    });
+
     // Initialize all custom sliders UI display
     initSliders();
     document.getElementById('btnSave').disabled = false;
@@ -313,11 +338,17 @@ function saveAll() {
   };
 
   // Build preference_config object
+  var botPersonaRefs = [];
+  document.querySelectorAll('#bot-persona-refs-list .persona-ref-value').forEach(function (input) {
+    var val = input.value.trim();
+    if (val) botPersonaRefs.push(val);
+  });
   updatedConfig.preference_config = {
     skip_at_first: document.getElementById('pref_skip_at_first').checked,
     skip_quote_first: document.getElementById('pref_skip_quote_first').checked,
     skip_llm_at_first: document.getElementById('pref_skip_llm_at_first').checked,
-    drawing_message: document.getElementById('pref_drawing_message').value.trim()
+    drawing_message: document.getElementById('pref_drawing_message').value.trim(),
+    bot_persona_references: botPersonaRefs
   };
 
   // Build llm_tool_settings object
