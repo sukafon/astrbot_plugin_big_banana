@@ -108,16 +108,48 @@ class OpenAIImagesProvider(BaseProvider):
             or (provider_config.model and "image-01" in provider_config.model.lower())
         )
 
+        model_lower = (provider_config.model or "").lower()
+        is_known_not_to_support_edits = False
+        if any(
+            keyword in model_lower
+            for keyword in [
+                "dall-e-3",
+                "flux",
+                "sd",
+                "cogview",
+                "playground",
+                "imagen",
+                "mj",
+                "midjourney",
+            ]
+        ):
+            is_known_not_to_support_edits = True
+
         try:
-            if image_b64_list and not is_minimax:
-                response = await self._post_image_edits(
-                    provider_config=provider_config,
-                    headers=headers,
-                    image_b64_list=image_b64_list,
-                    params=params,
-                    size=size,
-                )
-            else:
+            response = None
+            if image_b64_list and not is_minimax and not is_known_not_to_support_edits:
+                try:
+                    response = await self._post_image_edits(
+                        provider_config=provider_config,
+                        headers=headers,
+                        image_b64_list=image_b64_list,
+                        params=params,
+                        size=size,
+                    )
+                    if response.status_code != 200:
+                        logger.warning(
+                            f"[BIG BANANA] OpenAI Images /images/edits 请求失败 (状态码 {response.status_code})，"
+                            f"当前模型 {provider_config.model} 可能不支持图片编辑/图生图，将尝试忽略参考图并回退到文生图 (/images/generations)"
+                        )
+                        response = None
+                except Exception as e:
+                    logger.warning(
+                        f"[BIG BANANA] OpenAI Images /images/edits 请求异常: {e}，"
+                        f"将尝试忽略参考图并回退到文生图 (/images/generations)"
+                    )
+                    response = None
+
+            if response is None:
                 # 默认返回格式
                 req_format = "b64_json"
                 if params.get("url", False):
@@ -268,6 +300,32 @@ class OpenAIImagesProvider(BaseProvider):
         logger.info(
             f"[BIG BANANA] OpenAI Images 正在请求 /images/edits，上传参考图 {len(image_b64_list)} 张"
         )
+        is_xai = (
+            "x.ai" in provider_config.api_url.lower()
+            or "grok" in (provider_config.model or "").lower()
+        )
+
+        if is_xai:
+            mime, b64_data = image_b64_list[0]
+            data_url = f"data:{mime};base64,{b64_data}"
+            json_payload = {
+                "model": provider_config.model,
+                "prompt": params.get("prompt", "anything"),
+                "image": {"url": data_url, "type": "image_url"},
+            }
+            if "n" in params:
+                json_payload["n"] = params["n"]
+            if size and size != "auto":
+                json_payload["size"] = size
+
+            return await self.session.post(
+                url=self._build_api_url(provider_config.api_url, "edits"),
+                headers={**headers, "Content-Type": "application/json"},
+                json=json_payload,
+                timeout=self.def_common_config.timeout,
+                proxy=self.def_common_config.proxy,
+            )
+
         data = {
             "model": provider_config.model,
             "prompt": params.get("prompt", "anything"),
