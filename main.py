@@ -882,15 +882,17 @@ class BigBanana(Star):
                 from astrbot.core.star.star import star_map
 
                 meme_manager = None
+                meme_manager_module_name = None
                 for star in star_map.values():
                     if (
                         star.root_dir_name == "astrbot_plugin_meme_manager"
                         and star.star_cls
                     ):
                         meme_manager = star.star_cls
+                        meme_manager_module_name = star.module.__name__
                         break
 
-                if meme_manager:
+                if meme_manager and meme_manager_module_name:
                     raw_tags = []
                     for match in re.finditer(
                         r"<emotions>(.*?)</emotions>", text, re.DOTALL | re.IGNORECASE
@@ -902,13 +904,22 @@ class BigBanana(Star):
                                 raw_tags.append(tag)
 
                     if raw_tags:
-                        from astrbot_plugin_meme_manager.backend.core.emotion_handler import (
-                            get_direct_trigger_memes,
+                        import importlib
+
+                        config_mod = importlib.import_module(
+                            f"{meme_manager_module_name}.config"
                         )
-                        from astrbot_plugin_meme_manager.backend.core.helpers import (
-                            convert_to_gif,
+                        MEMES_DIR = config_mod.MEMES_DIR
+
+                        handler_mod = importlib.import_module(
+                            f"{meme_manager_module_name}.backend.core.emotion_handler"
                         )
-                        from astrbot_plugin_meme_manager.config import MEMES_DIR
+                        get_direct_trigger_memes = handler_mod.get_direct_trigger_memes
+
+                        helper_mod = importlib.import_module(
+                            f"{meme_manager_module_name}.backend.core.helpers"
+                        )
+                        convert_to_gif = helper_mod.convert_to_gif
 
                         selected_memes = await get_direct_trigger_memes(
                             meme_manager, event, raw_tags
