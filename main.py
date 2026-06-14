@@ -179,15 +179,6 @@ class BigBanana(Star):
         # Register provider type instances
         self.init_providers()
 
-        # Register function calling tools if enabled
-        if self.conf.get("llm_tool_settings", {}).get("llm_tool_enabled", False):
-            self.context.add_llm_tools(BigBananaReferenceTool(plugin=self))
-            logger.info("已注册函数调用工具: banana_image_generation_with_reference")
-            self.context.add_llm_tools(BigBananaAvatarTool(plugin=self))
-            logger.info("已注册函数调用工具: banana_image_generation_with_avatar")
-            self.context.add_llm_tools(BigBananaPromptTool(plugin=self))
-            logger.info("已注册函数调用工具: banana_preset_prompt")
-
     def init_providers(self):
         """解析提供商配置"""
         # 提供商配置列表
