@@ -1,5 +1,7 @@
 import asyncio
 import base64
+import urllib.parse
+import urllib.request
 from io import BytesIO
 
 from curl_cffi import AsyncSession
@@ -13,6 +15,7 @@ from PIL import Image
 from astrbot.api import logger
 
 from .data import CommonConfig
+from .utils import read_file
 
 
 class Downloader:
@@ -22,6 +25,16 @@ class Downloader:
 
     async def fetch_image(self, url: str) -> tuple[str, str] | None:
         """下载单张图片并转换为 (mime, base64)"""
+        if not url.startswith(("http://", "https://")):
+            # Local file path handling
+            path = url
+            if path.startswith("file://"):
+                path = urllib.request.url2pathname(urllib.parse.urlparse(path).path)
+            mime_type, b64_data = await asyncio.to_thread(read_file, path)
+            if mime_type and b64_data:
+                return mime_type, b64_data
+            return None
+
         # 重试逻辑
         for _ in range(3):
             content, success = await self._download_image(url)
@@ -34,6 +47,16 @@ class Downloader:
         """下载多张图片并转换为 (mime, base64) 列表"""
         image_b64_list = []
         for url in image_urls:
+            if not url.startswith(("http://", "https://")):
+                # Local file path handling
+                path = url
+                if path.startswith("file://"):
+                    path = urllib.request.url2pathname(urllib.parse.urlparse(path).path)
+                mime_type, b64_data = await asyncio.to_thread(read_file, path)
+                if mime_type and b64_data:
+                    image_b64_list.append((mime_type, b64_data))
+                continue
+
             # 重试逻辑
             for _ in range(3):
                 content, success = await self._download_image(url)
