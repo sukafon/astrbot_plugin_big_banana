@@ -137,6 +137,43 @@ class OpenAIImagesProvider(BaseProvider):
                         size=size,
                     )
                     if response.status_code != 200:
+                        err_msg = ""
+                        try:
+                            err_data = response.json()
+                            err_msg = self._extract_error_message(err_data) or ""
+                        except Exception:
+                            pass
+
+                        text_to_check = err_msg or response.text or ""
+                        is_policy_violation = any(
+                            keyword in text_to_check.lower()
+                            for keyword in [
+                                "policy",
+                                "content",
+                                "安全",
+                                "内容",
+                                "违反",
+                                "敏感",
+                                "safety",
+                                "moderate",
+                            ]
+                        )
+
+                        if (
+                            response.status_code in {401, 402, 403, 429}
+                            or is_policy_violation
+                        ):
+                            logger.error(
+                                f"[BIG BANANA] OpenAI Images /images/edits 请求失败 (状态码 {response.status_code})，"
+                                f"且不可回退。原因: {text_to_check}"
+                            )
+                            return (
+                                None,
+                                response.status_code,
+                                text_to_check
+                                or f"图片生成失败: 状态码 {response.status_code}",
+                            )
+
                         logger.warning(
                             f"[BIG BANANA] OpenAI Images /images/edits 请求失败 (状态码 {response.status_code})，"
                             f"当前模型 {provider_config.model} 可能不支持图片编辑/图生图，将尝试忽略参考图并回退到文生图 (/images/generations)"
