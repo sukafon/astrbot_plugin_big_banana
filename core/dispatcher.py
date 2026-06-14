@@ -1,8 +1,8 @@
-import asyncio
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent
-from .data import ProviderConfig
+
 from .base import BaseProvider
+from .data import ProviderConfig
 
 
 def get_images_url_from_api_base(api_base: str) -> str:
@@ -66,7 +66,9 @@ class ProviderDispatcher:
             if p_id is not None:
                 try:
                     native_prov = (
-                        await self.plugin.context.provider_manager.get_provider_by_id(p_id)
+                        await self.plugin.context.provider_manager.get_provider_by_id(
+                            p_id
+                        )
                     )
                     if not native_prov:
                         # Case-insensitive fallback check for ID/name in inst_map
