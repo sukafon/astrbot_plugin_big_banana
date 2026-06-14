@@ -272,7 +272,7 @@ class BigBananaAvatarTool(FunctionTool[AstrAgentContext]):
     name: str = "banana_image_generation_with_avatar"  # 工具名称
     # fmt: off
     description: str = (
-"Generate images involving characters using their chat avatars (sender, bot, or mentioned users) as reference images. "
+"Generate images involving characters using their chat avatars (sender, you, or mentioned users) as reference images. "
 "Pass their user IDs (QQ numbers) to referer_id.")  # 工具描述
     parameters: dict = Field(
         default_factory=lambda: {
@@ -281,17 +281,17 @@ class BigBananaAvatarTool(FunctionTool[AstrAgentContext]):
                 "prompt": {
                     "type": "string",
                     "description": ("Detailed scene description. "
-"IMPORTANT: Do NOT invent or describe visual appearance details (like hair color, clothing) for referenced characters (especially the bot itself / the AI assistant), as their appearance is taken from their avatars. "
+"IMPORTANT: Do NOT invent or describe visual appearance details (like hair color, clothing) for referenced characters (especially you yourself), as their appearance is taken from their avatars. "
 "Instead, focus on actions, poses, expressions, and background. "
 "Link referenced characters to images by explicitly referring to them as 'the character in image 1' and 'the character in image 2' matching the order of IDs in referer_id. "
-"Example: If referer_id is [bot_id, user_id], write 'The character in image 1 (bot) is feeding the character in image 2 (user) dinner'. "
+"Example: If referer_id is [your_id, user_id], write 'The character in image 1 is feeding the character in image 2 dinner'. "
 "If the user hasn't specified an art style, you may optionally choose one matching your persona."),
                 },
                 "referer_id": {
                     "type": "array",
                     "items": {"type": "string"},
                     "description": ("Array of user IDs (QQ numbers) whose avatars should be used as reference images. "
-"Include multiple IDs (sender ID, bot ID, etc.) for interactive scenes."),
+"Include multiple IDs (sender ID, your ID, etc.) for interactive scenes."),
                 },
                 "preset_name": {
                     "type": "string",

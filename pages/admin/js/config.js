@@ -278,6 +278,18 @@ function loadData() {
     providers = parseResponse(results[1]) || [];
     var substitutions = parseResponse(results[2]) || {};
 
+    // Populate sub_brain provider options dynamically
+    var sbSelect = document.getElementById('sb_provider_id');
+    if (sbSelect) {
+      sbSelect.innerHTML = '<option value="">当前会话默认供应商</option>';
+      providers.forEach(function (p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        sbSelect.appendChild(opt);
+      });
+    }
+
     // Populate providers list selects if any exists
     // Bind base checkboxes and inputs
     document.getElementById('stream').checked = !!config.stream;
@@ -309,6 +321,12 @@ function loadData() {
     document.getElementById('ih_public_base_url').value = ih.public_base_url || '';
     document.getElementById('ih_auth_token').value = ih.auth_token || '';
     document.getElementById('ih_path_prefix').value = ih.path_prefix || 'big-banana';
+
+    // Bind sub_brain nested object fields
+    var sb = config.sub_brain || {};
+    document.getElementById('sb_enabled').checked = !!sb.enabled;
+    document.getElementById('sb_provider_id').value = sb.provider_id || '';
+    document.getElementById('sb_system_prompt').value = sb.system_prompt || '你是一个专业的视觉艺术大师与画图提示词优化助手。你的任务是将用户口语化的简短提示词，翻译并优化为适合 AI 生图（如 DALL-E 3、Stable Diffusion、Midjourney）的高质量英文提示词。\n\n请遵循以下优化规范丰富提示词：\n- Subject (主体): 补充动作、表情、衣着及材质等细节。\n- Style (艺术风格): 明确艺术风格（如 cyberpunk, anime illustration, photorealistic 等）。\n- Detail & Environment (环境): 补充背景及环境细节。\n- Lighting & Color (光影色彩): 设定光影色彩（如 cinematic lighting, golden hour 等）。\n- Quality Tags (画质标签): 加入画质修饰词（如 masterpiece, highly detailed, sharp focus 等）。\n\n特别要求：\n- 如果原始提示词中包含对参考图或头像编号的引用（如 "image 1", "image 2", "图1", "图2", "the character in image 1" 等），在翻译和优化时必须**完整且原样保留**这些引用标识（如 "the character in image 1", "image 1"），绝对不能用具体的角色名字替换它们或将它们删除。\n\n注意：直接输出优化后的最终英文提示词文本，绝对不要包含任何解释、问候或额外的 Markdown 格式（如包裹代码块的 ``` 或 "Prompt:" 等前缀）。';
 
     // Bind prefix_config nested object fields
     var pfx = config.prefix_config || {};
@@ -448,6 +466,13 @@ function saveAll() {
     public_base_url: document.getElementById('ih_public_base_url').value.trim(),
     auth_token: document.getElementById('ih_auth_token').value.trim(),
     path_prefix: document.getElementById('ih_path_prefix').value.trim()
+  };
+
+  // Build sub_brain object
+  updatedConfig.sub_brain = {
+    enabled: document.getElementById('sb_enabled').checked,
+    provider_id: document.getElementById('sb_provider_id').value || '',
+    system_prompt: document.getElementById('sb_system_prompt').value.trim()
   };
 
   // Build prefix_config object

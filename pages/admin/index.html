@@ -23,6 +23,7 @@
     <button class="tab-btn" onclick="switchTab('trigger')">指令与触发</button>
     <button class="tab-btn" onclick="switchTab('whitelist')">白名单与存储</button>
     <button class="tab-btn" onclick="switchTab('hosting')">图床设置</button>
+    <button class="tab-btn" onclick="switchTab('sub_brain')">副脑设置</button>
     <button class="tab-btn" onclick="switchTab('advanced')">高级与其它</button>
     <button class="tab-btn" onclick="switchTab('persona_replace')">人设替换</button>
   </nav>
@@ -327,6 +328,36 @@
       <div class="form-group">
         <label for="ih_path_prefix">路径前缀 (Path Prefix)</label>
         <input type="text" class="text-input" id="ih_path_prefix" placeholder="例如: big-banana">
+      </div>
+    </div>
+  </div>
+
+  <!-- Sub Brain Panel -->
+  <div class="tab-panel" id="tab-sub_brain">
+    <div class="config-card">
+      <h2 class="section-title">副脑提示词优化设置</h2>
+      <div class="hint-text" style="margin-bottom: 16px;">
+        启用后，当对话大模型调用画图工具生成图片时，会将传给工具的简短描述先提交给副脑进行扩写优化，再交给画图供应商生成图片。
+      </div>
+      <div class="form-group checkbox-row">
+        <label for="sb_enabled">启用副脑优化</label>
+        <label class="switch">
+          <input type="checkbox" id="sb_enabled">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="sb_provider_id">副脑模型供应商 (LLM Provider)</label>
+        <select class="select-input" id="sb_provider_id">
+          <option value="">当前会话默认供应商</option>
+        </select>
+        <div class="hint-text">选择用于优化提示词的 LLM 提供商。留空则使用当前对话正在使用的提供商。</div>
+      </div>
+
+      <div class="form-group">
+        <label for="sb_system_prompt">副脑系统提示词</label>
+        <textarea class="textarea-input" id="sb_system_prompt" rows="5" placeholder="引导副脑优化提示词的系统提示词"></textarea>
       </div>
     </div>
   </div>

@@ -147,3 +147,15 @@ class VertexAIAnonymousConfig:
     """最大重试次数"""
     retry_delay: float = 2
     """重试间隔时间, 单位: 秒"""
+
+
+@dataclass(repr=False, slots=True)
+class SubBrainConfig:
+    """副脑配置参数"""
+
+    enabled: bool = False
+    """是否启用副脑优化"""
+    provider_id: str = ""
+    """副脑模型供应商 ID"""
+    system_prompt: str = ""
+    """副脑系统提示词"""
