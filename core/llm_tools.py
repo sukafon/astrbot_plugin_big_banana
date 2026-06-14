@@ -283,9 +283,11 @@ class BigBananaAvatarTool(FunctionTool[AstrAgentContext]):
                     "description": ("Detailed scene description. "
 "IMPORTANT: Do NOT invent or describe visual appearance details (like hair color, clothing) for referenced characters (especially you yourself), as their appearance is taken from their avatars. "
 "Instead, focus on actions, poses, expressions, and background. "
-"Link referenced characters to images by explicitly referring to them as 'the character in image 1' and 'the character in image 2' matching the order of IDs in referer_id. "
-"Example: If referer_id is [your_id, user_id], write 'The character in image 1 is feeding the character in image 2 dinner'. "
-"If the user hasn't specified an art style, you may optionally choose one matching your persona."),
+"Link referenced characters to images by explicitly referring to them as 'the character in image 1', 'the character in image 2', etc. "
+"Note that if the user's message contains or references quoted/uploaded images, those images are collected first. "
+"The final ordered list of reference images is: [quoted/uploaded image 1, quoted/uploaded image 2, ..., avatar for referer_id[0], avatar for referer_id[1], ...]. "
+"For example, if the user quoted 2 images and referer_id is [your_id, user_id], then 'image 1' and 'image 2' are the user's quoted images, "
+"'image 3' is your avatar (referer_id[0]), and 'image 4' is the user's avatar (referer_id[1])."),
                 },
                 "referer_id": {
                     "type": "array",
