@@ -109,6 +109,8 @@ class PreferenceConfig:
     """ 跳过第一次引用@ """
     skip_llm_at_first: bool = False
     """ 跳过第一次LLM@ """
+    enable_drawing_message: bool = True
+    """ 是否启用图片生成中提示消息 """
     drawing_message: str = "🎨 在画了，请稍等一会..."
     """ 图片生成中提示消息 """
     group_cooldown: int = 0

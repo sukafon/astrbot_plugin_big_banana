@@ -327,6 +327,7 @@ function loadData() {
     document.getElementById('pref_skip_at_first').checked = pref.skip_at_first !== false;
     document.getElementById('pref_skip_quote_first').checked = pref.skip_quote_first !== false;
     document.getElementById('pref_skip_llm_at_first').checked = pref.skip_llm_at_first !== false;
+    document.getElementById('pref_enable_drawing_message').checked = pref.enable_drawing_message !== false;
     document.getElementById('pref_drawing_message').value = pref.drawing_message || '🎨 在画了，请稍等一会...';
     document.getElementById('pref_group_cooldown').value = pref.group_cooldown || 0;
 
@@ -474,6 +475,7 @@ function saveAll() {
     skip_at_first: document.getElementById('pref_skip_at_first').checked,
     skip_quote_first: document.getElementById('pref_skip_quote_first').checked,
     skip_llm_at_first: document.getElementById('pref_skip_llm_at_first').checked,
+    enable_drawing_message: document.getElementById('pref_enable_drawing_message').checked,
     drawing_message: document.getElementById('pref_drawing_message').value.trim(),
     group_cooldown: parseInt(document.getElementById('pref_group_cooldown').value) || 0
   };

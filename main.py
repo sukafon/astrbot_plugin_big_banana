@@ -1010,78 +1010,93 @@ class BigBanana(Star):
             )
 
         # 发送绘图中提示
-        import re
+        if getattr(self.preference_config, "enable_drawing_message", True):
+            import re
 
-        text = self.preference_config.drawing_message
-        clean_text = re.sub(
-            r"<emotions>.*?</emotions>", "", text, flags=re.DOTALL | re.IGNORECASE
-        ).strip()
-        sent_meme = False
-        if "<emotions>" in text.lower():
-            try:
-                from astrbot.core.star.star import star_map
+            text = self.preference_config.drawing_message
+            clean_text = re.sub(
+                r"<emotions>.*?</emotions>", "", text, flags=re.DOTALL | re.IGNORECASE
+            ).strip()
+            sent_meme = False
+            if "<emotions>" in text.lower():
+                try:
+                    from astrbot.core.star.star import star_map
 
-                meme_manager = None
-                meme_manager_module_name = None
-                for star in star_map.values():
-                    if (
-                        star.root_dir_name == "astrbot_plugin_meme_manager"
-                        and star.star_cls
-                    ):
-                        meme_manager = star.star_cls
-                        meme_manager_module_name = star.module.__name__
-                        break
+                    meme_manager = None
+                    meme_manager_module_name = None
+                    for star in star_map.values():
+                        if (
+                            star.root_dir_name == "astrbot_plugin_meme_manager"
+                            and star.star_cls
+                        ):
+                            meme_manager = star.star_cls
+                            meme_manager_module_name = star.module.__name__
+                            break
 
-                if meme_manager and meme_manager_module_name:
-                    raw_tags = []
-                    for match in re.finditer(
-                        r"<emotions>(.*?)</emotions>", text, re.DOTALL | re.IGNORECASE
-                    ):
-                        inner_content = match.group(1)
-                        for tag in re.split(r"[,，\s]+", inner_content):
-                            tag = tag.strip()
-                            if tag:
-                                raw_tags.append(tag)
+                    if meme_manager and meme_manager_module_name:
+                        raw_tags = []
+                        for match in re.finditer(
+                            r"<emotions>(.*?)</emotions>",
+                            text,
+                            re.DOTALL | re.IGNORECASE,
+                        ):
+                            inner_content = match.group(1)
+                            for tag in re.split(r"[,，\s]+", inner_content):
+                                tag = tag.strip()
+                                if tag:
+                                    raw_tags.append(tag)
 
-                    if raw_tags:
-                        import importlib
+                        if raw_tags:
+                            import importlib
 
-                        # Get the package name by removing the module name suffix (e.g. '.main')
-                        if "." in meme_manager_module_name:
-                            package_name = meme_manager_module_name.rsplit(".", 1)[0]
-                        else:
-                            package_name = meme_manager_module_name
+                            # Get the package name by removing the module name suffix (e.g. '.main')
+                            if "." in meme_manager_module_name:
+                                package_name = meme_manager_module_name.rsplit(".", 1)[
+                                    0
+                                ]
+                            else:
+                                package_name = meme_manager_module_name
 
-                        config_mod = importlib.import_module(f"{package_name}.config")
-                        MEMES_DIR = config_mod.MEMES_DIR
+                            config_mod = importlib.import_module(
+                                f"{package_name}.config"
+                            )
+                            MEMES_DIR = config_mod.MEMES_DIR
 
-                        handler_mod = importlib.import_module(
-                            f"{package_name}.backend.core.emotion_handler"
-                        )
-                        get_direct_trigger_memes = handler_mod.get_direct_trigger_memes
+                            handler_mod = importlib.import_module(
+                                f"{package_name}.backend.core.emotion_handler"
+                            )
+                            get_direct_trigger_memes = (
+                                handler_mod.get_direct_trigger_memes
+                            )
 
-                        helper_mod = importlib.import_module(
-                            f"{package_name}.backend.core.helpers"
-                        )
-                        convert_to_gif = helper_mod.convert_to_gif
+                            helper_mod = importlib.import_module(
+                                f"{package_name}.backend.core.helpers"
+                            )
+                            convert_to_gif = helper_mod.convert_to_gif
 
-                        selected_memes = await get_direct_trigger_memes(
-                            meme_manager, event, raw_tags
-                        )
-                        if selected_memes:
-                            meme_file = os.path.join(MEMES_DIR, selected_memes[0])
-                            final_meme_file = convert_to_gif(meme_file, meme_manager)
-                            img = Comp.Image.fromFileSystem(final_meme_file)
-                            object.__setattr__(img, "sub_type", 1)
-                            if clean_text:
-                                await event.send(MessageChain([Comp.Plain(clean_text)]))
-                            await event.send(MessageChain([img]))
-                            sent_meme = True
-            except Exception as e:
-                logger.warning(f"[BIG BANANA] 尝试从 meme_manager 获取表情包失败: {e}")
+                            selected_memes = await get_direct_trigger_memes(
+                                meme_manager, event, raw_tags
+                            )
+                            if selected_memes:
+                                meme_file = os.path.join(MEMES_DIR, selected_memes[0])
+                                final_meme_file = convert_to_gif(
+                                    meme_file, meme_manager
+                                )
+                                img = Comp.Image.fromFileSystem(final_meme_file)
+                                object.__setattr__(img, "sub_type", 1)
+                                if clean_text:
+                                    await event.send(
+                                        MessageChain([Comp.Plain(clean_text)])
+                                    )
+                                await event.send(MessageChain([img]))
+                                sent_meme = True
+                except Exception as e:
+                    logger.warning(
+                        f"[BIG BANANA] 尝试从 meme_manager 获取表情包失败: {e}"
+                    )
 
-        if not sent_meme:
-            await event.send(MessageChain().message(clean_text))
+            if not sent_meme:
+                await event.send(MessageChain().message(clean_text))
 
         # 调度提供商生成图片
         images_result, err, result_urls = await self._dispatch(

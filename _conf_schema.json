@@ -256,6 +256,12 @@
                 "default": true,
                 "hint": "通过@机器人触发LLM函数调用工具，跳过一次机器人的头像。"
             },
+            "enable_drawing_message": {
+                "description": "启用生成中提示消息",
+                "type": "bool",
+                "default": true,
+                "hint": "是否在开始生成图片时向用户发送提示文字。"
+            },
             "drawing_message": {
                 "description": "图片生成中提示消息",
                 "type": "string",
