@@ -361,6 +361,7 @@ function loadData() {
     var wl = config.whitelist_config || {};
     document.getElementById('wl_enabled').checked = !!wl.enabled;
     document.getElementById('wl_user_enabled').checked = !!wl.user_enabled;
+    document.getElementById('wl_only_for_commands').checked = !!wl.only_for_commands;
 
     // Render preset prompts list
     var promptsList = document.getElementById('prompts-list');
@@ -530,7 +531,8 @@ function saveAll() {
     enabled: document.getElementById('wl_enabled').checked,
     whitelist: groupWl,
     user_enabled: document.getElementById('wl_user_enabled').checked,
-    user_whitelist: userWl
+    user_whitelist: userWl,
+    only_for_commands: document.getElementById('wl_only_for_commands').checked
   };
 
   // Gather preset prompts list

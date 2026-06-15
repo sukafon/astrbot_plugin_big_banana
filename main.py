@@ -76,6 +76,9 @@ class BigBanana(Star):
         self.init_prompts()
         # Whitelist configuration
         self.whitelist_config = self.conf.get("whitelist_config", {})
+        self.whitelist_only_for_commands = self.whitelist_config.get(
+            "only_for_commands", False
+        )
         # Group whitelist
         self.group_whitelist_enabled = self.whitelist_config.get("enabled", False)
         self.group_whitelist = self.whitelist_config.get("whitelist", [])

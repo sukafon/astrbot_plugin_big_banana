@@ -356,6 +356,12 @@
                 "type": "list",
                 "default": [],
                 "hint": "用户QQ号列表"
+            },
+            "only_for_commands": {
+                "description": "白名单仅对指令生效",
+                "type": "bool",
+                "default": false,
+                "hint": "开启后，白名单仅拦截直接指令画图，LLM 触发不受拦截限制"
             }
         }
     }

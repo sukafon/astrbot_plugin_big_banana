@@ -261,6 +261,17 @@
   <!-- 5. Whitelists Panel -->
   <div class="tab-panel" id="tab-whitelist">
     <div class="config-card">
+      <h2 class="section-title">白名单生效范围限制</h2>
+      <div class="form-group checkbox-row">
+        <label for="wl_only_for_commands">白名单仅对指令生效 (LLM 触发不受拦截限制)</label>
+        <label class="switch">
+          <input type="checkbox" id="wl_only_for_commands">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="config-card">
       <h2 class="section-title">群组白名单限制</h2>
       <div class="form-group checkbox-row">
         <label for="wl_enabled">启用群组白名单</label>

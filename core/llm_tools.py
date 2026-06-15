@@ -78,6 +78,7 @@ class BigBananaPromptTool(FunctionTool[AstrAgentContext]):
         # 群白名单判断
         if (
             plugin.group_whitelist_enabled
+            and not plugin.whitelist_only_for_commands
             and event.unified_msg_origin not in plugin.group_whitelist
         ):
             logger.info(
@@ -88,6 +89,7 @@ class BigBananaPromptTool(FunctionTool[AstrAgentContext]):
         # 用户白名单判断
         if (
             plugin.user_whitelist_enabled
+            and not plugin.whitelist_only_for_commands
             and event.get_sender_id() not in plugin.user_whitelist
         ):
             logger.info(
@@ -171,6 +173,7 @@ class BigBananaReferenceTool(FunctionTool[AstrAgentContext]):
         # 群白名单判断
         if (
             plugin.group_whitelist_enabled
+            and not plugin.whitelist_only_for_commands
             and event.unified_msg_origin not in plugin.group_whitelist
         ):
             logger.info(
@@ -181,6 +184,7 @@ class BigBananaReferenceTool(FunctionTool[AstrAgentContext]):
         # 用户白名单判断
         if (
             plugin.user_whitelist_enabled
+            and not plugin.whitelist_only_for_commands
             and event.get_sender_id() not in plugin.user_whitelist
         ):
             logger.info(
@@ -324,6 +328,7 @@ class BigBananaAvatarTool(FunctionTool[AstrAgentContext]):
         # 群白名单判断
         if (
             plugin.group_whitelist_enabled
+            and not plugin.whitelist_only_for_commands
             and event.unified_msg_origin not in plugin.group_whitelist
         ):
             logger.info(
@@ -334,6 +339,7 @@ class BigBananaAvatarTool(FunctionTool[AstrAgentContext]):
         # 用户白名单判断
         if (
             plugin.user_whitelist_enabled
+            and not plugin.whitelist_only_for_commands
             and event.get_sender_id() not in plugin.user_whitelist
         ):
             logger.info(
