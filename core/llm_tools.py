@@ -285,6 +285,7 @@ class BigBananaAvatarTool(FunctionTool[AstrAgentContext]):
                 "prompt": {
                     "type": "string",
                     "description": ("Detailed scene description. "
+"If the user hasn't specified an art style, you may optionally choose one matching your persona. "
 "IMPORTANT: Do NOT invent or describe visual appearance details (like hair color, clothing) for referenced characters (especially you yourself), as their appearance is taken from their avatars. "
 "Instead, focus on actions, poses, expressions, and background. "
 "Link referenced characters to images by explicitly referring to them as 'the character in image 1', 'the character in image 2', etc. "
