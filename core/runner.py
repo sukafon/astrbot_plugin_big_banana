@@ -270,7 +270,13 @@ async def job(
         A tuple of (valid_results, error_message).
     """
     # 副脑提示词优化
-    if plugin.sub_brain_config.enabled and is_llm_tool:
+    should_optimize = False
+    if "sub_brain" in params:
+        should_optimize = bool(params["sub_brain"])
+    else:
+        should_optimize = plugin.sub_brain_config.enabled and is_llm_tool
+
+    if should_optimize:
         orig_prompt = params.get("prompt", "")
         if orig_prompt:
             provider_id = plugin.sub_brain_config.provider_id

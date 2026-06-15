@@ -132,7 +132,11 @@ class OpenAIImagesProvider(BaseProvider):
                     logger.error(
                         f"[BIG BANANA] OpenAI Images 请求失败: 当前模型 {provider_config.model} 不支持图片编辑/图生图，且不可回退"
                     )
-                    return None, 400, f"当前模型 {provider_config.model} 不支持图片编辑/图生图"
+                    return (
+                        None,
+                        400,
+                        f"当前模型 {provider_config.model} 不支持图片编辑/图生图",
+                    )
 
                 try:
                     response = await self._post_image_edits(
@@ -143,10 +147,14 @@ class OpenAIImagesProvider(BaseProvider):
                         size=size,
                     )
                 except Timeout as e:
-                    logger.error(f"[BIG BANANA] OpenAI Images /images/edits 请求超时: {e}")
+                    logger.error(
+                        f"[BIG BANANA] OpenAI Images /images/edits 请求超时: {e}"
+                    )
                     return None, 408, f"图片编辑请求超时: {e}"
                 except Exception as e:
-                    logger.error(f"[BIG BANANA] OpenAI Images /images/edits 请求异常: {e}")
+                    logger.error(
+                        f"[BIG BANANA] OpenAI Images /images/edits 请求异常: {e}"
+                    )
                     return None, 502, f"图片编辑网络请求异常: {e}"
 
                 if response.status_code != 200:
