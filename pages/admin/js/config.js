@@ -304,6 +304,7 @@ function loadData() {
     document.getElementById('pc_google_search').checked = pc.google_search !== false;
     document.getElementById('pc_refer_images').value = pc.refer_images || '';
     document.getElementById('pc_gather_mode').checked = !!pc.gather_mode;
+    document.getElementById('pc_moderation').value = pc.moderation || 'auto';
 
     // Bind common_config nested object fields
     var cc = config.common_config || {};
@@ -447,7 +448,8 @@ function saveAll() {
     image_size: document.getElementById('pc_image_size').value,
     google_search: document.getElementById('pc_google_search').checked,
     refer_images: document.getElementById('pc_refer_images').value.trim(),
-    gather_mode: document.getElementById('pc_gather_mode').checked
+    gather_mode: document.getElementById('pc_gather_mode').checked,
+    moderation: document.getElementById('pc_moderation').value
   };
 
   // Build common_config object

@@ -79,6 +79,8 @@ class PromptConfig:
     """引用参考图片的文件名"""
     gather_mode: bool = False
     """是否启用收集模式"""
+    moderation: str = "auto"
+    """GPT 图像编辑模型的内容安全审核等级"""
 
 
 @dataclass(repr=False, slots=True)
@@ -176,6 +178,7 @@ PARAMS_LIST = [
     "size",
     "url",
     "sub_brain",
+    "moderation",
 ]
 
 # 部分平台对单张图片大小有限制，超过限制需要作为文件发送

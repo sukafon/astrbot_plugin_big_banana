@@ -106,6 +106,15 @@
         </select>
       </div>
 
+      <div class="form-group">
+        <label for="pc_moderation">内容审核级别</label>
+        <select class="select-input" id="pc_moderation">
+          <option value="auto">auto (自动/标准)</option>
+          <option value="low">low (低敏感度)</option>
+        </select>
+        <div class="hint-text">GPT 图像编辑模型（如 gpt-image-*）的内容安全过滤级别。设置为 low 可降低过滤敏感度。</div>
+      </div>
+
       <div class="form-group checkbox-row">
         <label for="pc_google_search">允许模型使用谷歌搜索工具</label>
         <label class="switch">

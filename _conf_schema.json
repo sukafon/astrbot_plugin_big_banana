@@ -88,6 +88,16 @@
                 "type": "bool",
                 "default": false,
                 "hint": "启用后插件不会立即开始画图，允许用户连续发送多条消息，直到回复「开始」，才会将收集到的文本和图片用于图片生成。"
+            },
+            "moderation": {
+                "description": "内容审核级别",
+                "type": "string",
+                "options": [
+                    "auto",
+                    "low"
+                ],
+                "default": "auto",
+                "hint": "GPT 图像编辑模型（如 gpt-image-*）的内容安全审核等级。设置为 low 可以降低内容过滤的敏感度。"
             }
         }
     },

@@ -358,6 +358,11 @@ class OpenAIImagesProvider(BaseProvider):
             "n": params.get("n", 1),
             "size": size,
         }
+        moderation = params.get("moderation", self.def_prompt_config.moderation)
+        model_lower = (provider_config.model or "").lower()
+        is_gpt_image = any(k in model_lower for k in ["gpt-image", "chatgpt-image"])
+        if moderation and (is_gpt_image or moderation == "low"):
+            data["moderation"] = moderation
         multipart = CurlMime()
         for key, val in data.items():
             if val is not None:
