@@ -12,11 +12,7 @@ from astrbot.api.star import Context, StarTools
 from astrbot.core.agent.run_context import ContextWrapper
 from astrbot.core.agent.tool import FunctionTool, ToolExecResult
 from astrbot.core.astr_agent_context import AstrAgentContext
-from astrbot.core.message.components import BaseMessageComponent
-from astrbot.core.message.message_event_result import MessageChain
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
-
-from .utils import clear_cache
 
 TOOLS_NAMESPACE = [
     "banana_preset_prompt",
@@ -228,46 +224,36 @@ class BigBananaReferenceTool(FunctionTool[AstrAgentContext]):
                 "提示词中包含未替换的占位符 {{user_text}}，请将其替换为用户提供的文本。"
             )
 
+        session_id = event.unified_msg_origin
+        if session_id in plugin.running_tasks:
+            return (
+                "当前会话已有一个正在运行的绘图任务，请勿重复发起。请直接告知用户稍等。"
+            )
+
         logger.info(f"[BIG BANANA] 生成图片提示词: {prompt[:128]}")
 
         # 创建后台任务
         task = asyncio.create_task(plugin.job(event, params, is_llm_tool=True))
-        task_id = event.message_obj.message_id
-        plugin.running_tasks[task_id] = task
-        try:
-            results, err_msg = await task
-            result_urls = getattr(task, "result_urls", None)
-            if err_msg:
-                return err_msg or "图片生成失败，未返回任何结果。"
+        plugin.running_tasks[session_id] = task
 
-            # 组装消息链
-            msg_chain: list[BaseMessageComponent] = plugin.build_message_chain(
+        from .runner import handle_drawing_result
+
+        asyncio.create_task(
+            handle_drawing_result(
+                plugin,
                 event,
-                results or [],
-                result_urls=result_urls,
-                url_only=bool(params.get("url", False)),
+                task,
+                params,
+                session_id,
+                group_id,
+                cooldown_seconds,
             )
-            await event.send(MessageChain(chain=msg_chain))
+        )
 
-            # 记录成功后的冷却时间
-            if group_id and cooldown_seconds > 0:
-                import time
-
-                plugin.group_cooldowns[group_id] = time.time()
-
-            # 告知模型图片已发送
-            logger.info("[BIG BANANA] 图片生成成功，已直接发送给用户")
-            return (
-                "图片生成完成，已发送给用户。请直接回复用户消息，禁止重复调用函数工具。"
-            )
-        except asyncio.CancelledError:
-            logger.info(f"[BIG BANANA] {task_id} 任务被取消")
-            return "图片生成任务被取消"
-        finally:
-            plugin.running_tasks.pop(task_id, None)
-            # 目前只有 telegram 平台需要清理缓存
-            if event.platform_meta.name == "telegram":
-                clear_cache(plugin.temp_dir)
+        return (
+            "已启动后台绘图任务，生成通常需要几十秒，"
+            "完成后会再次唤醒你。如果这是用户请求，请直接告知/引导用户稍等或耐心等待，"
+        )
 
 
 @dataclass
@@ -390,48 +376,38 @@ class BigBananaAvatarTool(FunctionTool[AstrAgentContext]):
             )
             return "referer_id 参数仅兼容 aiocqhttp 平台，当前消息平台不支持该参数。"
 
+        session_id = event.unified_msg_origin
+        if session_id in plugin.running_tasks:
+            return (
+                "当前会话已有一个正在运行的绘图任务，请勿重复发起。请直接告知用户稍等。"
+            )
+
         logger.info(f"[BIG BANANA] 生成图片提示词: {prompt[:128]}")
 
         # 创建后台任务
         task = asyncio.create_task(
             plugin.job(event, params, referer_id=referer_id, is_llm_tool=True)
         )
-        task_id = event.message_obj.message_id
-        plugin.running_tasks[task_id] = task
-        try:
-            results, err_msg = await task
-            result_urls = getattr(task, "result_urls", None)
-            if err_msg:
-                return err_msg or "图片生成失败，未返回任何结果。"
+        plugin.running_tasks[session_id] = task
 
-            # 组装消息链
-            msg_chain: list[BaseMessageComponent] = plugin.build_message_chain(
+        from .runner import handle_drawing_result
+
+        asyncio.create_task(
+            handle_drawing_result(
+                plugin,
                 event,
-                results or [],
-                result_urls=result_urls,
-                url_only=bool(params.get("url", False)),
+                task,
+                params,
+                session_id,
+                group_id,
+                cooldown_seconds,
             )
-            await event.send(MessageChain(chain=msg_chain))
+        )
 
-            # 记录成功后的冷却时间
-            if group_id and cooldown_seconds > 0:
-                import time
-
-                plugin.group_cooldowns[group_id] = time.time()
-
-            # 告知模型图片已发送
-            logger.info("[BIG BANANA] 图片生成成功，已直接发送给用户")
-            return (
-                "图片生成完成，已发送给用户。请直接回复用户消息，禁止重复调用函数工具。"
-            )
-        except asyncio.CancelledError:
-            logger.info(f"[BIG BANANA] {task_id} 任务被取消")
-            return "图片生成任务被取消"
-        finally:
-            plugin.running_tasks.pop(task_id, None)
-            # 目前只有 telegram 平台需要清理缓存
-            if event.platform_meta.name == "telegram":
-                clear_cache(plugin.temp_dir)
+        return (
+            "已启动后台绘图任务，生成通常需要几十秒，"
+            "完成后会再次唤醒你。如果这是用户请求，请直接告知/引导用户稍等或耐心等待，"
+        )
 
         # 暂时不采用Astr的返回方法，改用手动发送，实现原理是一样的。
         # # 构建返回结果，Agent代码似乎只会取content的第一个元素

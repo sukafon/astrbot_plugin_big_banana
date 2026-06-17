@@ -22,6 +22,203 @@ if TYPE_CHECKING:
     from ..main import BigBanana
 
 
+async def handle_drawing_result(
+    plugin: BigBanana,
+    event: AstrMessageEvent,
+    task: asyncio.Task,
+    params: dict,
+    session_id: str,
+    group_id: str | None,
+    cooldown_seconds: float,
+) -> None:
+    """Awaits drawing task and generates/sends LLM status response asynchronously.
+
+    Acquires the session lock once the drawing task completes. Sends the generated
+    image first if the task succeeds, then calls the LLM (optionally using multimodal
+    image URLs) to construct a persona-aligned success or failure reply.
+
+    Args:
+        plugin: The BigBanana plugin instance.
+        event: The incoming message event.
+        task: The background drawing task.
+        params: Parameters for the drawing task, containing prompts and style options.
+        session_id: The unique session identifier for tracking concurrent tasks.
+        group_id: The group identifier, or None if private.
+        cooldown_seconds: Group cooldown in seconds.
+
+    Returns:
+        None
+    """
+    try:
+        results, err_msg = await task
+        result_urls = getattr(task, "result_urls", None)
+
+        # 如果画图成功，先发送图片
+        if not err_msg:
+            # 组装消息链
+            msg_chain = build_message_chain(
+                plugin,
+                event,
+                results or [],
+                result_urls=result_urls,
+                url_only=bool(params.get("url", False)),
+            )
+            await event.send(event.chain_result(msg_chain))
+
+        # 开始生成 LLM 回复并排队
+        reply_text = ""
+        from astrbot.core.utils.session_lock import session_lock_manager
+
+        async with session_lock_manager.acquire_lock(session_id):
+            provider_id = None
+            try:
+                using_provider = plugin.context.get_using_provider(session_id)
+                provider_id = using_provider.meta().id if using_provider else None
+            except Exception as e:
+                logger.warning(f"[BIG BANANA] 获取当前会话正在使用的提供商失败: {e}")
+
+            if provider_id:
+                session_curr_cid = (
+                    await plugin.context.conversation_manager.get_curr_conversation_id(
+                        session_id,
+                    )
+                )
+                system_prompt = ""
+                contexts = []
+                hist_list = []
+                if session_curr_cid:
+                    conv = await plugin.context.conversation_manager.get_conversation(
+                        session_id,
+                        session_curr_cid,
+                    )
+                    if conv:
+                        if conv.persona_id:
+                            try:
+                                persona = (
+                                    await plugin.context.persona_manager.get_persona(
+                                        conv.persona_id
+                                    )
+                                )
+                                if persona:
+                                    system_prompt = persona.system_prompt
+                            except Exception as e:
+                                logger.warning(f"[BIG BANANA] 获取人格设定失败: {e}")
+                        if conv.history:
+                            try:
+                                import json
+
+                                hist_list = json.loads(conv.history)
+                                contexts = hist_list
+                            except Exception as e:
+                                logger.warning(f"[BIG BANANA] 解析对话历史失败: {e}")
+
+                # 区分成功/失败定制 prompt
+                image_urls_for_llm = []
+                if not err_msg:
+                    # 成功时收集图片 URL 传给多模态 LLM
+                    if result_urls:
+                        image_urls_for_llm = result_urls
+                    elif results:
+                        for mime, b64 in results:
+                            if b64:
+                                image_urls_for_llm.append(f"base64://{b64}")
+
+                    prompt_for_reply = (
+                        f"【系统通知】画图任务已成功完成。\n"
+                        f"用户画图描述是：「{params.get('prompt', '')}」。\n"
+                        f"生成的图片已经发送到群聊。请根据你的角色人设 and 上下文，写一句简短、自然、生动的回复告知用户图片已生成完毕并展示在上方（直接说话，回复需符合角色口吻，不要任何多余旁白，也不要再次描述图片）。"
+                    )
+                else:
+                    prompt_for_reply = (
+                        f"【系统通知】画图任务失败。\n"
+                        f"用户原本的画图描述是：「{params.get('prompt', '')}」。\n"
+                        f"报错信息是：「{err_msg}」。\n"
+                        f"请根据你的角色人设 and 上下文，写一句自然、温和的话向用户致歉并委婉告知生成失败的原因（直接说话，回复需符合角色口吻，不要任何多余旁白）。"
+                    )
+
+                try:
+                    resp = await plugin.context.llm_generate(
+                        chat_provider_id=provider_id,
+                        prompt=prompt_for_reply,
+                        image_urls=image_urls_for_llm,
+                        system_prompt=system_prompt,
+                        contexts=contexts,
+                    )
+                    reply_text = resp.completion_text
+                except Exception as vision_err:
+                    logger.warning(
+                        f"[BIG BANANA] 使用多模态生成绘图回复失败: {vision_err}，尝试仅文本生成"
+                    )
+                    try:
+                        resp = await plugin.context.llm_generate(
+                            chat_provider_id=provider_id,
+                            prompt=prompt_for_reply,
+                            system_prompt=system_prompt,
+                            contexts=contexts,
+                        )
+                        reply_text = resp.completion_text
+                    except Exception as all_err:
+                        logger.error(
+                            f"[BIG BANANA] 后台生成绘图回复完全失败: {all_err}"
+                        )
+
+                if reply_text and session_curr_cid:
+                    try:
+                        hist_list.append({"role": "assistant", "content": reply_text})
+                        await plugin.context.conversation_manager.update_conversation(
+                            unified_msg_origin=session_id,
+                            conversation_id=session_curr_cid,
+                            history=hist_list,
+                        )
+                    except Exception as history_err:
+                        logger.warning(f"[BIG BANANA] 更新对话历史失败: {history_err}")
+
+        if reply_text:
+            await asyncio.sleep(0.2)
+            await event.send(
+                event.chain_result(
+                    [
+                        Comp.Reply(id=event.message_obj.message_id),
+                        Comp.Plain(reply_text.strip()),
+                    ]
+                )
+            )
+        elif err_msg:
+            # 如果 LLM 生成失败，则回退发送标准错误信息
+            await event.send(
+                event.chain_result(
+                    [
+                        Comp.Reply(id=event.message_obj.message_id),
+                        Comp.Plain(f"❌ 图片生成失败：{err_msg}"),
+                    ]
+                )
+            )
+
+        # 记录成功后的冷却时间
+        if not err_msg and group_id and cooldown_seconds > 0:
+            plugin.group_cooldowns[group_id] = time.time()
+    except asyncio.CancelledError:
+        logger.info(f"会话 {session_id} 的绘图任务被取消")
+    except Exception as e:
+        logger.error(f"绘图任务后台处理出错: {e}", exc_info=True)
+        try:
+            await event.send(
+                event.chain_result(
+                    [
+                        Comp.Reply(id=event.message_obj.message_id),
+                        Comp.Plain("❌ 绘图执行过程中发生内部错误。"),
+                    ]
+                )
+            )
+        except Exception:
+            pass
+    finally:
+        plugin.running_tasks.pop(session_id, None)
+        # 目前只有 telegram 平台需要清理缓存
+        if event.platform_meta.name == "telegram":
+            clear_cache(plugin.temp_dir)
+
+
 async def handle_on_message(
     plugin: BigBanana, event: AstrMessageEvent
 ) -> AsyncGenerator[AstrMessageEvent, None]:
@@ -203,49 +400,41 @@ async def handle_on_message(
                 event.stop_event()
                 return
 
+    session_id = event.unified_msg_origin
+    if session_id in plugin.running_tasks:
+        yield event.chain_result(
+            [
+                Comp.Reply(id=event.message_obj.message_id),
+                Comp.Plain(
+                    "❌ 当前会话已有一个绘图任务正在进行，请等待其完成后再发起新任务。"
+                ),
+            ]
+        )
+        return
+
     logger.info(f"正在生成图片，提示词: {params['prompt'][:60]}")
     logger.debug(
         f"生成图片应用参数: { {k: v for k, v in params.items() if k != 'prompt'} }"
     )
     # 调用作图任务
     task = asyncio.create_task(job(plugin, event, params, image_urls=image_urls))
-    task_id = event.message_obj.message_id
-    plugin.running_tasks[task_id] = task
+    plugin.running_tasks[session_id] = task
 
-    try:
-        results, err_msg = await task
-        result_urls = getattr(task, "result_urls", None)
-        if err_msg:
-            yield event.chain_result(
-                [
-                    Comp.Reply(id=event.message_obj.message_id),
-                    Comp.Plain(f"❌ 图片生成失败：{err_msg}"),
-                ]
-            )
-            return
+    # 立即发送正在画图提示
+    if getattr(plugin.preference_config, "enable_drawing_message", True):
+        yield event.plain_result(plugin.preference_config.drawing_message)
 
-        # 组装消息链
-        msg_chain = build_message_chain(
+    asyncio.create_task(
+        handle_drawing_result(
             plugin,
             event,
-            results or [],
-            result_urls=result_urls,
-            url_only=bool(params.get("url", False)),
+            task,
+            params,
+            session_id,
+            group_id,
+            cooldown_seconds,
         )
-
-        yield event.chain_result(msg_chain)
-
-        # 记录成功后的冷却时间
-        if group_id and cooldown_seconds > 0:
-            plugin.group_cooldowns[group_id] = time.time()
-    except asyncio.CancelledError:
-        logger.info(f"{task_id} 任务被取消")
-        return
-    finally:
-        plugin.running_tasks.pop(task_id, None)
-        # 目前只有 telegram 平台需要清理缓存
-        if event.platform_meta.name == "telegram":
-            clear_cache(plugin.temp_dir)
+    )
 
 
 async def job(
