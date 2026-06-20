@@ -53,6 +53,17 @@ async def handle_drawing_result(
         results, err_msg = await task
         result_urls = getattr(task, "result_urls", None)
 
+        # Check if giftia plugin is loaded and active
+        giftia_inst = None
+        bot_name = None
+        try:
+            giftia_star = plugin.context.get_registered_star("astrbot_plugin_giftia")
+            if giftia_star and giftia_star.star_cls and giftia_star.activated:
+                giftia_inst = giftia_star.star_cls
+                bot_name = giftia_inst.adapter_id_map.get(event.platform_meta.id)
+        except Exception as detection_err:
+            logger.debug(f"[BIG BANANA] Failed to detect giftia plugin: {detection_err}")
+
         # 如果画图成功，先发送图片
         if not err_msg:
             # 组装消息链
@@ -65,113 +76,195 @@ async def handle_drawing_result(
             )
             await event.send(event.chain_result(msg_chain))
 
+            # Cache the sent image message in giftia database
+            if giftia_inst and bot_name:
+                try:
+                    from data.plugins.astrbot_plugin_giftia.core.schemas import MessageData
+                    from datetime import datetime
+                    iso_string = datetime.now().isoformat()
+                    nickname = event.get_sender_name() or bot_name
+                    group_or_user_id = event.get_group_id() or event.get_sender_id()
+
+                    content_str = "[图片]"
+                    if result_urls:
+                        content_str = f" [图片:{result_urls[0]}]"
+
+                    msg_data = MessageData(
+                        nickname=nickname,
+                        user_id=event.get_self_id(),
+                        group_or_user_id=group_or_user_id,
+                        time=iso_string,
+                        message_id="",
+                        content=content_str,
+                        is_recalled=0,
+                    )
+                    await giftia_inst.data_cache.add_message(bot_name, group_or_user_id, msg_data)
+                except Exception as cache_err:
+                    logger.warning(f"[BIG BANANA] Failed to cache image message in giftia: {cache_err}")
+
         # 开始生成 LLM 回复并排队
         reply_text = ""
         from astrbot.core.utils.session_lock import session_lock_manager
 
         async with session_lock_manager.acquire_lock(session_id):
-            provider_id = None
-            try:
-                using_provider = plugin.context.get_using_provider(session_id)
-                provider_id = using_provider.meta().id if using_provider else None
-            except Exception as e:
-                logger.warning(f"[BIG BANANA] 获取当前会话正在使用的提供商失败: {e}")
-
-            if provider_id:
-                session_curr_cid = (
-                    await plugin.context.conversation_manager.get_curr_conversation_id(
-                        session_id,
-                    )
-                )
-                system_prompt = ""
-                contexts = []
-                hist_list = []
-                if session_curr_cid:
-                    conv = await plugin.context.conversation_manager.get_conversation(
-                        session_id,
-                        session_curr_cid,
-                    )
-                    if conv:
-                        if conv.persona_id:
-                            try:
-                                persona = (
-                                    await plugin.context.persona_manager.get_persona(
-                                        conv.persona_id
-                                    )
-                                )
-                                if persona:
-                                    system_prompt = persona.system_prompt
-                            except Exception as e:
-                                logger.warning(f"[BIG BANANA] 获取人格设定失败: {e}")
-                        if conv.history:
-                            try:
-                                import json
-
-                                hist_list = json.loads(conv.history)
-                                contexts = hist_list
-                            except Exception as e:
-                                logger.warning(f"[BIG BANANA] 解析对话历史失败: {e}")
-
-                # 区分成功/失败定制 prompt
-                image_urls_for_llm = []
-                if not err_msg:
-                    # 成功时收集图片 URL 传给多模态 LLM
-                    if result_urls:
-                        image_urls_for_llm = result_urls
-                    elif results:
-                        for mime, b64 in results:
-                            if b64:
-                                image_urls_for_llm.append(f"base64://{b64}")
-
-                    prompt_for_reply = (
-                        f"【系统通知】画图任务已成功完成。\n"
-                        f"用户画图描述是：「{params.get('prompt', '')}」。\n"
-                        f"生成的图片已经发送到群聊。请根据你的角色人设 and 上下文，写一句简短、自然、生动的回复告知用户图片已生成完毕并展示在上方（直接说话，回复需符合角色口吻，不要任何多余旁白，也不要再次描述图片）。"
-                    )
-                else:
-                    prompt_for_reply = (
-                        f"【系统通知】画图任务失败。\n"
-                        f"用户原本的画图描述是：「{params.get('prompt', '')}」。\n"
-                        f"报错信息是：「{err_msg}」。\n"
-                        f"请根据你的角色人设 and 上下文，写一句自然、温和的话向用户致歉并委婉告知生成失败的原因（直接说话，回复需符合角色口吻，不要任何多余旁白）。"
-                    )
-
+            if giftia_inst and bot_name:
                 try:
-                    resp = await plugin.context.llm_generate(
-                        chat_provider_id=provider_id,
-                        prompt=prompt_for_reply,
+                    nickname = event.get_sender_name() or bot_name
+                    group_or_user_id = event.get_group_id() or event.get_sender_id()
+
+                    image_urls_for_llm = []
+                    if not err_msg:
+                        if result_urls:
+                            image_urls_for_llm = result_urls
+                        elif results:
+                            for mime, b64 in results:
+                                if b64:
+                                    image_urls_for_llm.append(f"base64://{b64}")
+
+                        prompt_for_reply = (
+                            f"【系统通知】画图任务已成功完成。\n"
+                            f"用户画图描述是：「{params.get('prompt', '')}」。\n"
+                            f"生成的图片已经发送到群聊。请根据你的角色人设 and 上下文，"
+                            f"写一句简短、自然、生动的回复告知用户图片已生成完毕并展示在上方。"
+                        )
+                    else:
+                        prompt_for_reply = (
+                            f"【系统通知】画图任务失败。\n"
+                            f"用户原本的画图描述是：「{params.get('prompt', '')}」。\n"
+                            f"报错信息是：「{err_msg}」。\n"
+                            f"请根据你的角色人设 and 上下文，写一句自然、温和的话向用户致歉并委婉告知生成失败的原因。"
+                        )
+
+                    async for chunk in giftia_inst.dispatch_llm_reply(
+                        event=event,
+                        bot_name=bot_name,
+                        nickname=nickname,
+                        group_or_user_id=group_or_user_id,
+                        remind_message=prompt_for_reply,
                         image_urls=image_urls_for_llm,
-                        system_prompt=system_prompt,
-                        contexts=contexts,
+                    ):
+                        if chunk:
+                            await giftia_inst.dispatch_message(
+                                event=event,
+                                bot_name=bot_name,
+                                nickname=nickname,
+                                group_or_user_id=group_or_user_id,
+                                llm_result=chunk,
+                            )
+                    logger.info(
+                        f"[BIG BANANA] Successfully delegated drawing reply to giftia. bot_name: {bot_name}"
                     )
-                    reply_text = resp.completion_text
-                except Exception as vision_err:
-                    logger.warning(
-                        f"[BIG BANANA] 使用多模态生成绘图回复失败: {vision_err}，尝试仅文本生成"
+                except Exception as giftia_err:
+                    logger.error(
+                        f"[BIG BANANA] Failed to delegate drawing reply to giftia: {giftia_err}, falling back to default.",
+                        exc_info=True
                     )
+                    giftia_inst = None
+
+            # Fallback to default big_banana response logic if giftia is not active or failed
+            if not giftia_inst or not bot_name:
+                provider_id = None
+                try:
+                    using_provider = plugin.context.get_using_provider(session_id)
+                    provider_id = using_provider.meta().id if using_provider else None
+                except Exception as e:
+                    logger.warning(f"[BIG BANANA] 获取当前会话正在使用的提供商失败: {e}")
+
+                if provider_id:
+                    session_curr_cid = (
+                        await plugin.context.conversation_manager.get_curr_conversation_id(
+                            session_id,
+                        )
+                    )
+                    system_prompt = ""
+                    contexts = []
+                    hist_list = []
+                    if session_curr_cid:
+                        conv = await plugin.context.conversation_manager.get_conversation(
+                            session_id,
+                            session_curr_cid,
+                        )
+                        if conv:
+                            if conv.persona_id:
+                                try:
+                                    persona = (
+                                        await plugin.context.persona_manager.get_persona(
+                                            conv.persona_id
+                                        )
+                                    )
+                                    if persona:
+                                        system_prompt = persona.system_prompt
+                                except Exception as e:
+                                    logger.warning(f"[BIG BANANA] 获取人格设定失败: {e}")
+                            if conv.history:
+                                try:
+                                    import json
+
+                                    hist_list = json.loads(conv.history)
+                                    contexts = hist_list
+                                except Exception as e:
+                                    logger.warning(f"[BIG BANANA] 解析对话历史失败: {e}")
+
+                    # 区分成功/失败定制 prompt
+                    image_urls_for_llm = []
+                    if not err_msg:
+                        # 成功时收集图片 URL 传给多模态 LLM
+                        if result_urls:
+                            image_urls_for_llm = result_urls
+                        elif results:
+                            for mime, b64 in results:
+                                if b64:
+                                    image_urls_for_llm.append(f"base64://{b64}")
+
+                        prompt_for_reply = (
+                            f"【系统通知】画图任务已成功完成。\n"
+                            f"用户画图描述是：「{params.get('prompt', '')}」。\n"
+                            f"生成的图片已经发送到群聊。请根据你的角色人设 and 上下文，写一句简短、自然、生动的回复告知用户图片已生成完毕并展示在上方（直接说话，回复需符合角色口吻，不要任何多余旁白，也不要再次描述图片）。"
+                        )
+                    else:
+                        prompt_for_reply = (
+                            f"【系统通知】画图任务失败。\n"
+                            f"用户原本的画图描述是：「{params.get('prompt', '')}」。\n"
+                            f"报错信息是：「{err_msg}」。\n"
+                            f"请根据你的角色人设 and 上下文，写一句自然、温和的话向用户致歉并委婉告知生成失败的原因（直接说话，回复需符合角色口吻，不要任何多余旁白）。"
+                        )
+
                     try:
                         resp = await plugin.context.llm_generate(
                             chat_provider_id=provider_id,
                             prompt=prompt_for_reply,
+                            image_urls=image_urls_for_llm,
                             system_prompt=system_prompt,
                             contexts=contexts,
                         )
                         reply_text = resp.completion_text
-                    except Exception as all_err:
-                        logger.error(
-                            f"[BIG BANANA] 后台生成绘图回复完全失败: {all_err}"
+                    except Exception as vision_err:
+                        logger.warning(
+                            f"[BIG BANANA] 使用多模态生成绘图回复失败: {vision_err}，尝试仅文本生成"
                         )
+                        try:
+                            resp = await plugin.context.llm_generate(
+                                chat_provider_id=provider_id,
+                                prompt=prompt_for_reply,
+                                system_prompt=system_prompt,
+                                contexts=contexts,
+                            )
+                            reply_text = resp.completion_text
+                        except Exception as all_err:
+                            logger.error(
+                                f"[BIG BANANA] 后台生成绘图回复完全失败: {all_err}"
+                            )
 
-                if reply_text and session_curr_cid:
-                    try:
-                        hist_list.append({"role": "assistant", "content": reply_text})
-                        await plugin.context.conversation_manager.update_conversation(
-                            unified_msg_origin=session_id,
-                            conversation_id=session_curr_cid,
-                            history=hist_list,
-                        )
-                    except Exception as history_err:
-                        logger.warning(f"[BIG BANANA] 更新对话历史失败: {history_err}")
+                    if reply_text and session_curr_cid:
+                        try:
+                            hist_list.append({"role": "assistant", "content": reply_text})
+                            await plugin.context.conversation_manager.update_conversation(
+                                unified_msg_origin=session_id,
+                                conversation_id=session_curr_cid,
+                                history=hist_list,
+                            )
+                        except Exception as history_err:
+                            logger.warning(f"[BIG BANANA] 更新对话历史失败: {history_err}")
 
         if reply_text:
             await asyncio.sleep(0.2)
@@ -183,7 +276,7 @@ async def handle_drawing_result(
                     ]
                 )
             )
-        elif err_msg:
+        elif err_msg and (not giftia_inst or not bot_name):
             # 如果 LLM 生成失败，则回退发送标准错误信息
             await event.send(
                 event.chain_result(
