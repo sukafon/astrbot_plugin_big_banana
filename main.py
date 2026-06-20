@@ -338,6 +338,7 @@ class BigBanana(Star):
         results: list[tuple[str, str]],
         result_urls: list[str] | None = None,
         url_only: bool = False,
+        params: dict | None = None,
     ) -> list[BaseMessageComponent]:
         """构建消息链
 
@@ -346,11 +347,12 @@ class BigBanana(Star):
             results: The base64 list.
             result_urls: Public URLs.
             url_only: Whether only URL is needed.
+            params: Parameters dictionary.
 
         Returns:
             List of message components.
         """
-        return build_message_chain(self, event, results, result_urls, url_only)
+        return build_message_chain(self, event, results, result_urls, url_only, params)
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""

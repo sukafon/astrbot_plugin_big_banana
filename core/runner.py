@@ -16,7 +16,7 @@ from astrbot.core.message.message_event_result import MessageChain
 from astrbot.core.utils.session_waiter import SessionController, session_waiter
 
 from .data import MAX_SIZE_B64_LEN, SUPPORTED_FILE_FORMATS_WITH_DOT
-from .utils import clear_cache, read_file, save_images
+from .utils import clear_cache, read_file, save_images, copy_local_file
 
 if TYPE_CHECKING:
     from ..main import BigBanana
@@ -214,9 +214,14 @@ async def handle_drawing_result(
             pass
     finally:
         plugin.running_tasks.pop(session_id, None)
-        # 目前只有 telegram 平台需要清理缓存
-        if event.platform_meta.name == "telegram":
-            clear_cache(plugin.temp_dir)
+        task_temp_dir = params.get("task_temp_dir", plugin.temp_dir)
+        clear_cache(task_temp_dir)
+        if task_temp_dir != plugin.temp_dir:
+            try:
+                task_temp_dir.rmdir()
+            except Exception as e:
+                logger.warning(f"[BIG BANANA] Failed to remove task temp dir {task_temp_dir}: {e}")
+
 
 
 async def handle_on_message(
@@ -305,6 +310,29 @@ async def handle_on_message(
 
     # 获取提示词配置 (使用 .copy() 防止修改污染全局预设)
     params = plugin.prompt_dict.get(cmd, {}).copy()
+    
+    session_id = event.unified_msg_origin
+    task_temp_dir = plugin.temp_dir / f"task_{session_id}_{int(time.time())}"
+    os.makedirs(task_temp_dir, exist_ok=True)
+    params["task_temp_dir"] = task_temp_dir
+
+    # Copy all local temp images of this event to task_temp_dir so they don't get deleted early
+    for comp in event.get_messages():
+        if isinstance(comp, Comp.Image) and comp.url:
+            comp.url = copy_local_file(comp.url, task_temp_dir)
+            if comp.file:
+                comp.file = comp.url
+            if comp.path:
+                comp.path = comp.url
+        elif isinstance(comp, Comp.Reply) and comp.chain:
+            for quote in comp.chain:
+                if isinstance(quote, Comp.Image) and quote.url:
+                    quote.url = copy_local_file(quote.url, task_temp_dir)
+                    if quote.file:
+                        quote.file = quote.url
+                    if quote.path:
+                        quote.path = quote.url
+
     # 先从预设提示词参数字典字典中取出提示词
     preset_prompt = params.get("prompt", "{{user_text}}")
 
@@ -365,7 +393,7 @@ async def handle_on_message(
                     # 追加文本到提示词
                     params["prompt"] += " " + comp.text.strip()
                 elif isinstance(comp, Comp.Image) and comp.url:
-                    image_urls.append(comp.url)
+                    image_urls.append(copy_local_file(comp.url, task_temp_dir))
                 elif (
                     isinstance(comp, Comp.File)
                     and comp.url
@@ -828,6 +856,7 @@ def build_message_chain(
     results: list[tuple[str, str]],
     result_urls: list[str] | None = None,
     url_only: bool = False,
+    params: dict | None = None,
 ) -> list[BaseMessageComponent]:
     """Builds the message chain containing the generated images or file components.
 
@@ -852,7 +881,8 @@ def build_message_chain(
     if event.platform_meta.name == "telegram" and any(
         (b64 and len(b64) > MAX_SIZE_B64_LEN) for _, b64 in results
     ):
-        save_results = save_images(results, plugin.temp_dir)
+        task_temp_dir = params.get("task_temp_dir", plugin.temp_dir) if params else plugin.temp_dir
+        save_results = save_images(results, task_temp_dir)
         for name_, path_ in save_results:
             msg_chain.append(Comp.File(name=name_, file=str(path_)))
         return msg_chain
