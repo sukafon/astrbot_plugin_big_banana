@@ -1,6 +1,9 @@
 import base64
 import mimetypes
 import random
+import shutil
+import urllib.parse
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -70,3 +73,38 @@ def random_string(length: int) -> str:
     return "".join(
         random.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(length)
     )
+
+
+def copy_local_file(src: str, temp_dir: Path) -> str:
+    """If the source path is local, copy it to the temp directory to prevent it from being deleted during the event lifecycle.
+
+    Args:
+        src: The source file path or URL.
+        temp_dir: The destination directory to copy to.
+
+    Returns:
+        The copied file path if local, otherwise the original src.
+    """
+    if not src:
+        return src
+    if src.startswith(("http://", "https://")):
+        return src
+
+    path = src
+    if path.startswith("file://"):
+        path = urllib.request.url2pathname(urllib.parse.urlparse(path).path)
+
+    src_path = Path(path)
+    if src_path.exists() and src_path.is_file():
+        # Copy to temp_dir with a unique name to avoid conflicts
+        dest_filename = f"local_{random_string(8)}_{src_path.name}"
+        dest_path = temp_dir / dest_filename
+        try:
+            shutil.copy2(src_path, dest_path)
+            logger.debug(f"[BIG BANANA] Copied local temp image {src_path} to {dest_path}")
+            return str(dest_path)
+        except Exception as e:
+            logger.error(f"[BIG BANANA] Failed to copy local image {src_path} to {dest_path}: {e}")
+
+    return src
+
