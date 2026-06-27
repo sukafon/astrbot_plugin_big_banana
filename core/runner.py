@@ -16,7 +16,7 @@ from astrbot.core.message.message_event_result import MessageChain
 from astrbot.core.utils.session_waiter import SessionController, session_waiter
 
 from .data import MAX_SIZE_B64_LEN, SUPPORTED_FILE_FORMATS_WITH_DOT
-from .utils import clear_cache, read_file, save_images, copy_local_file
+from .utils import clear_cache, copy_local_file, read_file, save_images
 
 if TYPE_CHECKING:
     from ..main import BigBanana
@@ -62,7 +62,9 @@ async def handle_drawing_result(
                 giftia_inst = giftia_star.star_cls
                 bot_name = giftia_inst.adapter_id_map.get(event.platform_meta.id)
         except Exception as detection_err:
-            logger.debug(f"[BIG BANANA] Failed to detect giftia plugin: {detection_err}")
+            logger.debug(
+                f"[BIG BANANA] Failed to detect giftia plugin: {detection_err}"
+            )
 
         # 如果画图成功，先发送图片
         if not err_msg:
@@ -79,8 +81,12 @@ async def handle_drawing_result(
             # Cache the sent image message in giftia database
             if giftia_inst and bot_name:
                 try:
-                    from data.plugins.astrbot_plugin_giftia.core.schemas import MessageData
                     from datetime import datetime
+
+                    from data.plugins.astrbot_plugin_giftia.core.utils.schemas import (
+                        MessageData,
+                    )
+
                     iso_string = datetime.now().isoformat()
                     nickname = event.get_sender_name() or bot_name
                     group_or_user_id = event.get_group_id() or event.get_sender_id()
@@ -98,9 +104,13 @@ async def handle_drawing_result(
                         content=content_str,
                         is_recalled=0,
                     )
-                    await giftia_inst.data_cache.add_message(bot_name, group_or_user_id, msg_data)
+                    await giftia_inst.data_cache.add_message(
+                        bot_name, group_or_user_id, msg_data
+                    )
                 except Exception as cache_err:
-                    logger.warning(f"[BIG BANANA] Failed to cache image message in giftia: {cache_err}")
+                    logger.warning(
+                        f"[BIG BANANA] Failed to cache image message in giftia: {cache_err}"
+                    )
 
         # 开始生成 LLM 回复并排队
         reply_text = ""
@@ -135,16 +145,18 @@ async def handle_drawing_result(
                             f"请根据你的角色人设 and 上下文，写一句自然、温和的话向用户致歉并委婉告知生成失败的原因。"
                         )
 
-                    async for chunk in giftia_inst.dispatch_llm_reply(
-                        event=event,
-                        bot_name=bot_name,
-                        nickname=nickname,
-                        group_or_user_id=group_or_user_id,
-                        remind_message=prompt_for_reply,
-                        image_urls=image_urls_for_llm,
+                    async for chunk in (
+                        giftia_inst.chat_manager.reply_pipeline.dispatch_llm_reply_loop(
+                            event=event,
+                            bot_name=bot_name,
+                            nickname=nickname,
+                            group_or_user_id=group_or_user_id,
+                            remind_message=prompt_for_reply,
+                            image_urls=image_urls_for_llm,
+                        )
                     ):
                         if chunk:
-                            await giftia_inst.dispatch_message(
+                            await giftia_inst.chat_manager.action_dispatcher.dispatch_actions(
                                 event=event,
                                 bot_name=bot_name,
                                 nickname=nickname,
@@ -157,7 +169,7 @@ async def handle_drawing_result(
                 except Exception as giftia_err:
                     logger.error(
                         f"[BIG BANANA] Failed to delegate drawing reply to giftia: {giftia_err}, falling back to default.",
-                        exc_info=True
+                        exc_info=True,
                     )
                     giftia_inst = None
 
@@ -168,34 +180,36 @@ async def handle_drawing_result(
                     using_provider = plugin.context.get_using_provider(session_id)
                     provider_id = using_provider.meta().id if using_provider else None
                 except Exception as e:
-                    logger.warning(f"[BIG BANANA] 获取当前会话正在使用的提供商失败: {e}")
+                    logger.warning(
+                        f"[BIG BANANA] 获取当前会话正在使用的提供商失败: {e}"
+                    )
 
                 if provider_id:
-                    session_curr_cid = (
-                        await plugin.context.conversation_manager.get_curr_conversation_id(
-                            session_id,
-                        )
+                    session_curr_cid = await plugin.context.conversation_manager.get_curr_conversation_id(
+                        session_id,
                     )
                     system_prompt = ""
                     contexts = []
                     hist_list = []
                     if session_curr_cid:
-                        conv = await plugin.context.conversation_manager.get_conversation(
-                            session_id,
-                            session_curr_cid,
+                        conv = (
+                            await plugin.context.conversation_manager.get_conversation(
+                                session_id,
+                                session_curr_cid,
+                            )
                         )
                         if conv:
                             if conv.persona_id:
                                 try:
-                                    persona = (
-                                        await plugin.context.persona_manager.get_persona(
-                                            conv.persona_id
-                                        )
+                                    persona = await plugin.context.persona_manager.get_persona(
+                                        conv.persona_id
                                     )
                                     if persona:
                                         system_prompt = persona.system_prompt
                                 except Exception as e:
-                                    logger.warning(f"[BIG BANANA] 获取人格设定失败: {e}")
+                                    logger.warning(
+                                        f"[BIG BANANA] 获取人格设定失败: {e}"
+                                    )
                             if conv.history:
                                 try:
                                     import json
@@ -203,7 +217,9 @@ async def handle_drawing_result(
                                     hist_list = json.loads(conv.history)
                                     contexts = hist_list
                                 except Exception as e:
-                                    logger.warning(f"[BIG BANANA] 解析对话历史失败: {e}")
+                                    logger.warning(
+                                        f"[BIG BANANA] 解析对话历史失败: {e}"
+                                    )
 
                     # 区分成功/失败定制 prompt
                     image_urls_for_llm = []
@@ -257,14 +273,20 @@ async def handle_drawing_result(
 
                     if reply_text and session_curr_cid:
                         try:
-                            hist_list.append({"role": "assistant", "content": reply_text})
-                            await plugin.context.conversation_manager.update_conversation(
-                                unified_msg_origin=session_id,
-                                conversation_id=session_curr_cid,
-                                history=hist_list,
+                            hist_list.append(
+                                {"role": "assistant", "content": reply_text}
+                            )
+                            await (
+                                plugin.context.conversation_manager.update_conversation(
+                                    unified_msg_origin=session_id,
+                                    conversation_id=session_curr_cid,
+                                    history=hist_list,
+                                )
                             )
                         except Exception as history_err:
-                            logger.warning(f"[BIG BANANA] 更新对话历史失败: {history_err}")
+                            logger.warning(
+                                f"[BIG BANANA] 更新对话历史失败: {history_err}"
+                            )
 
         if reply_text:
             await asyncio.sleep(0.2)
@@ -313,8 +335,9 @@ async def handle_drawing_result(
             try:
                 task_temp_dir.rmdir()
             except Exception as e:
-                logger.warning(f"[BIG BANANA] Failed to remove task temp dir {task_temp_dir}: {e}")
-
+                logger.warning(
+                    f"[BIG BANANA] Failed to remove task temp dir {task_temp_dir}: {e}"
+                )
 
 
 async def handle_on_message(
@@ -403,7 +426,7 @@ async def handle_on_message(
 
     # 获取提示词配置 (使用 .copy() 防止修改污染全局预设)
     params = plugin.prompt_dict.get(cmd, {}).copy()
-    
+
     session_id = event.unified_msg_origin
     task_temp_dir = plugin.temp_dir / f"task_{session_id}_{int(time.time())}"
     os.makedirs(task_temp_dir, exist_ok=True)
@@ -974,7 +997,9 @@ def build_message_chain(
     if event.platform_meta.name == "telegram" and any(
         (b64 and len(b64) > MAX_SIZE_B64_LEN) for _, b64 in results
     ):
-        task_temp_dir = params.get("task_temp_dir", plugin.temp_dir) if params else plugin.temp_dir
+        task_temp_dir = (
+            params.get("task_temp_dir", plugin.temp_dir) if params else plugin.temp_dir
+        )
         save_results = save_images(results, task_temp_dir)
         for name_, path_ in save_results:
             msg_chain.append(Comp.File(name=name_, file=str(path_)))
