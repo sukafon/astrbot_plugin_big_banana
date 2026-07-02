@@ -101,10 +101,13 @@ def copy_local_file(src: str, temp_dir: Path) -> str:
         dest_path = temp_dir / dest_filename
         try:
             shutil.copy2(src_path, dest_path)
-            logger.debug(f"[BIG BANANA] Copied local temp image {src_path} to {dest_path}")
+            logger.debug(
+                f"[BIG BANANA] Copied local temp image {src_path} to {dest_path}"
+            )
             return str(dest_path)
         except Exception as e:
-            logger.error(f"[BIG BANANA] Failed to copy local image {src_path} to {dest_path}: {e}")
+            logger.error(
+                f"[BIG BANANA] Failed to copy local image {src_path} to {dest_path}: {e}"
+            )
 
     return src
-
