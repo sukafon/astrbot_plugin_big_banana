@@ -79,6 +79,8 @@ class PromptConfig:
     """引用参考图片的文件名"""
     gather_mode: bool = False
     """是否启用收集模式"""
+    moderation: str = "auto"
+    """GPT 图像编辑模型的内容安全审核等级"""
 
 
 @dataclass(repr=False, slots=True)
@@ -109,6 +111,12 @@ class PreferenceConfig:
     """ 跳过第一次引用@ """
     skip_llm_at_first: bool = False
     """ 跳过第一次LLM@ """
+    enable_drawing_message: bool = True
+    """ 是否启用图片生成中提示消息 """
+    drawing_message: str = "🎨 在画了，请稍等一会..."
+    """ 图片生成中提示消息 """
+    group_cooldown: int = 0
+    """ 群组冷却时间(秒) """
 
 
 @dataclass(repr=False, slots=True)
@@ -141,3 +149,39 @@ class VertexAIAnonymousConfig:
     """最大重试次数"""
     retry_delay: float = 2
     """重试间隔时间, 单位: 秒"""
+
+
+@dataclass(repr=False, slots=True)
+class SubBrainConfig:
+    """副脑配置参数"""
+
+    enabled: bool = False
+    """是否启用副脑优化"""
+    provider_id: str = ""
+    """副脑模型供应商 ID"""
+    system_prompt: str = ""
+    """副脑系统提示词"""
+
+
+# 提示词参数列表
+PARAMS_LIST = [
+    "min_images",
+    "max_images",
+    "refer_images",
+    "image_size",
+    "aspect_ratio",
+    "google_search",
+    "preset_append",
+    "gather_mode",
+    "providers",
+    "n",
+    "size",
+    "url",
+    "sub_brain",
+    "moderation",
+]
+
+# 部分平台对单张图片大小有限制，超过限制需要作为文件发送
+MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
+# 预计算 Base64 长度阈值 (向下取整)，base64编码约为原始数据的4/3倍
+MAX_SIZE_B64_LEN = int(MAX_SIZE_BYTES * 4 / 3)

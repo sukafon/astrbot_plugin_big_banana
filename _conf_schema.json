@@ -10,285 +10,18 @@
         ],
         "hint": "格式1: 触发词 提示词 --参数1 参数值1 --参数2 参数值2。格式2: [触发词1,触发词2] 提示词 --参数1 参数值1 --参数2 参数值2。触发词和触发词列表不能有空格。若省略参数值，则视为布尔值true。占位提示词：{{user_text}}，占位提示词会被消息内容覆盖，用于自定义提示词，可以在占位提示词前后添加固定的预设提示词。可选的参数请参考 README.md。触发词冲突可能会相互覆盖。"
     },
-    "main_provider": {
-        "description": "主提供商",
-        "type": "object",
-        "hint": "优先使用主提供商，主提供商重试机会耗尽后，依次降级回退到备用提供商重试。",
-        "items": {
-            "enabled": {
-                "description": "启用接口",
-                "type": "bool",
-                "default": true,
-                "hint": "这个选项本质上是控制--providers默认参数，可以在提示词中指定加以覆盖"
-            },
-            "api_name": {
-                "description": "提供商名称",
-                "type": "string",
-                "default": "主提供商",
-                "hint": "用于信息回显时识别具体的提供商，以及在参数中指定提供商。"
-            },
-            "api_type": {
-                "description": "接口规范类型",
-                "hint": "这个API接口使用的规范类型。Vertex_AI_Anonymous类型接口请下拉到 vertex_ai_anonymous_config 进行具体配置。",
-                "type": "string",
-                "options": [
-                    "Gemini",
-                    "OpenAI_Chat",
-                    "OpenAI_Images",
-                    "Agnes_Images",
-                    "Vertex_AI_Anonymous"
-                ],
-                "default": "Vertex_AI_Anonymous"
-            },
-            "keys": {
-                "description": "API密钥",
-                "type": "list",
-                "default": [],
-                "hint": "API Key列表。对于 OpenAI_Images 和 OpenAI_Chat，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。"
-            },
-            "api_url": {
-                "description": "api_url",
-                "type": "string",
-                "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI_Images 官方示例：https://api.openai.com/v1/images；Agnes_Images 示例：https://apihub.agnes-ai.com/v1/images；OpenAI_Chat 兼容层示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
-            },
-            "model": {
-                "description": "模型",
-                "type": "string",
-                "default": "gemini-3-pro-image-preview",
-                "hint": "默认值 gemini-3-pro-image-preview。OpenAI_Images 推荐填写 gpt-image-2。Agnes_Images 推荐填写 agnes-image-2.1-flash。"
-            },
-            "stream": {
-                "description": "流式",
-                "type": "bool",
-                "default": false,
-                "hint": "需提供商支持"
-            }
-        }
+    "image_generation_providers": {
+        "description": "绘图 AI 提供商（按优先级多选）",
+        "type": "list",
+        "_special": "select_providers",
+        "default": [],
+        "hint": "选择用于生成图片的模型提供商。若选择多个，第一个失败时会自动降级尝试后面的提供商。留空则跟随当前对话正在使用的服务商。"
     },
-    "back_provider": {
-        "description": "备用提供商1",
-        "type": "object",
-        "hint": "",
-        "items": {
-            "enabled": {
-                "description": "启用接口",
-                "type": "bool",
-                "default": false,
-                "hint": "这个选项本质上是控制--providers默认参数，可以在提示词中指定加以覆盖"
-            },
-            "api_name": {
-                "description": "提供商名称",
-                "type": "string",
-                "default": "备用提供商1",
-                "hint": "用于信息回显时识别具体的提供商，以及在参数中指定提供商。"
-            },
-            "api_type": {
-                "description": "接口规范类型",
-                "hint": "这个API接口使用的规范类型。",
-                "type": "string",
-                "options": [
-                    "Gemini",
-                    "OpenAI_Chat",
-                    "OpenAI_Images",
-                    "Agnes_Images",
-                    "Vertex_AI_Anonymous"
-                ],
-                "default": "Gemini"
-            },
-            "keys": {
-                "description": "API密钥",
-                "hint": "API Key列表。对于 OpenAI_Images 和 OpenAI_Chat，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
-                "type": "list",
-                "default": []
-            },
-            "api_url": {
-                "description": "api_url",
-                "type": "string",
-                "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI_Images 官方示例：https://api.openai.com/v1/images；Agnes_Images 示例：https://apihub.agnes-ai.com/v1/images；OpenAI_Chat 兼容层示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
-            },
-            "model": {
-                "description": "模型",
-                "type": "string",
-                "default": "gemini-3-pro-image-preview",
-                "hint": "默认值 gemini-3-pro-image-preview。OpenAI_Images 推荐填写 gpt-image-2。Agnes_Images 推荐填写 agnes-image-2.1-flash。"
-            },
-            "stream": {
-                "description": "流式",
-                "type": "bool",
-                "default": false,
-                "hint": "需提供商支持"
-            }
-        }
-    },
-    "back_provider2": {
-        "description": "备用提供商2",
-        "type": "object",
-        "hint": "",
-        "items": {
-            "enabled": {
-                "description": "启用接口",
-                "type": "bool",
-                "default": false,
-                "hint": "这个选项本质上是控制--providers默认参数，可以在提示词中指定加以覆盖"
-            },
-            "api_name": {
-                "description": "提供商名称",
-                "type": "string",
-                "default": "备用提供商2",
-                "hint": "用于信息回显时识别具体的提供商，以及在参数中指定提供商。"
-            },
-            "api_type": {
-                "description": "接口规范类型",
-                "type": "string",
-                "options": [
-                    "Gemini",
-                    "OpenAI_Chat",
-                    "OpenAI_Images",
-                    "Agnes_Images",
-                    "Vertex_AI_Anonymous"
-                ],
-                "default": "Gemini",
-                "hint": "这个API接口使用的规范类型。"
-            },
-            "keys": {
-                "description": "API密钥",
-                "hint": "API Key列表。对于 OpenAI_Images 和 OpenAI_Chat，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
-                "type": "list",
-                "default": []
-            },
-            "api_url": {
-                "description": "api_url",
-                "type": "string",
-                "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI_Images 官方示例：https://api.openai.com/v1/images；Agnes_Images 示例：https://apihub.agnes-ai.com/v1/images；OpenAI_Chat 兼容层示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
-            },
-            "model": {
-                "description": "模型",
-                "type": "string",
-                "default": "gemini-3-pro-image-preview",
-                "hint": "默认值 gemini-3-pro-image-preview。OpenAI_Images 推荐填写 gpt-image-2。Agnes_Images 推荐填写 agnes-image-2.1-flash。"
-            },
-            "stream": {
-                "description": "流式",
-                "type": "bool",
-                "default": false,
-                "hint": "需提供商支持"
-            }
-        }
-    },
-    "back_provider3": {
-        "description": "备用提供商3",
-        "type": "object",
-        "hint": "",
-        "items": {
-            "enabled": {
-                "description": "启用接口",
-                "type": "bool",
-                "default": false,
-                "hint": "这个选项本质上是控制--providers默认参数，可以在提示词中指定加以覆盖"
-            },
-            "api_name": {
-                "description": "提供商名称",
-                "type": "string",
-                "default": "备用提供商3",
-                "hint": "用于信息回显时识别具体的提供商，以及在参数中指定提供商。"
-            },
-            "api_type": {
-                "description": "接口规范类型",
-                "type": "string",
-                "options": [
-                    "Gemini",
-                    "OpenAI_Chat",
-                    "OpenAI_Images",
-                    "Agnes_Images",
-                    "Vertex_AI_Anonymous"
-                ],
-                "default": "Gemini",
-                "hint": "这个API接口使用的规范类型。"
-            },
-            "keys": {
-                "description": "API密钥",
-                "hint": "API Key列表。对于 OpenAI_Images 和 OpenAI_Chat，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
-                "type": "list",
-                "default": []
-            },
-            "api_url": {
-                "description": "api_url",
-                "type": "string",
-                "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI_Images 官方示例：https://api.openai.com/v1/images；Agnes_Images 示例：https://apihub.agnes-ai.com/v1/images；OpenAI_Chat 兼容层示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
-            },
-            "model": {
-                "description": "模型",
-                "type": "string",
-                "default": "gemini-3-pro-image-preview",
-                "hint": "默认值 gemini-3-pro-image-preview。OpenAI_Images 推荐填写 gpt-image-2。Agnes_Images 推荐填写 agnes-image-2.1-flash。"
-            },
-            "stream": {
-                "description": "流式",
-                "type": "bool",
-                "default": false,
-                "hint": "需提供商支持"
-            }
-        }
-    },
-    "back_provider4": {
-        "description": "备用提供商4",
-        "type": "object",
-        "hint": "",
-        "items": {
-            "enabled": {
-                "description": "启用接口",
-                "type": "bool",
-                "default": false,
-                "hint": "这个选项本质上是控制--providers默认参数，可以在提示词中指定加以覆盖"
-            },
-            "api_name": {
-                "description": "提供商名称",
-                "type": "string",
-                "default": "备用提供商4",
-                "hint": "用于信息回显时识别具体的提供商，以及在参数中指定提供商。"
-            },
-            "api_type": {
-                "description": "接口规范类型",
-                "type": "string",
-                "options": [
-                    "Gemini",
-                    "OpenAI_Chat",
-                    "OpenAI_Images",
-                    "Agnes_Images",
-                    "Vertex_AI_Anonymous"
-                ],
-                "default": "Gemini",
-                "hint": "这个API接口使用的规范类型。"
-            },
-            "keys": {
-                "description": "API密钥",
-                "hint": "API Key列表。对于 OpenAI_Images 和 OpenAI_Chat，不需要填写Bearer 前缀，后端会自动拼接。VertexAI逆向可留空。",
-                "type": "list",
-                "default": []
-            },
-            "api_url": {
-                "description": "api_url",
-                "type": "string",
-                "default": "https://generativelanguage.googleapis.com/v1beta/models",
-                "hint": "Gemini示例：https://<base_url>/v1beta/models；OpenAI_Images 官方示例：https://api.openai.com/v1/images；Agnes_Images 示例：https://apihub.agnes-ai.com/v1/images；OpenAI_Chat 兼容层示例：http://<base_url>/v1/chat/completions；VertexAI官方与Gemini规范兼容，URL示例：https://aiplatform.googleapis.com/v1/publishers/google/models；VertexAI逆向可留空。"
-            },
-            "model": {
-                "description": "模型",
-                "type": "string",
-                "default": "gemini-3-pro-image-preview",
-                "hint": "默认值 gemini-3-pro-image-preview。OpenAI_Images 推荐填写 gpt-image-2。Agnes_Images 推荐填写 agnes-image-2.1-flash。"
-            },
-            "stream": {
-                "description": "流式",
-                "type": "bool",
-                "default": false,
-                "hint": "需提供商支持"
-            }
-        }
+    "stream": {
+        "description": "启用流式响应",
+        "type": "bool",
+        "default": false,
+        "hint": "需要提供商支持绘图流式响应。"
     },
     "prompt_config": {
         "description": "提示词默认参数",
@@ -355,6 +88,16 @@
                 "type": "bool",
                 "default": false,
                 "hint": "启用后插件不会立即开始画图，允许用户连续发送多条消息，直到回复「开始」，才会将收集到的文本和图片用于图片生成。"
+            },
+            "moderation": {
+                "description": "内容审核级别",
+                "type": "string",
+                "options": [
+                    "auto",
+                    "low"
+                ],
+                "default": "auto",
+                "hint": "GPT 图像编辑模型（如 gpt-image-*）的内容安全审核等级。设置为 low 可以降低内容过滤的敏感度。"
             }
         }
     },
@@ -522,6 +265,24 @@
                 "type": "bool",
                 "default": true,
                 "hint": "通过@机器人触发LLM函数调用工具，跳过一次机器人的头像。"
+            },
+            "enable_drawing_message": {
+                "description": "启用生成中提示消息",
+                "type": "bool",
+                "default": true,
+                "hint": "是否在开始生成图片时向用户发送提示文字。"
+            },
+            "drawing_message": {
+                "description": "图片生成中提示消息",
+                "type": "string",
+                "default": "🎨 在画了，请稍等一会...",
+                "hint": "开始生成图片时，发送给用户的提示文字。"
+            },
+            "group_cooldown": {
+                "description": "群组冷却时间",
+                "type": "int",
+                "default": 0,
+                "hint": "控制每个群组使用画图工具的冷却时间(秒)，0为不限制。在成功发送图片后开始计算冷却。"
             }
         }
     },
@@ -548,6 +309,32 @@
                 "type": "bool",
                 "default": false,
                 "hint": "生成的图片保存到插件数据目录的 save_images 文件夹"
+            }
+        }
+    },
+    "sub_brain": {
+        "description": "副脑配置 (提示词优化)",
+        "type": "object",
+        "hint": "启用后，在对话大模型调用画图工具生成图片时，会将传给工具的简短描述先提交给副脑进行扩写优化，再交给画图供应商生成图片。",
+        "items": {
+            "enabled": {
+                "description": "启用副脑优化",
+                "type": "bool",
+                "default": false,
+                "hint": "是否启用副脑提示词优化"
+            },
+            "provider_id": {
+                "description": "副脑模型供应商 (LLM Provider)",
+                "type": "string",
+                "_special": "select_provider",
+                "default": "",
+                "hint": "用于优化提示词的 LLM 提供商。留空则使用当前对话正在使用的提供商。"
+            },
+            "system_prompt": {
+                "description": "副脑系统提示词",
+                "type": "text",
+                "default": "你是一个专业的视觉艺术大师与画图提示词优化助手。你的任务是将用户口语化的简短提示词，翻译并优化为适合 AI 生图（如 DALL-E 3、Stable Diffusion、Midjourney）的高质量英文提示词。\n\n请遵循以下优化规范丰富提示词：\n- Subject (主体): 补充动作、表情、衣着及材质等细节。\n- Style (艺术风格): 明确艺术风格（如 cyberpunk, anime illustration, photorealistic 等）。\n- Detail & Environment (环境): 补充背景及环境细节。\n- Lighting & Color (光影色彩): 设定光影色彩（如 cinematic lighting, golden hour 等）。\n- Quality Tags (画质标签): 加入画质修饰词（如 masterpiece, highly detailed, sharp focus 等）。\n\n特别要求：\n- 如果原始提示词中包含对参考图或头像编号的引用（如 \"image 1\", \"image 2\", \"图1\", \"图2\", \"the character in image 1\" 等），在翻译和优化时必须**完整且原样保留**这些引用标识（如 \"the character in image 1\", \"image 1\"），绝对不能用具体的角色名字替换它们或将它们删除。\n\n注意：直接输出优化后的最终英文提示词文本，绝对不要包含任何解释、问候或额外的 Markdown 格式（如包裹代码块的 ``` 或 \"Prompt:\" 等前缀）。",
+                "hint": "引导副脑进行提示词优化的系统提示词"
             }
         }
     },
@@ -579,6 +366,12 @@
                 "type": "list",
                 "default": [],
                 "hint": "用户QQ号列表"
+            },
+            "only_for_commands": {
+                "description": "白名单仅对指令生效",
+                "type": "bool",
+                "default": false,
+                "hint": "开启后，白名单仅拦截直接指令画图，LLM 触发不受拦截限制"
             }
         }
     }

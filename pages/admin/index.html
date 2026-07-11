@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大香蕉画图配置</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="container">
+  <header>
+    <h1>大香蕉画图设置</h1>
+    <div class="sub">配置图片生成提供商、参数、白名单及命令前缀</div>
+  </header>
+
+  <!-- Navigation Tabs sticky at top -->
+  <nav class="tabs-nav">
+    <button class="tab-btn active" onclick="switchTab('presets')">预设提示词</button>
+    <button class="tab-btn" onclick="switchTab('draw')">画图参数</button>
+    <button class="tab-btn" onclick="switchTab('general')">常规配置</button>
+    <button class="tab-btn" onclick="switchTab('trigger')">指令与触发</button>
+    <button class="tab-btn" onclick="switchTab('whitelist')">白名单与存储</button>
+    <button class="tab-btn" onclick="switchTab('hosting')">图床设置</button>
+    <button class="tab-btn" onclick="switchTab('sub_brain')">副脑设置</button>
+    <button class="tab-btn" onclick="switchTab('advanced')">高级与其它</button>
+    <button class="tab-btn" onclick="switchTab('persona_replace')">人设替换</button>
+  </nav>
+
+  <!-- 1. Preset Prompts Panel -->
+  <div class="tab-panel active" id="tab-presets">
+    <div class="config-card">
+      <h2 class="section-title">预设提示词规则</h2>
+      <div class="hint-text" style="margin-bottom: 16px;">
+        配置触发词对应的预设提示词内容。支持单触发词或 [词1,词2] 列表格式。占位符 {{user_text}} 将被用户输入替换。
+      </div>
+      <div class="list-container" id="prompts-list"></div>
+      <button class="add-btn" onclick="addPromptItem()">＋ 添加提示词规则</button>
+    </div>
+  </div>
+
+  <!-- 2. Draw Parameter Panel -->
+  <div class="tab-panel" id="tab-draw">
+    <div class="config-card">
+      <h2 class="section-title">绘图供应商优先级</h2>
+      <div class="hint-text" style="margin-bottom: 16px;">
+        多选且排序以确定优先级。第一个失败时会自动降级尝试后面的提供商。留空则跟随当前对话正在使用的服务商。
+      </div>
+      <div class="list-container" id="providers-list"></div>
+      <button class="add-btn" onclick="addProviderItem()">＋ 添加提供商</button>
+    </div>
+
+    <div class="config-card">
+      <h2 class="section-title">画图选项</h2>
+      <div class="form-group checkbox-row">
+        <label for="stream">启用流式响应</label>
+        <label class="switch">
+          <input type="checkbox" id="stream">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="pc_min_images">最小输入图片数量</label>
+        <div class="slider-container">
+          <input type="range" class="slider-input" id="pc_min_images" min="0" max="10" step="1" oninput="updateSliderValue(this)">
+          <span class="slider-value" id="val-pc_min_images">0</span>
+        </div>
+        <div class="hint-text">如果输入图片不够，会自动添加At对象或发送者头像。</div>
+      </div>
+
+      <div class="form-group">
+        <label for="pc_max_images">最大输入图片数量</label>
+        <div class="slider-container">
+          <input type="range" class="slider-input" id="pc_max_images" min="1" max="15" step="1" oninput="updateSliderValue(this)">
+          <span class="slider-value" id="val-pc_max_images">0</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="pc_aspect_ratio">默认宽高比</label>
+        <select class="select-input" id="pc_aspect_ratio">
+          <option value="default">default (默认/保持原样)</option>
+          <option value="1:1">1:1 (正方形)</option>
+          <option value="2:3">2:3 (竖版高图)</option>
+          <option value="3:2">3:2 (横版图)</option>
+          <option value="3:4">3:4</option>
+          <option value="4:3">4:3</option>
+          <option value="4:5">4:5</option>
+          <option value="5:4">5:4</option>
+          <option value="9:16">9:16 (手机屏幕)</option>
+          <option value="16:9">16:9 (电脑屏幕)</option>
+          <option value="21:9">21:9 (超宽屏)</option>
+        </select>
+        <div class="hint-text">设置输出图片的宽高比（仅对部分支持此参数的提供商有效）。</div>
+      </div>
+
+      <div class="form-group">
+        <label for="pc_image_size">默认分辨率</label>
+        <select class="select-input" id="pc_image_size">
+          <option value="512">512</option>
+          <option value="1K">1K</option>
+          <option value="2K">2K</option>
+          <option value="4K">4K</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="pc_moderation">内容审核级别</label>
+        <select class="select-input" id="pc_moderation">
+          <option value="auto">auto (自动/标准)</option>
+          <option value="low">low (低敏感度)</option>
+        </select>
+        <div class="hint-text">GPT 图像编辑模型（如 gpt-image-*）的内容安全过滤级别。设置为 low 可降低过滤敏感度。</div>
+      </div>
+
+      <div class="form-group checkbox-row">
+        <label for="pc_google_search">允许模型使用谷歌搜索工具</label>
+        <label class="switch">
+          <input type="checkbox" id="pc_google_search">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="pc_refer_images">参考图片文件名列表</label>
+        <input type="text" class="text-input" id="pc_refer_images" placeholder="例如: ref1.jpg, ref2.png">
+        <div class="hint-text">用逗号分隔，把图片放在插件数据目录的 refer_images 文件夹下。</div>
+      </div>
+
+      <div class="form-group checkbox-row">
+        <label for="pc_gather_mode">启用收集模式</label>
+        <label class="switch">
+          <input type="checkbox" id="pc_gather_mode">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. General Config Panel -->
+  <div class="tab-panel" id="tab-general">
+    <div class="config-card">
+      <h2 class="section-title">常规配置</h2>
+      <div class="form-group checkbox-row">
+        <label for="cc_preset_append">启用预设提示词追加</label>
+        <label class="switch">
+          <input type="checkbox" id="cc_preset_append">
+          <span class="switch-slider"></span>
+        </label>
+        <div class="hint-text">如果提示词没有 {{user_text}} 占位符，会自动在末尾追加用户输入。</div>
+      </div>
+
+      <div class="form-group checkbox-row">
+        <label for="cc_text_response">启用文本响应</label>
+        <label class="switch">
+          <input type="checkbox" id="cc_text_response">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group checkbox-row">
+        <label for="cc_smart_retry">启用智能重试</label>
+        <label class="switch">
+          <input type="checkbox" id="cc_smart_retry">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="cc_max_retry">最大重试次数</label>
+        <input type="number" class="text-input" id="cc_max_retry" min="0" max="20" placeholder="例如: 3">
+      </div>
+
+      <div class="form-group">
+        <label for="cc_timeout">请求超时时长</label>
+        <div class="slider-container">
+          <input type="range" class="slider-input" id="cc_timeout" min="10" max="600" step="10" oninput="updateSliderValue(this)">
+          <span class="slider-value" id="val-cc_timeout">0s</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="cc_proxy">HTTP 代理地址</label>
+        <input type="text" class="text-input" id="cc_proxy" placeholder="例如: http://127.0.0.1:7890">
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Trigger & Preference Panel -->
+  <div class="tab-panel" id="tab-trigger">
+    <div class="config-card">
+      <h2 class="section-title">前缀与触发方式</h2>
+      <div class="form-group checkbox-row">
+        <label for="pfx_coexist_enabled">启用混合模式 (前缀与免前缀皆可触发)</label>
+        <label class="switch">
+          <input type="checkbox" id="pfx_coexist_enabled">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      
+      <div class="list-container" id="prefix-list"></div>
+      <button class="add-btn" onclick="addPrefixItem()">＋ 添加命令前缀</button>
+    </div>
+
+    <div class="config-card">
+      <h2 class="section-title">触发与偏好偏好</h2>
+      <div class="form-group checkbox-row">
+        <label for="pref_skip_at_first">跳过第一次 @ 机器人头像</label>
+        <label class="switch">
+          <input type="checkbox" id="pref_skip_at_first">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group checkbox-row">
+        <label for="pref_skip_quote_first">跳过第一次引用消息发送者头像</label>
+        <label class="switch">
+          <input type="checkbox" id="pref_skip_quote_first">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group checkbox-row">
+        <label for="pref_skip_llm_at_first">LLM 函数调用跳过第一次 @ 头像</label>
+        <label class="switch">
+          <input type="checkbox" id="pref_skip_llm_at_first">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group checkbox-row">
+        <label for="pref_enable_drawing_message">启用生成中提示消息</label>
+        <label class="switch">
+          <input type="checkbox" id="pref_enable_drawing_message">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="pref_drawing_message">生成中提示消息</label>
+        <input type="text" class="text-input" id="pref_drawing_message" placeholder="🎨 在画了，请稍等一会...">
+      </div>
+
+      <div class="form-group">
+        <label for="pref_group_cooldown">群组画图冷却时间 (秒)</label>
+        <div class="slider-container">
+          <input type="range" class="slider-input" id="pref_group_cooldown" min="0" max="600" step="5" oninput="updateSliderValue(this)">
+          <span class="slider-value" id="val-pref_group_cooldown">0s</span>
+        </div>
+        <div class="hint-text">控制每个群组使用画画命令或工具的冷却间隔时间，0 为不限制。</div>
+      </div>
+    </div>
+
+
+
+    <div class="config-card">
+      <h2 class="section-title">函数调用工具</h2>
+      <div class="form-group checkbox-row">
+        <label for="tools_llm_tool_enabled">启用 LLM 函数调用工具</label>
+        <label class="switch">
+          <input type="checkbox" id="tools_llm_tool_enabled">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Whitelists Panel -->
+  <div class="tab-panel" id="tab-whitelist">
+    <div class="config-card">
+      <h2 class="section-title">白名单生效范围限制</h2>
+      <div class="form-group checkbox-row">
+        <label for="wl_only_for_commands">白名单仅对指令生效 (LLM 触发不受拦截限制)</label>
+        <label class="switch">
+          <input type="checkbox" id="wl_only_for_commands">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="config-card">
+      <h2 class="section-title">群组白名单限制</h2>
+      <div class="form-group checkbox-row">
+        <label for="wl_enabled">启用群组白名单</label>
+        <label class="switch">
+          <input type="checkbox" id="wl_enabled">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      <div class="list-container" id="group-whitelist-list"></div>
+      <button class="add-btn" onclick="addWhitelistItem('group-whitelist-list', '', '群组 UMO 标识')">＋ 添加白名单群组</button>
+    </div>
+
+    <div class="config-card">
+      <h2 class="section-title">用户白名单限制</h2>
+      <div class="form-group checkbox-row">
+        <label for="wl_user_enabled">启用用户白名单</label>
+        <label class="switch">
+          <input type="checkbox" id="wl_user_enabled">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      <div class="list-container" id="user-whitelist-list"></div>
+      <button class="add-btn" onclick="addWhitelistItem('user-whitelist-list', '', '用户 QQ 号')">＋ 添加白名单用户</button>
+    </div>
+
+    <div class="config-card">
+      <h2 class="section-title">图片存储</h2>
+      <div class="form-group checkbox-row">
+        <label for="save_local_save">图片存储到本地插件数据目录</label>
+        <label class="switch">
+          <input type="checkbox" id="save_local_save">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Image Hosting Panel -->
+  <div class="tab-panel" id="tab-hosting">
+    <div class="config-card">
+      <h2 class="section-title">R2/Cloudflare 图床上传设置</h2>
+      <div class="form-group checkbox-row">
+        <label for="ih_enabled">启用图床上传 (仅在--url模式下，把base64转换为公开URL)</label>
+        <label class="switch">
+          <input type="checkbox" id="ih_enabled">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="ih_upload_url">上传入口基础地址</label>
+        <input type="text" class="text-input" id="ih_upload_url" placeholder="例如: https://your-worker.workers.dev">
+      </div>
+
+      <div class="form-group">
+        <label for="ih_public_base_url">公开访问基础地址</label>
+        <input type="text" class="text-input" id="ih_public_base_url" placeholder="例如: https://your-worker.workers.dev">
+      </div>
+
+      <div class="form-group">
+        <label for="ih_auth_token">鉴权令牌 (Auth Token)</label>
+        <input type="text" class="text-input" id="ih_auth_token" placeholder="例如: your-secret-token">
+      </div>
+
+      <div class="form-group">
+        <label for="ih_path_prefix">路径前缀 (Path Prefix)</label>
+        <input type="text" class="text-input" id="ih_path_prefix" placeholder="例如: big-banana">
+      </div>
+    </div>
+  </div>
+
+  <!-- Sub Brain Panel -->
+  <div class="tab-panel" id="tab-sub_brain">
+    <div class="config-card">
+      <h2 class="section-title">副脑提示词优化设置</h2>
+      <div class="hint-text" style="margin-bottom: 16px;">
+        启用后，当对话大模型调用画图工具生成图片时，会将传给工具的简短描述先提交给副脑进行扩写优化，再交给画图供应商生成图片。
+      </div>
+      <div class="form-group checkbox-row">
+        <label for="sb_enabled">启用副脑优化</label>
+        <label class="switch">
+          <input type="checkbox" id="sb_enabled">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="sb_provider_id">副脑模型供应商 (LLM Provider)</label>
+        <select class="select-input" id="sb_provider_id">
+          <option value="">当前会话默认供应商</option>
+        </select>
+        <div class="hint-text">选择用于优化提示词的 LLM 提供商。留空则使用当前对话正在使用的提供商。</div>
+      </div>
+
+      <div class="form-group">
+        <label for="sb_system_prompt">副脑系统提示词</label>
+        <textarea class="textarea-input" id="sb_system_prompt" rows="5" placeholder="引导副脑优化提示词的系统提示词"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Advanced & Vertex AI Panel -->
+  <div class="tab-panel" id="tab-advanced">
+    <div class="config-card">
+      <h2 class="section-title">Vertex AI Anonymous 规范配置</h2>
+      <div class="form-group">
+        <label for="va_recaptcha_base_api">Recaptcha Base API</label>
+        <input type="text" class="text-input" id="va_recaptcha_base_api" placeholder="https://www.google.com">
+      </div>
+
+      <div class="form-group">
+        <label for="va_vertex_ai_anonymous_base_api">Vertex AI Anonymous Base API</label>
+        <input type="text" class="text-input" id="va_vertex_ai_anonymous_base_api" placeholder="https://cloudconsole-pa.clients6.google.com">
+      </div>
+
+      <div class="form-group">
+        <label for="va_system_prompt">系统提示词 (System Prompt)</label>
+        <textarea class="textarea-input" id="va_system_prompt" placeholder="留空则不传递该系统提示词"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="va_max_retry">最大重试次数</label>
+        <input type="number" class="text-input" id="va_max_retry" min="1" max="25" placeholder="10">
+      </div>
+
+      <div class="form-group">
+        <label for="va_retry_delay">重试延迟时长 (秒)</label>
+        <input type="number" class="text-input" id="va_retry_delay" min="0.1" max="30" step="0.1" placeholder="2">
+      </div>
+    </div>
+
+    <div class="config-card">
+      <h2 class="section-title">参数别名映射 (Params Alias Map)</h2>
+      <div class="hint-text" style="margin-bottom: 16px;">
+        为内置参数名映射自定义别名，让用户可以使用别名来调用对应的画图参数。
+      </div>
+      <div class="list-container" id="alias-list"></div>
+      <button class="add-btn" onclick="addAliasItem()">＋ 添加别名映射</button>
+    </div>
+  </div>
+
+  <!-- 8. Persona Replace Panel -->
+  <div class="tab-panel" id="tab-persona_replace">
+    <div class="config-card">
+      <h2 class="section-title">人设头像替换</h2>
+      <div class="hint-text" style="margin-bottom: 16px;">
+        配置目标 ID (如机器人 QQ 号、用户 QQ 号，或别名 "bot"、"self") 与对应的参考头像图片列表。当触发时，系统会随机从中选择一张头像。支持输入图片 URL，或直接上传本地图片。
+      </div>
+      <div class="list-container" id="persona-replace-list"></div>
+      <button class="add-btn" onclick="addPersonaReplaceItem()">＋ 添加人设替换规则</button>
+    </div>
+  </div>
+</div>
+
+<!-- Footer save/discard bar -->
+<footer class="footer-bar">
+  <button class="btn btn-secondary" onclick="loadData()">🔄 放弃更改</button>
+  <button class="btn btn-primary" id="btnSave" onclick="saveAll()">💾 保存并生效</button>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<!-- Load scripts sequentially -->
+<script src="js/common.js"></script>
+<script src="js/config.js"></script>
+<script src="js/init.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "pages": {
+    "admin": {
+      "title": "画图设置",
+      "persona_replace": { "title": "人设替换" }
+    }
+  }
+}
+

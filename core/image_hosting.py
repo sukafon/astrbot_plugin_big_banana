@@ -23,9 +23,7 @@ class R2ImageHoster:
             and self.config.auth_token.strip()
         )
 
-    async def upload_images(
-        self, image_result: list[tuple[str, str]]
-    ) -> list[str]:
+    async def upload_images(self, image_result: list[tuple[str, str]]) -> list[str]:
         urls: list[str] = []
         for mime, b64_data in image_result:
             upload_key = self._build_upload_key(mime)
@@ -44,7 +42,9 @@ class R2ImageHoster:
             return f"{prefix}/{date_path}/{filename}"
         return f"{date_path}/{filename}"
 
-    async def _upload_bytes(self, upload_key: str, image_bytes: bytes, mime: str) -> None:
+    async def _upload_bytes(
+        self, upload_key: str, image_bytes: bytes, mime: str
+    ) -> None:
         upload_url = f"{self.config.upload_url.rstrip('/')}/{upload_key}"
         async with self.session.put(
             upload_url,

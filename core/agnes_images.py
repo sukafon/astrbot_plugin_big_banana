@@ -29,7 +29,9 @@ class AgnesImagesProvider(BaseProvider):
             "Content-Type": "application/json",
         }
         size = OpenAIImagesProvider._determine_size(params, image_b64_list)
-        payload = self._build_payload(provider_config.model, params, image_b64_list, size)
+        payload = self._build_payload(
+            provider_config.model, params, image_b64_list, size
+        )
         try:
             response = await self.session.post(
                 url=self._build_api_url(provider_config.api_url),
@@ -40,8 +42,10 @@ class AgnesImagesProvider(BaseProvider):
             )
             result = response.json()
             if response.status_code == 200:
-                images_result, err = await self._parse_images_response(result)
-                if images_result or (params.get("url", False) and self.last_result_urls):
+                images_result, err = await self._parse_images_response(result, params)
+                if images_result or (
+                    params.get("url", False) and self.last_result_urls
+                ):
                     return images_result, 200, None
                 logger.warning(
                     f"[BIG BANANA] Agnes Images 请求成功，但未返回图片数据, 响应内容: {response.text[:1024]}"
@@ -88,7 +92,15 @@ class AgnesImagesProvider(BaseProvider):
 
     @staticmethod
     def _build_api_url(api_url: str) -> str:
-        return f"{api_url.rstrip('/')}/generations"
+        if not api_url:
+            return "https://apihub.agnes-ai.com/v1/images/generations"
+        url = api_url.rstrip("/")
+        if url.endswith("/generations"):
+            url = url[:-12]
+        url = url.rstrip("/")
+        if not url.endswith("/images"):
+            url = f"{url}/images"
+        return f"{url}/generations"
 
     @staticmethod
     def _build_payload(
@@ -113,6 +125,7 @@ class AgnesImagesProvider(BaseProvider):
     async def _parse_images_response(
         self,
         result: dict,
+        params: dict,
     ) -> tuple[list[tuple[str, str]] | None, str | None]:
         image_result: list[tuple[str, str]] = []
         image_urls: list[str] = []
@@ -127,6 +140,8 @@ class AgnesImagesProvider(BaseProvider):
             if isinstance(image_url, str) and image_url:
                 image_urls.append(image_url)
         self.last_result_urls = list(image_urls)
+        if params.get("url", False):
+            return [], None
         if image_urls:
             image_result.extend(await self._fetch_images_from_urls(image_urls))
         if image_result:

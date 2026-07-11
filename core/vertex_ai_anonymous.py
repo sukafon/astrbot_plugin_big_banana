@@ -65,14 +65,19 @@ class VertexAIAnonymousProvider(BaseProvider):
                 return None, err_msg or "图片生成失败：重试达到上限。"
             # 8:资源耗尽；3:Token失效/参数错误
             if status == 3:
-                if status == 3 and err_msg and "Failed to verify action" in err_msg and captcha_try_count < 1:
+                if (
+                    status == 3
+                    and err_msg
+                    and "Failed to verify action" in err_msg
+                    and captcha_try_count < 1
+                ):
                     captcha_try_count += 1
                     continue
                 recaptcha_token = await self._get_recaptcha_token()
                 if recaptcha_token is None:
                     logger.error("[BIG BANANA] 获取 recaptcha_token 失败次数达到上限")
                     return None, "获取 recaptcha_token 失败"
-                captcha_try_count = 0   # 重置计数器
+                captcha_try_count = 0  # 重置计数器
             if status == 999:
                 # 这个提供商一但出现内容拦截，重试几乎没有意义，直接返回错误
                 return None, err_msg
@@ -120,8 +125,10 @@ class VertexAIAnonymousProvider(BaseProvider):
                                 logger.error(
                                     f"[BIG BANANA] 图片生成失败，错误代码：{status}，错误原因：{err_msg}"
                                 )
-                            else:   # 这是一个预期的错误
-                                logger.debug(f"[BIG BANANA] 图片生成失败，错误代码：{status}，错误原因：{err_msg}")
+                            else:  # 这是一个预期的错误
+                                logger.debug(
+                                    f"[BIG BANANA] 图片生成失败，错误代码：{status}，错误原因：{err_msg}"
+                                )
                             return None, status, err_msg
                         # 没有错误，应该是正常响应
                         for candidate in item.get("data", {}).get("candidates", []):
@@ -205,7 +212,9 @@ class VertexAIAnonymousProvider(BaseProvider):
                 "maxOutputTokens": 32768,
                 "responseModalities": responseModalities,
                 "imageConfig": {
-                    "imageOutputOptions": {"mimeType": "image/png"},  # 这个修改是无效的，至少测试的时候是这样
+                    "imageOutputOptions": {
+                        "mimeType": "image/png"
+                    },  # 这个修改是无效的，至少测试的时候是这样
                     "personGeneration": "ALLOW_ALL",
                 },
             },
