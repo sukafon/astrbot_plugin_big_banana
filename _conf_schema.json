@@ -407,6 +407,43 @@
             }
         }
     },
+    "image_hosting": {
+        "description": "图床上传",
+        "type": "object",
+        "hint": "用于在 --url 模式下，把仅返回 base64 的图片上传到你自己的图床后再返回公开链接。",
+        "items": {
+            "enabled": {
+                "description": "启用图床上传",
+                "type": "bool",
+                "default": false,
+                "hint": "仅对 --url 模式生效。提供商原生返回 URL 时，不需要上传。"
+            },
+            "upload_url": {
+                "description": "上传入口基础地址",
+                "type": "string",
+                "default": "",
+                "hint": "示例：https://your-worker.your-subdomain.workers.dev 不要在末尾手动加文件名。"
+            },
+            "public_base_url": {
+                "description": "公开访问基础地址",
+                "type": "string",
+                "default": "",
+                "hint": "若上传和访问使用同一个 Worker 域名，可与 upload_url 填相同地址。"
+            },
+            "auth_token": {
+                "description": "鉴权令牌",
+                "type": "string",
+                "default": "",
+                "hint": "会作为请求头 X-Auth-Token 发送，对应你的 Cloudflare Worker 环境变量 X_AUTH_TOKEN。"
+            },
+            "path_prefix": {
+                "description": "路径前缀",
+                "type": "string",
+                "default": "big-banana",
+                "hint": "上传文件会保存到此前缀下，例如 big-banana/2026/06/01/uuid.jpg。"
+            }
+        }
+    },
     "prefix_config": {
         "description": "绘图命令触发方式",
         "type": "object",
