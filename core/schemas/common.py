@@ -41,8 +41,11 @@ class PreferenceConfig:
     """ 群组冷却时间(秒) """
     command_use_background_task: bool = True
     """ 命令调用时是否使用后台任务执行绘图 """
+    background_task_send_type: str = "event"
+    """ 后台任务消息发送方式。event：事件消息（被动消息，默认）；active：主动消息 """
     gather_timeout: int = 120
     """ 收集模式超时时间, 单位: 秒 """
+
 
 
 @dataclass(repr=False, slots=True)

@@ -225,13 +225,16 @@ class DrawingCommandHandler:
             msg_chain_obj = MessageChain(msg_chain)
 
             # 根据前台后台任务决定发送消息的方式
-            if self.plugin.preference_config.command_use_background_task:
-                # 后台任务使用标准的主动消息
+            if (
+                self.plugin.preference_config.command_use_background_task
+                and self.plugin.preference_config.background_task_send_type == "active"
+            ):
+                # 后台任务且配置为主动消息发送
                 await self.plugin.context.send_message(
                     event.unified_msg_origin, msg_chain_obj
                 )
             else:
-                # 同步任务使用事件消息
+                # 同步任务，或后台任务且配置为事件消息发送（默认）
                 await event.send(msg_chain_obj)
         finally:
             # 任务结束，清理

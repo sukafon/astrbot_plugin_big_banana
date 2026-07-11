@@ -265,6 +265,15 @@
         </label>
         <div class="hint-text">关闭后会等待绘图完成再回发结果。</div>
       </div>
+
+      <div class="form-group">
+        <label for="pref_background_task_send_type">后台任务消息发送方式</label>
+        <select class="select-input" id="pref_background_task_send_type">
+          <option value="event">事件消息（被动消息）</option>
+          <option value="active">主动消息</option>
+        </select>
+        <div class="hint-text">后台任务完成后的消息发送方式，默认使用事件消息（被动消息）。</div>
+      </div>
     </div>
 
 

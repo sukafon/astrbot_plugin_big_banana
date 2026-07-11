@@ -403,7 +403,7 @@ class BigBananaImageGenerationTool(FunctionTool[AstrAgentContext]):
                 event,
                 result,
                 params,
-                use_proactive_send=is_background_task,
+                use_proactive_send=is_background_task and (plugin.preference_config.background_task_send_type == "active"),
                 temporary_paths=temporary_paths,
             )
 
