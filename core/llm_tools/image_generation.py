@@ -27,41 +27,23 @@ if TYPE_CHECKING:
     from ...main import BigBanana
     from ..schemas import ImageResource
 
-TOOL_DESCRIPTION = (
-    "Generate or edit images with the configured image generation providers. "
-    "Supports text-to-image generation and optional reference images. Images from "
-    "the current or earlier conversation may already have an AstrBot-cached local "
-    "path or URL; reuse that value in image_references without asking the user to "
-    "upload the image again. Do not add image references when the task does not need them."
-)
+TOOL_DESCRIPTION = "Draw or edit images based on text or reference images."
 
 PROMPT_DESCRIPTION = (
-    "The image generation prompt. Must be a clear, detailed description of "
-    "the desired image, including visual elements, actions, expressions, "
-    "colors, and lighting. Provide the requested image content rather than only "
-    "a preset name. If the selected preset contains {{user_text}}, this value "
-    "replaces only that placeholder and preserves the surrounding template. "
-    "When reference images are used, add image-number references where they help "
-    "connect prompt instructions to specific images. Image indices start "
-    "from 1 and follow the final list of successfully loaded images, such as "
-    "'- @123456: avatar is image 1' or '- image 2: background reference'."
+    "The detailed description of the image to generate. If a preset is used, "
+    "provide only the subject text for the placeholder, without repeating the preset's "
+    "template. If reference images are used, refer to them in the prompt by their "
+    "1-based index (e.g., 'image 1', 'image 2')."
 )
 
 PRESET_DESCRIPTION = (
-    "The name of an existing preset to apply. Its prompt and parameters override "
-    "the current preset configuration. Keep this preset name when the user's request "
-    "is based on that preset."
+    "The name of an existing preset to apply to the generation."
 )
 
 REFERENCES_DESCRIPTION = (
-    "Optional reference images for the generation request. Each item may be an image "
-    "URL, an AstrBot-cached local image path shown in the current or earlier conversation, "
-    "or a numeric user ID. Do not pass base64:// content or data URLs; use the cached "
-    "local path or original URL instead. The user does not need to attach the image again "
-    "when its path or URL is already available in the conversation. "
-    "Numeric IDs and @-prefixed platform user IDs are resolved as avatar references "
-    "when the current platform supports it. Unavailable references are skipped. "
-    "Image indices start from 1 and follow the final list of successfully loaded images."
+    "Optional list of reference image URLs, cached local image paths, or platform "
+    "user IDs (for avatar references). Do not use base64 or data URLs. Reuse "
+    "existing paths/URLs from the conversation history if available."
 )
 
 
