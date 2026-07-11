@@ -78,40 +78,6 @@ async def handle_drawing_result(
             )
             await event.send(event.chain_result(msg_chain))
 
-            # Cache the sent image message in giftia database
-            if giftia_inst and bot_name:
-                try:
-                    from datetime import datetime
-
-                    from data.plugins.astrbot_plugin_giftia.core.utils.schemas import (
-                        MessageData,
-                    )
-
-                    iso_string = datetime.now().isoformat()
-                    nickname = event.get_sender_name() or bot_name
-                    group_or_user_id = event.get_group_id() or event.get_sender_id()
-
-                    content_str = "[图片]"
-                    if result_urls:
-                        content_str = f" [图片:{result_urls[0]}]"
-
-                    msg_data = MessageData(
-                        nickname=nickname,
-                        user_id=event.get_self_id(),
-                        group_or_user_id=group_or_user_id,
-                        time=iso_string,
-                        message_id="",
-                        content=content_str,
-                        is_recalled=0,
-                    )
-                    await giftia_inst.data_cache.add_message(
-                        bot_name, group_or_user_id, msg_data
-                    )
-                except Exception as cache_err:
-                    logger.warning(
-                        f"[BIG BANANA] Failed to cache image message in giftia: {cache_err}"
-                    )
-
         # 开始生成 LLM 回复并排队
         reply_text = ""
         from astrbot.core.utils.session_lock import session_lock_manager
@@ -119,7 +85,8 @@ async def handle_drawing_result(
         async with session_lock_manager.acquire_lock(session_id):
             if giftia_inst and bot_name:
                 try:
-                    nickname = event.get_sender_name() or bot_name
+                    bot_conf = giftia_inst.bot_map.get(bot_name, {})
+                    nickname = bot_conf.get("nickname", bot_name)
                     group_or_user_id = event.get_group_id() or event.get_sender_id()
 
                     image_urls_for_llm = []
