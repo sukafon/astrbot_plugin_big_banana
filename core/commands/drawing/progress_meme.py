@@ -32,13 +32,11 @@ class ProgressMemeHandler:
                 if tag:
                     raw_tags.append(tag)
 
-        # 清洗文本
         clean_text = re.sub(
             r"<emotions>.*?</emotions>", "", text, flags=re.DOTALL | re.IGNORECASE
         ).strip()
 
         return clean_text, raw_tags
-
     async def get_meme(
         self, event: AstrMessageEvent, raw_tags: list[str]
     ) -> Comp.Image | None:
@@ -77,9 +75,20 @@ class ProgressMemeHandler:
                 meme_manager, event, raw_tags
             )
             if not selected_memes:
+                logger.debug(f"[BIG BANANA] meme_manager 未匹配到与标签 {raw_tags} 相关的表情包。")
                 return None
 
-            meme_file = os.path.join(config_mod.MEMES_DIR, selected_memes[0])
+            selected = selected_memes[0]
+            filename = selected.get("filename")
+            if not filename:
+                logger.warning(f"[BIG BANANA] 解析表情文件名失败，数据中缺失 filename 字段: {selected}")
+                return None
+
+            meme_file = os.path.join(config_mod.MEMES_DIR, filename)
+            if not os.path.exists(meme_file):
+                logger.warning(f"[BIG BANANA] 匹配到的表情包文件不存在: {meme_file}")
+                return None
+
             final_meme_file = helper_mod.convert_to_gif(meme_file, meme_manager)
             img = Comp.Image.fromFileSystem(final_meme_file)
             object.__setattr__(img, "sub_type", 1)
