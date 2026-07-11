@@ -19,20 +19,16 @@ if TYPE_CHECKING:
     from ...main import BigBanana
 
 PROMPT_TOOL_DESCRIPTION = (
-    "Retrieve Big Banana preset names, full preset prompts, and preset parameters. "
-    "Whenever the user specifies or refers to a preset, call this tool before image "
-    "generation to obtain the complete preset details. Do not assume that the preset "
-    "name alone contains enough information."
+    "Retrieve preset names, full prompts, and parameters for Big Banana. "
+    "Call this tool if the user specifies a preset to get its full details before generating images."
 )
 
 PROMPT_TOOL_PRESET_DESCRIPTION = (
-    "The exact preset name to retrieve. Set this to the preset name the user "
-    "specified. Returns the full preset prompt and its differential parameters "
-    "for review."
+    "The exact name of the preset to retrieve."
 )
 
 PROMPT_TOOL_LIST_DESCRIPTION = (
-    "Set to true to get the list of all available preset names."
+    "Set to true to list all available preset names."
 )
 
 
