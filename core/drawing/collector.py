@@ -219,6 +219,19 @@ class ImageCollector:
                 else:
                     self.avatar_mappings[user_id] = avatar_url
                 continue
+
+            # 支持 Giftia 图片哈希 (16位 xxh3 或 32位 md5)
+            import re
+            if re.fullmatch(r"[a-fA-F0-9]{16}|[a-fA-F0-9]{32}", ref):
+                try:
+                    from astrbot.api.star import StarTools
+                    giftia_cache_file = StarTools.get_data_dir("astrbot_plugin_giftia") / "media_cache" / ref
+                    if giftia_cache_file.exists():
+                        self.urls.append(giftia_cache_file)
+                        continue
+                except Exception:
+                    pass
+
             self.urls.append(ref)
 
     async def _get_avatar_url(
@@ -346,15 +359,23 @@ class ImageCollector:
 
         # 仅对LLM工具才限制内网访问
         if self.is_llm_tool:
+            allowed_roots = [
+                self.plugin.data_dir,
+                Path(get_astrbot_temp_path()),
+            ]
+            try:
+                from astrbot.api.star import StarTools
+                giftia_cache = StarTools.get_data_dir("astrbot_plugin_giftia") / "media_cache"
+                allowed_roots.append(giftia_cache)
+            except Exception:
+                pass
+
             fetched_results = await self.plugin.downloader.fetch_images_keep_none(
                 pending_urls,
                 restrict_private_network=(
                     self.plugin.llm_tools_config.llm_tool_restrict_private_network
                 ),
-                allowed_local_roots=(
-                    self.plugin.data_dir,
-                    Path(get_astrbot_temp_path()),
-                ),
+                allowed_local_roots=tuple(allowed_roots),
                 local_base_dir=self.plugin.refer_images_dir,
             )
         else:
