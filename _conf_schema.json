@@ -1271,6 +1271,12 @@
                 "type": "bool",
                 "default": false,
                 "hint": "生成的图片保存到插件数据目录的 save_images 文件夹"
+            },
+            "r2_save": {
+                "description": "保存到 R2 图床",
+                "type": "bool",
+                "default": false,
+                "hint": "生成后将图片上传到“图床上传”中配置的 R2 图床，不影响图片正常发送。需先启用并完整配置图床上传。与 --url 模式同时使用时只上传一次。"
             }
         }
     },

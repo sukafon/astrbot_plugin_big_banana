@@ -69,6 +69,8 @@ class SaveImagesConfig:
 
     local_save: bool = False
     """是否保存生成图片到本地"""
+    r2_save: bool = False
+    """是否保存生成图片到已配置的 R2 图床"""
 
 
 @dataclass(repr=False, slots=True)

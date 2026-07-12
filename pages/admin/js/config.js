@@ -363,6 +363,7 @@ function loadData() {
     // 绑定 save_images 嵌套字段。
     var saveImg = config.save_images || {};
     document.getElementById('save_local_save').checked = !!saveImg.local_save;
+    document.getElementById('save_r2_save').checked = !!saveImg.r2_save;
 
     // 绑定 whitelist_config 嵌套字段。
     var wl = config.whitelist_config || {};
@@ -536,7 +537,8 @@ function saveAll() {
 
   // 构造 save_images 配置。
   updatedConfig.save_images = {
-    local_save: document.getElementById('save_local_save').checked
+    local_save: document.getElementById('save_local_save').checked,
+    r2_save: document.getElementById('save_r2_save').checked
   };
 
   // 构造 whitelist_config 配置。

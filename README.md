@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🍌 大香蕉 图片/视频生成插件 🍌
+# # 🍌 大香蕉 图片/视频生成插件 🍌
 
 ![:访问量](https://count.getloli.com/@astrbot_plugin_big_banana?name=astrbot_plugin_big_banana&theme=rule34&padding=5&offset=0&scale=1&pixelated=1&darkmode=auto)
 
@@ -13,25 +13,23 @@
 
 ## 兼容性变更：
 
-- v0.1.22: 新增配置仪表盘页面，支持头像替换映射、Bot 人设参考图配置、群组画图冷却时间配置；LLM 工具提示词支持根据人设自动选择画风。
-- v0.1.2: `--append_mode` 参数更名为 `--gather_mode` 以增强语义，`--append_mode` 默认作为新参数的别名，可在配置文件中修改。
-- v0.1.0：代码重构，务必在插件配置中重新检查配置项。配置文件 `key` 字段变更为 `keys`，需要重新配置 `Key`。部分字段位置变更。
-- v0.0.5：`anything` 占位符已于 v0.1.0 移除，请改用替代占位符 `{{user_text}}`。
+V2（`v0.2.x`）以全新的配置结构和生成管线为基线，不保证兼容 V1 配置或运行数据。
+
+版本更新请查看 [changelog.md](./changelog.md)。
 
 ## 主要特性
 
-- 支持 OpenAI、Gemini 接口规范和流式传输模式。
-- 整合 Vertex AI Anonymous 逆向提供商，免费无限*[1]的 4K 18MB PNG（无损压缩） 图片生成，开箱即用（需能访问 Google）。
-- 支持 LLM 函数调用工具，支持通过大语言模型模型阅读预设、整合修改以及图片生成的功能。
-- 灵活的参数配置，支持提示词级别的粒度控制，和方便拓展工具。
-- 支持预设提示词和用户文本占位符以及 AI 读改用，高度灵活的提示词控制。
-- 支持备用提供商降级调用，增强资源冗余，提高出图成功率。
-- 智能补充头像参考以及跳过部分@头像。
-- 支持群聊和用户白名单配置，以及提示词前缀配置和混合模式，多场景下适用。无操作权限将静默返回，避免频繁打扰。
-- 支持为每个提示词指定不同的提供商。
-- 支持智谱异步视频接口和 `CogVideoX-Flash` 文生视频、单图生视频。
+- 支持 Gemini、OpenAI Chat、OpenAI Images、OpenAI Responses、MiniMax、SiliconFlow、Agnes 等图片生成接口，并兼容流式响应。
+- 集成 Vertex AI Anonymous 逆向提供商，免费无限*[1]的 4K 18MB PNG（无损压缩） 图片生成，开箱即用（需能访问 Google）。
+- 支持智谱异步视频接口，可使用 `CogVideoX-Flash` 进行文生视频和单图生视频。
+- 支持预设查询、图片生成和视频生成 LLM 函数调用工具，并可使用副脑模型优化提示词。
+- 支持预设提示词、用户文本占位符、参数别名及预设级参数配置。
+- 支持多个 API Key、默认提供商优先级和失败自动降级，也可通过预设或命令临时指定提供商。
+- 支持消息图片、引用图片、固定参考图和 QQ 头像，并可自动补充或按需跳过头像。
+- 支持多消息收集、后台生成、群组冷却、用户/群组白名单、命令前缀和混合触发模式。
+- 支持仅返回图片 URL、本地保存及 R2 图床保存；参考图上传前可自动清理隐私元数据。
 
-\*[1] 免费无限指次数不限，服务可用性视服务器实时资源占用情况而定。Vertex AI Anonymous 可将模型设置为 `gemini-3.1-flash-image-preview`，新模型往往拥有更充足的资源配额。
+\*[1] 免费无限指生成次数不限，服务可用性视服务器实时资源占用情况而定。已知的 Vertex AI Anonymous 支持的图片生成模型有 `gemini-3.1-flash-lite-image`、 `gemini-3.1-flash-image-preview`、 `gemini-3.1-flash-image`、`gemini-3-pro-image-preview`、`gemini-3-pro-image`、`gemini-2.5-flash-image`。
 
 ## 常用命令
 
@@ -89,30 +87,6 @@
 
 \*[7] 仅在提供商实际返回图片 URL 时生效，例如部分 OpenAI_Chat 兼容接口或 Agnes_Images。若提供商只返回图片数据而不返回 URL，则会提示当前提供商不支持仅返回 URL。
 
-## 图床配置
-
-如果你希望 `--url` 在 provider 只返回 `b64_json` 时也能工作，可以配置你自己的图床上传入口。当前内置适配了 Cloudflare Worker + R2 的简单 PUT 上传方式。
-
-仓库中已提供可直接部署的 Worker 示例文件：`js/cloudflare_worker_R2.js`
-
-推荐把 Worker 配置为：
-
-- `PUT /<文件路径>`：接收图片上传，校验 `X-Auth-Token`
-- `GET /<文件路径>`：公开返回图片内容
-
-插件侧需要配置：
-
-- `image_hosting.enabled`：是否启用图床上传
-- `image_hosting.upload_url`：上传入口基础地址
-- `image_hosting.public_base_url`：公开访问基础地址
-- `image_hosting.auth_token`：请求头 `X-Auth-Token` 对应的鉴权令牌
-- `image_hosting.path_prefix`：上传文件的路径前缀
-
-启用后，`--url` 的行为是：
-
-- provider 原生返回 URL：直接返回原始 URL
-- provider 只返回 base64：插件自动上传到图床，再返回图床 URL
-
 ## 默认预设提示词
 
 - `bnn` 图生图，至少 1 张图片，若消息中不包含图片且消息平台是 QQ 个人号，将自动取用户头像作为参考图。
@@ -124,25 +98,6 @@
 
 \* 部分预设为新版本添加，可能不存在旧版本配置中，请手动添加（参考 `_conf_schema.json` 文件）。
 
-## CogVideoX-Flash 视频配置
-
-在提供商模板中添加并启用“智谱视频 (CogVideoX-Flash)”，填写智谱 API Key。默认接口地址为 `https://open.bigmodel.cn/api/paas/v4`，模型为 `cogvideox-flash`。
-
-视频任务通过异步接口创建并轮询。`poll_interval` 控制查询间隔，`job_timeout` 控制任务总等待时间。生成完成后插件使用 AstrBot 视频消息组件发送官方返回的视频 URL；使用 `--url true` 可只返回链接。
-
-启用 `llm_tools.enable_video_generation_tool` 后会注册
-`banana_video_generation` 函数调用工具，支持文生视频和单张参考图生视频。
-工具默认读取 `llm_tools.llm_video_tool_preset_name` 指定的 `bnv` 预设，
-也可以由 LLM 传入 `quality`、`size`、`fps`、`with_audio` 和
-`watermark_enabled` 覆盖本次参数。
-
-示例：
-
-```text
-bnv 一只猫在雨后的霓虹街道上奔跑 --quality speed --fps 30
-bnv 让画面中的人物自然转身并微笑 --with_audio true
-```
-
 ## 故障排查
 
 - Telegram 不支持 10MB 以上的图片发送（报错会导致控制台打印完整的图片 Base64 数据，可能会造成较大的日志缓存占用）。V0.1.0 强制对超过 10MB 的 Telegram 图片消息改用文件发送。
@@ -151,4 +106,4 @@ bnv 让画面中的人物自然转身并微笑 --with_audio true
 
 ## 致谢
 
-感谢 Copilot 和 Google One PRO 提供代码补全与参考支持！
+感谢所有贡献者与测试用户，以及 Codex 和 Antigravity 的编程辅助！

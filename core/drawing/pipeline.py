@@ -49,14 +49,35 @@ class DrawingPipeline:
                 logger.error(err)
             return GenerationResult(error_message=err)
 
-        # URL 模式
-        if params.get("url", self.plugin.params_config.url):
-            uploaded_urls: list[str | None] = [None] * len(dispatch_result.images)
+        url_mode = params.get("url", self.plugin.params_config.url)
+        r2_save = self.plugin.save_images.r2_save
+        uploaded_urls: list[str | None] = [None] * len(dispatch_result.images)
+
+        # URL 返回与 R2 归档共用一次上传，避免同时启用时重复保存。
+        if url_mode or r2_save:
             if self.plugin.image_hoster.is_enabled():
                 uploaded_urls = await self.plugin.image_hoster.upload_images(
                     dispatch_result.images
                 )
+                if r2_save:
+                    saved_count = sum(url is not None for url in uploaded_urls)
+                    if saved_count == len(dispatch_result.images):
+                        logger.info(
+                            f"[BIG BANANA] 已保存 {saved_count} 张图片到 R2 图床"
+                        )
+                    else:
+                        logger.warning(
+                            f"[BIG BANANA] 共生成 {len(dispatch_result.images)} 张图片，"
+                            f"其中 {saved_count} 张成功保存到 R2 图床"
+                        )
+            elif r2_save:
+                logger.warning(
+                    "[BIG BANANA] 已启用 R2 图床保存，但图床配置未启用或不完整，"
+                    "已跳过上传"
+                )
 
+        # URL 模式
+        if url_mode:
             # 每张图片优先使用图床 URL；上传失败时使用提供商原始 URL。
             result_urls: list[str] = []
             for image, uploaded_url in zip(dispatch_result.images, uploaded_urls):

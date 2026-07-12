@@ -161,11 +161,12 @@ class BigBananaWebApi:
                 }
                 for item in provider_templates:
                     capability = item.get("capability", "image_generation")
-                    selected_names = selected_by_capability.get(capability)
-                    if selected_names is None:
+                    capability_selected_names = selected_by_capability.get(capability)
+                    if capability_selected_names is None:
                         continue
                     provider_order = {
-                        name: index for index, name in enumerate(selected_names)
+                        name: index
+                        for index, name in enumerate(capability_selected_names)
                     }
                     name = item.get("name", "").strip()
                     item["enabled_as_default"] = name in provider_order

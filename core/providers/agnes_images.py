@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from .standard import StandardProvider
 
@@ -28,7 +29,7 @@ class AgnesImagesProvider(StandardProvider):
         if self._body_context_cache is not None:
             return self._body_context_cache
 
-        context = {
+        context: dict[str, Any] = {
             "model": self.provider_config.model,
             "prompt": self.params.get("prompt", "draw a picture"),
             "size": self.determine_openai_size(),
