@@ -88,7 +88,7 @@ def test_builtin_image_preset_is_used_without_user_configuration() -> None:
     assert params["moderation"] == "auto"
 
 
-def test_missing_configured_video_preset_falls_back_to_call_params() -> None:
+def test_missing_configured_video_preset_falls_back_to_builtin_default() -> None:
     plugin = build_plugin()
     plugin.llm_tools_config.llm_video_tool_preset_name = "missing"
 
@@ -104,6 +104,26 @@ def test_missing_configured_video_preset_falls_back_to_call_params() -> None:
     assert params["prompt"] == "A paper plane takes off."
     assert params["capability"] == "video_generation"
     assert params["fps"] == 60
+    assert params["quality"] == "speed"
+    assert params["watermark_enabled"] is True
+
+
+def test_missing_configured_image_preset_falls_back_to_builtin_default() -> None:
+    plugin = build_plugin()
+    plugin.llm_tools_config.llm_tool_preset_name = "missing"
+
+    params, error = BigBananaImageGenerationTool()._resolve_params(
+        plugin,
+        "A paper plane takes off.",
+        None,
+    )
+
+    assert error is None
+    assert params is not None
+    assert params["prompt"] == "A paper plane takes off."
+    assert params["max_images"] == 6
+    assert params["google_search"] is True
+    assert params["moderation"] == "auto"
 
 
 def test_bnv_video_tool_default_is_resolved_as_regular_preset() -> None:
@@ -188,3 +208,11 @@ def test_builds_video_resource_links_for_model() -> None:
     assert len(tool_result.content) == 2
     assert str(tool_result.content[1].uri) == "https://example.com/video.mp4"
     assert tool_result.content[1].mimeType == "video/mp4"
+
+
+def test_returns_video_generation_failure_as_plain_text() -> None:
+    result = GenerationResult(error_message="模型当前访问量过大")
+
+    tool_result = BigBananaVideoGenerationTool._build_model_tool_result(result)
+
+    assert tool_result == "视频生成失败：模型当前访问量过大"

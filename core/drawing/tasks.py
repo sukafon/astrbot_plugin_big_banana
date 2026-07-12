@@ -13,6 +13,7 @@ class DrawingTaskManager:
     def __init__(self) -> None:
         """初始化任务表。"""
         self.running_tasks: dict[str, asyncio.Task] = {}
+        self._tracked_tasks: set[asyncio.Task] = set()
 
     @staticmethod
     def build_task_id(event: AstrMessageEvent) -> str:
@@ -34,17 +35,24 @@ class DrawingTaskManager:
     def start(self, task_id: str, task: asyncio.Task) -> None:
         """登记一个会话的绘图任务。"""
         self.running_tasks[task_id] = task
+        self._tracked_tasks.add(task)
+        task.add_done_callback(self._tracked_tasks.discard)
 
     def finish(self, task_id: str) -> None:
         """移除会话已结束的绘图任务。"""
         self.running_tasks.pop(task_id, None)
 
     async def cancel_all(self) -> None:
-        """取消所有后台绘图任务并清空任务表。"""
-        tasks = list(self.running_tasks.values())
+        """取消并等待所有登记过且尚未结束的绘图任务。"""
+        current_task = asyncio.current_task()
+        tasks = [
+            task
+            for task in self._tracked_tasks
+            if task is not current_task and not task.done()
+        ]
         for task in tasks:
-            if not task.done():
-                task.cancel()
+            task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
         self.running_tasks.clear()
+        self._tracked_tasks.clear()

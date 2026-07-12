@@ -43,7 +43,7 @@ class PreferenceConfig:
     """ 视频生成中提示消息 """
     group_cooldown: int = 0
     """ 群组冷却时间(秒) """
-    command_use_background_task: bool = True
+    command_use_background_task: bool = False
     """ 命令调用时是否使用后台任务执行绘图 """
     background_task_send_type: str = "event"
     """ 后台任务消息发送方式。event：事件消息（被动消息，默认）；active：主动消息 """
@@ -87,7 +87,7 @@ class LlmToolsConfig:
     """ LLM 工具调用预设参数的触发词 """
     llm_video_tool_preset_name: str = "llm_video_default"
     """ LLM 视频工具调用预设参数的触发词 """
-    llm_tool_use_background_task: bool = True
+    llm_tool_use_background_task: bool = False
     """ Tools调用使用后台任务 """
     llm_tool_direct_send_result: bool = False
     """ LLM 工具是否直接向聊天窗口发送图片结果 """

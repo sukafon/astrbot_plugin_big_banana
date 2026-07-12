@@ -36,7 +36,12 @@ class VertexAIAnonymousProvider(BaseProvider):
             if self.provider_config.enable_proxy
             else None
         )
-        self.max_retry = self.provider_config.raw_config["max_retry"]
+        self.max_refresh = max(
+            0, int(self.provider_config.raw_config.get("max_refresh", 3))
+        )
+        self.retry_before_switch = max(
+            1, int(self.provider_config.raw_config.get("retry_before_switch", 3))
+        )
         self.retry_delay = self.provider_config.raw_config["retry_delay"]
         self._body_context_cache: dict | None = None
 
@@ -51,9 +56,10 @@ class VertexAIAnonymousProvider(BaseProvider):
         body = self._build_body_context()
 
         err_msg = None
+        # 普通失败和验证失败共用计数，刷新 token 时也不清零。
         attempt = 0
-        verify_retry_count = 0
-        while attempt < self.max_retry:
+        refresh_count = 0
+        while True:
             # 填充recaptcha_token
             body["variables"]["recaptchaToken"] = recaptcha_token
             # 调用接口
@@ -78,28 +84,29 @@ class VertexAIAnonymousProvider(BaseProvider):
             if status == 3:
                 # 这种情况下使用同一个 token 原地重试
                 if err_msg and "Failed to verify action" in err_msg:
-                    verify_retry_count += 1
+                    attempt += 1
                     logger.warning(
                         f"[BIG BANANA] recaptcha_token 验证失败次数："
-                        f"{verify_retry_count}/3"
+                        f"{attempt}/{self.retry_before_switch}"
                     )
-                    # 验证失败出现三次仍然失败，返回错误
-                    if verify_retry_count >= 3:
+                    # 达到上限后返回错误，由调度器切换到下一个提供商。
+                    if attempt >= self.retry_before_switch:
                         return GenerationResult(error_message=err_msg)
-                    # 不更新attempt次数
                     await asyncio.sleep(1)
                     continue
                 # recaptcha_token 已失效，刷新后重试
                 if err_msg and "Recaptcha token is invalid" in err_msg:
-                    # attempt自增后重试
-                    attempt += 1
-                    if attempt >= self.max_retry:
-                        break
+                    if refresh_count >= self.max_refresh:
+                        logger.warning(
+                            "[BIG BANANA] recaptcha_token 刷新次数达到上限，"
+                            "切换下一个提供商"
+                        )
+                        return GenerationResult(error_message=err_msg)
+                    refresh_count += 1
                     logger.warning(
                         f"[BIG BANANA] recaptcha_token 已失效，正在刷新后重试 "
-                        f"({attempt}/{self.max_retry})"
+                        f"({refresh_count}/{self.max_refresh})"
                     )
-                    # 这次重试需要刷新recaptcha_token
                     recaptcha_token = await self._get_recaptcha_token()
                     if recaptcha_token is None:
                         logger.error(
@@ -108,30 +115,21 @@ class VertexAIAnonymousProvider(BaseProvider):
                         return GenerationResult(
                             error_message="获取 recaptcha_token 失败"
                         )
-                    # 刷新后需要重置验证失败计数
-                    verify_retry_count = 0
                     continue
                 # 其他错误直接返回
                 return GenerationResult(error_message=err_msg)
             attempt += 1
-            if attempt >= self.max_retry:
+            if attempt >= self.retry_before_switch:
                 break
-            if attempt % 5 == 0:
-                logger.warning(
-                    f"[BIG BANANA] 已重试 {attempt} 次，正在刷新 recaptcha_token"
-                )
-                recaptcha_token = await self._get_recaptcha_token()
-                if recaptcha_token is None:
-                    logger.error("[BIG BANANA] 获取 recaptcha_token 失败次数达到上限")
-                    return GenerationResult(error_message="获取 recaptcha_token 失败")
-                verify_retry_count = 0
             logger.warning(
                 f"[BIG BANANA] 图片生成失败，正在重试 Vertex AI Anonymous API "
-                f"({attempt}/{self.max_retry})"
+                f"({attempt}/{self.retry_before_switch})"
             )
             await asyncio.sleep(self.retry_delay)
 
-        return GenerationResult(error_message=err_msg or "图片生成失败：重试达到上限。")
+        return GenerationResult(
+            error_message=err_msg or "图片生成失败：已切换下一个提供商。"
+        )
 
     async def _call_vertex_api(self, body: dict) -> ProviderCallResult:
         """调用匿名 Vertex AI GraphQL 接口并解析图片结果。"""

@@ -29,7 +29,8 @@
                 "base_url": "https://cloudconsole-pa.clients6.google.com",
                 "recaptcha_base_api": "https://www.google.com",
                 "system_prompt": "",
-                "max_retry": 10,
+                "max_refresh": 3,
+                "retry_before_switch": 3,
                 "retry_delay": 2.0,
                 "model": "gemini-3-pro-image-preview",
                 "response_modalities": "['IMAGE']",
@@ -92,11 +93,17 @@
                         "default": "",
                         "hint": "留空将不传递这个参数。"
                     },
-                    "max_retry": {
-                        "description": "最大重试次数",
+                    "max_refresh": {
+                        "description": "Token 最大刷新次数",
                         "type": "int",
-                        "default": 10,
-                        "hint": "独立于常规接口的重试次数配置。"
+                        "default": 3,
+                        "hint": "初次获取 Token 后，最多允许重新获取 Token 的次数；达到上限后切换到下一个提供商。"
+                    },
+                    "retry_before_switch": {
+                        "description": "切换前重试次数",
+                        "type": "int",
+                        "default": 3,
+                        "hint": "验证失败或普通请求失败累计达到该次数后，切换到下一个提供商。"
                     },
                     "retry_delay": {
                         "description": "重试延迟",
@@ -1153,7 +1160,7 @@
             "command_use_background_task": {
                 "description": "命令调用时使用后台任务执行绘图",
                 "type": "bool",
-                "default": true,
+                "default": false,
                 "hint": "开启后绘图会作为后台任务执行并在完成后回发结果；关闭后会在当前消息处理流程中等待绘图完成。仅命令调用生效。"
             },
             "background_task_send_type": {
@@ -1209,12 +1216,6 @@
                 "default": "llm_video_default",
                 "hint": "填写视频生成预设的触发词，默认使用插件内置的 llm_video_default。留空时直接使用工具参数。"
             },
-            "llm_tool_use_background_task": {
-                "description": "工具调用使用后台任务",
-                "type": "bool",
-                "default": true,
-                "hint": "开启后由 BigBanana 在插件内部执行后台任务。配置上游回调时把结果交给回调；开启直接发送时在完成后主动发送图片。两者都未配置时会自动改为前台执行，以免图片结果丢失。"
-            },
             "llm_tool_direct_send_result": {
                 "description": "LLM工具直接发送图片结果",
                 "type": "bool",
@@ -1226,6 +1227,12 @@
                 "type": "bool",
                 "default": true,
                 "hint": "开启时拒绝解析到内网、回环或保留地址的远程图片 URL。使用代理软件 Fake-IP 模式且公网图片被误判时可关闭；关闭后请自行承担 LLM 访问内网 URL 的安全风险。"
+            },
+            "llm_tool_use_background_task": {
+                "description": "工具调用使用后台任务",
+                "type": "bool",
+                "default": false,
+                "hint": "开启后由 BigBanana 在插件内部执行后台任务。配置上游回调时把结果交给回调；开启直接发送时在完成后主动发送图片。两者都未配置时会自动改为前台执行，以免图片结果丢失。"
             },
             "background_callback_plugin": {
                 "description": "后台回调插件",

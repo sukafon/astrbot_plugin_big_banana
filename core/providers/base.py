@@ -72,15 +72,16 @@ class BaseProvider(ABC):
         if "provider_type" not in cls.__dict__:
             logger.debug("[BIG BANANA] provider_type not in cls.__dict__")
             return
-        # 做个规范化
+        # 注册键不区分大小写，以兼容配置中的 provider_type 写法。
         provider_type = cls.provider_type.strip()
         # 检查provider_type是否为空
         if not provider_type:
             logger.debug("[BIG BANANA] provider_type is empty")
             return
+        registry_key = provider_type.casefold()
 
         # 检查注册表是否有同provider_type的子类
-        registered_cls = cls._registry.get(provider_type)
+        registered_cls = cls._registry.get(registry_key)
         # 如果有这个provider_type的子类，且不是同一个类对象，打印个警告，不继续注册
         if registered_cls is not None and registered_cls is not cls:
             logger.warning(
@@ -89,14 +90,13 @@ class BaseProvider(ABC):
             )
             return
         # 同一个类对象不会多次执行__init_subclass__，不需要再检查
-        # 这里没有对cls.provider_type做.strip()修正，依靠编程规范约束在provider_type不带上空格即可
-        cls._registry[provider_type] = cls
+        cls._registry[registry_key] = cls
         logger.debug(f"[BIG BANANA] 已注册提供商类: {provider_type}")
 
     @classmethod
     def get_provider_class(cls, provider_type: str) -> type[BaseProvider] | None:
         """根据提供商类型获取对应的提供商类对象。"""
-        return cls._registry.get(provider_type.strip())
+        return cls._registry.get(provider_type.strip().casefold())
 
     @abstractmethod
     async def generate_images(self) -> GenerationResult:

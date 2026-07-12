@@ -160,12 +160,24 @@ class DrawingCommandHandler:
             task_id = self.plugin.task_manager.build_task_id(event)
             self.plugin.task_manager.start(task_id, task)
         else:
-            # 前台任务处理
-            await self.generate_and_send_result(
-                event=event,
-                params=params,
-                collector=image_collector,
-            )
+            # yield 消息后，AstrBot 可能用新的 Task 继续驱动异步生成器。
+            # 重新登记实际执行生成流程的前台任务，确保插件重载能取消它。
+            task_id = self.plugin.task_manager.build_task_id(event)
+            foreground_task = asyncio.current_task()
+            if foreground_task:
+                self.plugin.task_manager.start(task_id, foreground_task)
+            try:
+                await self.generate_and_send_result(
+                    event=event,
+                    params=params,
+                    collector=image_collector,
+                )
+            finally:
+                if (
+                    self.plugin.task_manager.running_tasks.get(task_id)
+                    is foreground_task
+                ):
+                    self.plugin.task_manager.finish(task_id)
 
     async def generate_and_send_result(
         self,

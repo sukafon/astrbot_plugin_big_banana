@@ -351,14 +351,14 @@ function loadData() {
     document.getElementById('pref_send_text_when_no_image').checked = !!pref.send_text_when_no_image;
     document.getElementById('pref_drawing_message').value = pref.drawing_message || '🎨 在画了，请稍等一会...';
     document.getElementById('pref_group_cooldown').value = pref.group_cooldown || 0;
-    document.getElementById('pref_use_background_task').checked = pref.command_use_background_task !== false;
+    document.getElementById('pref_use_background_task').checked = !!pref.command_use_background_task;
     document.getElementById('pref_background_task_send_type').value = pref.background_task_send_type || 'event';
 
     // 绑定 LLM 工具配置。
     var tools = config.llm_tools || {};
     document.getElementById('tools_llm_tool_enabled').checked = tools.enable_image_generation_tool !== false;
     document.getElementById('tools_llm_video_tool_enabled').checked = tools.enable_video_generation_tool !== false;
-    document.getElementById('tools_llm_tool_use_background_task').checked = tools.llm_tool_use_background_task !== false;
+    document.getElementById('tools_llm_tool_use_background_task').checked = !!tools.llm_tool_use_background_task;
 
     // 绑定 save_images 嵌套字段。
     var saveImg = config.save_images || {};

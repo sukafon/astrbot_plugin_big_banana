@@ -42,14 +42,15 @@ class BaseVideoProvider(ABC):
         provider_type = cls.__dict__.get("provider_type", "").strip()
         if not provider_type:
             return
-        registered_cls = cls._registry.get(provider_type)
+        registry_key = provider_type.casefold()
+        registered_cls = cls._registry.get(registry_key)
         if registered_cls is not None and registered_cls is not cls:
             logger.warning(
                 f"[BIG BANANA] 视频提供商类型 {provider_type} 已由 "
                 f"{registered_cls.__name__} 注册，跳过 {cls.__name__}"
             )
             return
-        cls._registry[provider_type] = cls
+        cls._registry[registry_key] = cls
         logger.debug(f"[BIG BANANA] 已注册视频提供商类: {provider_type}")
 
     @classmethod
@@ -62,7 +63,7 @@ class BaseVideoProvider(ABC):
         Returns:
             Registered provider class, or None when unavailable.
         """
-        return cls._registry.get(provider_type.strip())
+        return cls._registry.get(provider_type.strip().casefold())
 
     @abstractmethod
     async def generate_videos(self) -> GenerationResult:

@@ -142,14 +142,19 @@ class BigBananaVideoGenerationTool(BaseMediaGenerationTool):
             if preset is None:
                 logger.warning(
                     "[BIG BANANA] 配置的 LLM 视频工具预设不存在："
-                    f"「{configured_preset}」，将使用本次调用参数"
+                    f"「{configured_preset}」，将降级使用「llm_video_default」"
                 )
+                preset = prompt_config.get("llm_video_default")
             elif preset.get("capability", "image_generation") != "video_generation":
                 logger.warning(
                     "[BIG BANANA] 配置的 LLM 视频工具预设不是视频生成预设："
                     f"「{configured_preset}」，将使用本次调用参数"
                 )
-            else:
+            if (
+                preset is not None
+                and preset.get("capability", "image_generation")
+                == "video_generation"
+            ):
                 params.update(preset)
 
         if preset_name:
@@ -232,17 +237,11 @@ class BigBananaVideoGenerationTool(BaseMediaGenerationTool):
     @staticmethod
     def _build_model_tool_result(
         result: GenerationResult,
-    ) -> mcp.types.CallToolResult:
-        response = mcp.types.CallToolResult(content=[])
+    ) -> ToolExecResult:
         if result.error_message:
-            response.content.append(
-                mcp.types.TextContent(
-                    type="text",
-                    text=f"视频生成失败：{result.error_message}",
-                )
-            )
-            return response
+            return f"视频生成失败：{result.error_message}"
 
+        response = mcp.types.CallToolResult(content=[])
         response.content.append(
             mcp.types.TextContent(
                 type="text",

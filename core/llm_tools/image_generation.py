@@ -202,9 +202,10 @@ class BigBananaImageGenerationTool(BaseMediaGenerationTool):
             if configured_preset is None:
                 logger.warning(
                     "[BIG BANANA] 配置的 LLM 工具调用预设不存在："
-                    f"「{configured_preset_name}」"
+                    f"「{configured_preset_name}」，将降级使用「llm_default」"
                 )
-            else:
+                configured_preset = prompt_config.get("llm_default")
+            if configured_preset is not None:
                 params.update(configured_preset)
 
         # 读取本次调用指定的预设，差分覆盖预设配置
@@ -329,7 +330,7 @@ class BigBananaImageGenerationTool(BaseMediaGenerationTool):
     @staticmethod
     def _build_model_tool_result(
         result: GenerationResult,
-    ) -> mcp.types.CallToolResult:
+    ) -> ToolExecResult:
         """构造可交给当前模型的富媒体结果。
 
         Args:
@@ -338,20 +339,10 @@ class BigBananaImageGenerationTool(BaseMediaGenerationTool):
         Returns:
             包含文字、图片或 URL 的 MCP 工具结果。
         """
-        response = mcp.types.CallToolResult(content=[])
         if result.error_message:
-            response.content.append(
-                mcp.types.TextContent(
-                    type="text",
-                    text=(
-                        f"绘图任务执行失败：{result.error_message}。"
-                        "请根据失败原因调整参数后重试，或直接告知用户；"
-                        "不要声称图片已经生成成功。"
-                    ),
-                )
-            )
-            return response
+            return f"绘图任务执行失败：{result.error_message}"
 
+        response = mcp.types.CallToolResult(content=[])
         response.content.append(
             mcp.types.TextContent(
                 type="text",
