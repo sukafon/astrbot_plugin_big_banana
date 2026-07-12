@@ -59,6 +59,16 @@ def test_builds_cogvideox_flash_request() -> None:
     assert body["request_id"].startswith("big-banana-")
 
 
+def test_converts_string_fps_to_integer() -> None:
+    provider = build_provider({"prompt": "test", "fps": "60"})
+
+    body, error = provider._build_body()
+
+    assert error is None
+    assert body["fps"] == 60
+    assert isinstance(body["fps"], int)
+
+
 def test_polls_until_video_is_ready(monkeypatch) -> None:
     provider = build_provider()
     provider._fetch_job = AsyncMock(

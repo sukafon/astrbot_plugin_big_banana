@@ -198,13 +198,14 @@ class BigBananaImageGenerationTool(BaseMediaGenerationTool):
         configured_preset_name = plugin.llm_tools_config.llm_tool_preset_name.strip()
         # 读取预设配置
         if configured_preset_name:
-            if configured_preset_name not in prompt_config:
+            configured_preset = prompt_config.get(configured_preset_name)
+            if configured_preset is None:
                 logger.warning(
                     "[BIG BANANA] 配置的 LLM 工具调用预设不存在："
                     f"「{configured_preset_name}」"
                 )
             else:
-                params.update(prompt_config[configured_preset_name])
+                params.update(configured_preset)
 
         # 读取本次调用指定的预设，差分覆盖预设配置
         if preset_name:

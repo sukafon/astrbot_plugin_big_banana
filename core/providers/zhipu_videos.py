@@ -82,6 +82,11 @@ class ZhipuVideosProvider(BaseVideoProvider):
             body["size"] = size
 
         fps = self.params.get("fps", raw_config.get("fps", 30))
+        if isinstance(fps, str):
+            try:
+                fps = int(fps)
+            except ValueError:
+                pass
         if fps not in {30, 60}:
             return {}, "fps 仅支持 30 或 60"
         body["fps"] = fps

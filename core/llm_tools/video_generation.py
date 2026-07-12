@@ -44,7 +44,7 @@ def build_video_parameters() -> dict:
             },
             "quality": {"type": "string", "enum": ["speed", "quality"]},
             "size": {"type": "string"},
-            "fps": {"type": "integer", "enum": [30, 60]},
+            "fps": {"type": "string", "enum": ["30", "60"]},
             "with_audio": {"type": "boolean"},
             "watermark_enabled": {"type": "boolean"},
         },

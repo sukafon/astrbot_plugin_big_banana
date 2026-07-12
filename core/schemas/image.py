@@ -40,52 +40,59 @@ class ImageResource:
     @staticmethod
     def strip_metadata(image_bytes: bytes) -> bytes | None:
         """清理静态图片隐私元数据，并修正 EXIF Orientation。"""
-        with PILImage.open(BytesIO(image_bytes)) as img:
-            fmt = img.format
-            if not fmt:
-                logger.error("[BIG BANANA] 图片格式无法识别")
-                return None
+        try:
+            with PILImage.open(BytesIO(image_bytes)) as img:
+                fmt = img.format
+                if not fmt:
+                    logger.error("[BIG BANANA] 图片格式无法识别")
+                    return None
 
-            if getattr(img, "is_animated", False) or getattr(img, "n_frames", 1) > 1:
-                logger.error("[BIG BANANA] 多帧图片不支持")
-                return None
+                if (
+                    getattr(img, "is_animated", False)
+                    or getattr(img, "n_frames", 1) > 1
+                ):
+                    logger.error("[BIG BANANA] 多帧图片不支持")
+                    return None
 
-            fmt_upper = fmt.upper()
-            out = BytesIO()
+                fmt_upper = fmt.upper()
+                out = BytesIO()
 
-            # 单帧 GIF 的透明信息不是隐私，提前取出来
-            gif_transparency = None
-            if fmt_upper == "GIF":
-                gif_transparency = img.info.get("transparency")
+                # 单帧 GIF 的透明信息不是隐私，提前取出来
+                gif_transparency = None
+                if fmt_upper == "GIF":
+                    gif_transparency = img.info.get("transparency")
 
-            # 修正 EXIF Orientation，再清理元数据
-            clean = ImageOps.exif_transpose(img).copy()
-            clean.info.clear()
+                # 修正 EXIF Orientation，再清理元数据
+                clean = ImageOps.exif_transpose(img).copy()
+                clean.info.clear()
 
-            if fmt_upper in {"JPEG", "JPG"}:
-                if clean.mode in {"RGBA", "LA"}:
-                    rgba = clean.convert("RGBA")
-                    background = PILImage.new("RGB", rgba.size, (255, 255, 255))
-                    background.paste(rgba, mask=rgba.getchannel("A"))
-                    clean = background
-                elif clean.mode != "RGB":
-                    clean = clean.convert("RGB")
+                if fmt_upper in {"JPEG", "JPG"}:
+                    if clean.mode in {"RGBA", "LA"}:
+                        rgba = clean.convert("RGBA")
+                        background = PILImage.new("RGB", rgba.size, (255, 255, 255))
+                        background.paste(rgba, mask=rgba.getchannel("A"))
+                        clean = background
+                    elif clean.mode != "RGB":
+                        clean = clean.convert("RGB")
 
-                clean.save(out, format="JPEG", quality=95, optimize=True)
+                    clean.save(out, format="JPEG", quality=95, optimize=True)
 
-            elif fmt_upper == "GIF":
-                save_kwargs = {"format": "GIF"}
+                elif fmt_upper == "GIF":
+                    save_kwargs = {"format": "GIF"}
 
-                # 保留透明，不保留 comment 等隐私/描述元数据
-                if gif_transparency is not None:
-                    save_kwargs["transparency"] = gif_transparency
+                    # 保留透明，不保留 comment 等隐私/描述元数据
+                    if gif_transparency is not None:
+                        save_kwargs["transparency"] = gif_transparency
 
-                clean.save(out, **save_kwargs)
+                    clean.save(out, **save_kwargs)
 
-            else:
-                clean.save(out, format=fmt)
+                else:
+                    clean.save(out, format=fmt)
 
-            return out.getvalue()
+                return out.getvalue()
+        except Exception as exc:
+            logger.warning(f"[BIG BANANA] 图片元数据清理失败: {exc}")
+            return None
 
     @classmethod
     def from_base64(

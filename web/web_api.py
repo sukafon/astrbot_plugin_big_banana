@@ -66,6 +66,15 @@ class BigBananaWebApi:
             "获取人设参考图片内容",
         )
 
+    def unregister_routes(self):
+        """移除当前配置面板实例注册的 Web API。"""
+        registered_web_apis = self.context.registered_web_apis
+        registered_web_apis[:] = [
+            api
+            for api in registered_web_apis
+            if getattr(api[1], "__self__", None) is not self
+        ]
+
     async def api_config_get(self):
         """返回当前插件配置的 JSON 数据。"""
         try:

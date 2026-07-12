@@ -9,7 +9,12 @@ from collections.abc import Sequence
 from io import BytesIO
 from pathlib import Path
 
-from aiohttp import ClientConnectorCertificateError, ClientSession, ClientTimeout
+from aiohttp import (
+    ClientConnectorCertificateError,
+    ClientResponse,
+    ClientSession,
+    ClientTimeout,
+)
 from PIL import Image
 
 from astrbot.api import logger
@@ -29,6 +34,30 @@ _GIF_MIME_MAP = {
     **_MIME_MAP,
     "gif": "image/gif",
 }
+
+_MAX_IMAGE_BYTES = 50 * 1024 * 1024
+_DOWNLOAD_CHUNK_SIZE = 64 * 1024
+
+
+async def _read_image_response(response: ClientResponse) -> bytes | None:
+    """Read a complete response body while enforcing the image size limit."""
+    content_length = response.headers.get("Content-Length")
+    if content_length:
+        try:
+            if int(content_length) > _MAX_IMAGE_BYTES:
+                logger.warning("[BIG BANANA] 图片超过 50MB，跳过处理")
+                return None
+        except ValueError:
+            pass
+
+    content = bytearray()
+    async for chunk in response.content.iter_chunked(_DOWNLOAD_CHUNK_SIZE):
+        content.extend(chunk)
+        if len(content) > _MAX_IMAGE_BYTES:
+            logger.warning("[BIG BANANA] 图片超过 50MB，跳过处理")
+            return None
+
+    return bytes(content) if content else None
 
 
 class Downloader:
@@ -230,19 +259,8 @@ class Downloader:
                         f"[BIG BANANA] 图片下载失败，状态码: {response.status}"
                     )
                     return None, False
-                # 优先校验响应头中的 Content-Length 字段
-                content_length = response.headers.get("Content-Length")
-                if content_length:
-                    try:
-                        if int(content_length) > 50 * 1024 * 1024:
-                            logger.warning("[BIG BANANA] 图片超过 50MB，跳过处理")
-                            return None, True
-                    except ValueError:
-                        pass
-                # 兜底限制最多读取 50MB + 1 字节，以防 Content-Length 不准确或缺失
-                content_bytes = await response.content.read(50 * 1024 * 1024 + 1)
-                if not content_bytes or len(content_bytes) > 50 * 1024 * 1024:
-                    logger.warning("[BIG BANANA] 图片超过 50MB，跳过处理")
+                content_bytes = await _read_image_response(response)
+                if content_bytes is None:
                     return None, True
 
                 content = await asyncio.to_thread(handle_image, content_bytes, convert)
@@ -264,19 +282,8 @@ class Downloader:
                         )
                         return None, False
 
-                    content_length = response.headers.get("Content-Length")
-                    if content_length:
-                        try:
-                            if int(content_length) > 50 * 1024 * 1024:
-                                logger.warning("[BIG BANANA] 图片超过 50MB，跳过处理")
-                                return None, True
-                        except ValueError:
-                            pass
-
-                    # 兜底限制最多读取 50MB + 1 字节
-                    content_bytes = await response.content.read(50 * 1024 * 1024 + 1)
-                    if not content_bytes or len(content_bytes) > 50 * 1024 * 1024:
-                        logger.warning("[BIG BANANA] 图片超过 50MB，跳过处理")
+                    content_bytes = await _read_image_response(response)
+                    if content_bytes is None:
                         return None, True
 
                     content = await asyncio.to_thread(

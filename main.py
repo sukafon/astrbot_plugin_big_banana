@@ -28,7 +28,6 @@ from .core.llm_tools import (
     BigBananaImageGenerationTool,
     BigBananaPromptTool,
     BigBananaVideoGenerationTool,
-    remove_tools,
 )
 from .core.schemas import (
     CommonConfig,
@@ -228,12 +227,13 @@ class BigBanana(Star):
             yield res
 
     async def terminate(self):
-        """在插件卸载或停用时清理后台任务、会话和工具注册。"""
+        """在插件卸载或停用时清理 Web API、后台任务和 HTTP 会话。"""
+        # 注销WEB API
+        if self.web_api is not None:
+            self.web_api.unregister_routes()
         # 取消所有任务
         if self.task_manager is not None:
             await self.task_manager.cancel_all()
         # 关闭HTTP会话
         if self.http_manager is not None:
             await self.http_manager.close_session()
-        # 移除工具
-        remove_tools(self.context)

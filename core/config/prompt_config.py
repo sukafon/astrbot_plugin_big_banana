@@ -36,6 +36,34 @@ _BOOLEAN_PARAMS = {
     "watermark_enabled",
 }
 
+_INTERNAL_PROMPT_CONFIG: dict[str, dict] = {
+    "llm_default": {
+        "prompt": "{{user_text}}",
+        "min_images": 0,
+        "max_images": 6,
+        "aspect_ratio": "default",
+        "image_size": "1K",
+        "google_search": True,
+        "gather_mode": False,
+        "n": 1,
+        "partial_images": 0,
+        "size": "default",
+        "url": False,
+        "moderation": "auto",
+    },
+    "llm_video_default": {
+        "prompt": "{{user_text}}",
+        "capability": "video_generation",
+        "min_images": 0,
+        "max_images": 1,
+        "quality": "speed",
+        "fps": 30,
+        "size": "default",
+        "with_audio": False,
+        "watermark_enabled": True,
+    },
+}
+
 if TYPE_CHECKING:
     from astrbot.core import AstrBotConfig
 
@@ -63,7 +91,6 @@ class PromptConfigManager:
 
     def _build_prompt_config(self) -> dict[str, dict]:
         """解析预设提示词"""
-        # 构建提示词配置
         result: dict[str, dict] = {}
         for item in self.conf.get("prompt", []):
             if not isinstance(item, str):
@@ -86,6 +113,10 @@ class PromptConfigManager:
             params = self.parse_prompt_params(prompt)
             for cmd in cmd_list:
                 result[cmd] = params
+
+        # 配置中的同名预设优先，仅补齐缺失的 LLM 工具默认预设。
+        for name, params in _INTERNAL_PROMPT_CONFIG.items():
+            result.setdefault(name, params.copy())
         return result
 
     def parse_prompt_params(self, prompt: str) -> dict:
