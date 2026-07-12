@@ -21,6 +21,7 @@ from .provider import (
     ProviderConfig,
 )
 from .sub_brain import SubBrainConfig
+from .video import VideoResource
 
 __all__ = [
     "ParamsConfig",
@@ -40,4 +41,5 @@ __all__ = [
     "SUPPORTED_FILE_FORMATS",
     "SUPPORTED_FILE_FORMATS_WITH_DOT",
     "GenerationResult",
+    "VideoResource",
 ]

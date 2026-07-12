@@ -19,6 +19,7 @@ from .drawing import (
     SubBrainOptimizer,
 )
 from .providers import BaseProvider
+from .video import VideoPipeline, VideoProviderDispatcher
 
 __all__ = [
     "PromptConfigManager",
@@ -37,4 +38,6 @@ __all__ = [
     "SubBrainOptimizer",
     "DrawingTaskManager",
     "BaseProvider",
+    "VideoPipeline",
+    "VideoProviderDispatcher",
 ]

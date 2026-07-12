@@ -6,6 +6,7 @@ from astrbot.api.star import Context, StarTools
 TOOLS_NAMESPACE = [
     "banana_preset_prompt",
     "banana_image_generation",
+    "banana_video_generation",
 ]
 
 

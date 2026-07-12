@@ -75,6 +75,9 @@ class BigBananaWebApi:
                 config_data["image_generation_providers"] = list(
                     self.plugin.provider_config_manager.default_providers
                 )
+                config_data["video_generation_providers"] = list(
+                    self.plugin.provider_config_manager.default_video_providers
+                )
             return jsonify({"status": "ok", "data": config_data})
         except Exception as e:
             self.logger.exception(f"获取配置失败: {e}")
@@ -123,13 +126,22 @@ class BigBananaWebApi:
                     }
                 )
 
-            selected_providers = body.pop("image_generation_providers", None)
-            if isinstance(selected_providers, list):
-                selected_names = []
+            selected_by_capability: dict[str, list[str]] = {}
+            for config_key, capability in (
+                ("image_generation_providers", "image_generation"),
+                ("video_generation_providers", "video_generation"),
+            ):
+                selected_providers = body.pop(config_key, None)
+                if not isinstance(selected_providers, list):
+                    continue
+                selected_names: list[str] = []
                 for name in selected_providers:
                     normalized_name = str(name).strip()
                     if normalized_name and normalized_name not in selected_names:
                         selected_names.append(normalized_name)
+                selected_by_capability[capability] = selected_names
+
+            if selected_by_capability:
                 provider_templates = [
                     dict(item)
                     for item in (
@@ -145,19 +157,28 @@ class BigBananaWebApi:
                     item.get("name", "").strip()
                     for item in provider_templates
                     if item.get("name", "").strip()
-                }
-                provider_order = {
-                    name: index for index, name in enumerate(selected_names)
+                    and item.get("capability", "image_generation") == "image_generation"
                 }
                 for item in provider_templates:
+                    capability = item.get("capability", "image_generation")
+                    selected_names = selected_by_capability.get(capability)
+                    if selected_names is None:
+                        continue
+                    provider_order = {
+                        name: index for index, name in enumerate(selected_names)
+                    }
                     name = item.get("name", "").strip()
                     item["enabled_as_default"] = name in provider_order
                     if name in provider_order:
                         item["fallback_order"] = provider_order[name]
                 body["provider_template"] = provider_templates
-                body["default_astr_providers"] = [
-                    name for name in selected_names if name not in template_names
-                ]
+                image_selected_names = selected_by_capability.get("image_generation")
+                if image_selected_names is not None:
+                    body["default_astr_providers"] = [
+                        name
+                        for name in image_selected_names
+                        if name not in template_names
+                    ]
 
             # 更新配置键值。
             for k, v in body.items():
@@ -187,6 +208,7 @@ class BigBananaWebApi:
                     {
                         "id": config.name,
                         "name": f"{config.name} ({config.provider_type})",
+                        "capability": config.capability,
                     }
                 )
                 seen.add(config.name.lower())
@@ -199,7 +221,13 @@ class BigBananaWebApi:
                         meta = p.meta()
                         p_id = getattr(meta, "id", None)
                     if p_id and p_id.lower() not in seen:
-                        providers.append({"id": p_id, "name": p_id})
+                        providers.append(
+                            {
+                                "id": p_id,
+                                "name": p_id,
+                                "capability": "image_generation",
+                            }
+                        )
                         seen.add(p_id.lower())
             return jsonify({"status": "ok", "data": providers})
         except Exception as e:

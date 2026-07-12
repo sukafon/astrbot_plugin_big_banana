@@ -1,3 +1,9 @@
 __pycache__/
-.scratch/
-scratch/
+*.py[codz]
+.pytest_cache/
+.ruff_cache/
+
+# Other
+/.scratch/
+/scratch/
+/data/

@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from astrbot.api.event import AstrMessageEvent
     from astrbot.core.message.message_event_result import MessageEventResult
 
-    from ...guards import AccessCheck, WhitelistGuard
+    from ...guards import WhitelistGuard
 
 
 class WhitelistHandler:
@@ -18,12 +18,6 @@ class WhitelistHandler:
         """保存配置对象并初始化白名单守卫。"""
         self._guard = guard
         self.conf = guard.conf
-
-    def check_event(
-        self, event: AstrMessageEvent, *, command_context: bool
-    ) -> AccessCheck:
-        """根据命令来源和白名单配置判断事件是否允许绘图。"""
-        return self._guard.check(event, is_command=command_context)
 
     async def add_whitelist(
         self, event: AstrMessageEvent, cmd_type: str = "", target_id: str = ""

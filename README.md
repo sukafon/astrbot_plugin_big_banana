@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🍌 AstrBot Nano Banana Pro 图片生成插件 🍌
+# 🍌 大香蕉 图片/视频生成插件 🍌
 
 ![:访问量](https://count.getloli.com/@astrbot_plugin_big_banana?name=astrbot_plugin_big_banana&theme=rule34&padding=5&offset=0&scale=1&pixelated=1&darkmode=auto)
 
@@ -29,12 +29,14 @@
 - 智能补充头像参考以及跳过部分@头像。
 - 支持群聊和用户白名单配置，以及提示词前缀配置和混合模式，多场景下适用。无操作权限将静默返回，避免频繁打扰。
 - 支持为每个提示词指定不同的提供商。
+- 支持智谱异步视频接口和 `CogVideoX-Flash` 文生视频、单图生视频。
 
 \*[1] 免费无限指次数不限，服务可用性视服务器实时资源占用情况而定。Vertex AI Anonymous 可将模型设置为 `gemini-3.1-flash-image-preview`，新模型往往拥有更充足的资源配额。
 
 ## 常用命令
 
 - `<触发词>` 使用预设提示词生成图片
+- `bnv <提示词>` 使用 CogVideoX-Flash 生成视频；消息带图时自动作为首帧
 - `/lm添加 <触发词> <提示词内容>` 快捷添加预设提示词
 - `/lm删除 <触发词>` 快捷删除预设提示词
 - `/lm列表` 查看所有预设提示词名称列表
@@ -64,6 +66,11 @@
 | `--n` | INT | 生成图片的数量，仅OpenAI Image API 支持 |
 | `--size` | 1536x1024, 1024x1536, auto, ... | 生成图片的分辨率，仅OpenAI Image API 支持 |
 | `--url` | true, false | 仅返回图片URL，不直接发送图片 *[7] |
+| `--capability` | image_generation, video_generation | 选择预设使用的生成能力 |
+| `--quality` | speed, quality | CogVideoX 输出模式 |
+| `--fps` | 30, 60 | CogVideoX 视频帧率 |
+| `--with_audio` | true, false | 是否生成 AI 音效 |
+| `--watermark_enabled` | true, false | 是否添加 AI 水印 |
 
 \*[1] 仅 aiocqhttp：如果消息携带的图片数量小于 --min_images 参数值，将自动添加 At 对象头像（At 多个用户则可能添加多张，直到达到上限），如果仍然不够，继续添加发送者头像，数量仍然不够将返回错误信息。
 
@@ -111,10 +118,30 @@
 - `bnn` 图生图，至少 1 张图片，若消息中不包含图片且消息平台是 QQ 个人号，将自动取用户头像作为参考图。
 - `bnt` 文生图，无最少图片需求。
 - `bna` 收集模式，触发后会进入文本和图片收集模式，不会立即生成图片。用户可以发送多条消息，补充提示词和图片参考。发送「开始」将使用收集的提示词和图片进行图片生成；发送「取消」可以取消操作。
+- `bnv` 视频生成预设。默认使用 `video_generation` 能力，最多读取 1 张参考图；不带图时文生视频，带图时图生视频。
 - `llm_default` LLM 工具默认参数预设，允许 0～6 张参考图，并设置通用的图片尺寸、比例、搜索、输出数量和审核参数。
 - `手办化` 手办化预设提示词。
 
 \* 部分预设为新版本添加，可能不存在旧版本配置中，请手动添加（参考 `_conf_schema.json` 文件）。
+
+## CogVideoX-Flash 视频配置
+
+在提供商模板中添加并启用“智谱视频 (CogVideoX-Flash)”，填写智谱 API Key。默认接口地址为 `https://open.bigmodel.cn/api/paas/v4`，模型为 `cogvideox-flash`。
+
+视频任务通过异步接口创建并轮询。`poll_interval` 控制查询间隔，`job_timeout` 控制任务总等待时间。生成完成后插件使用 AstrBot 视频消息组件发送官方返回的视频 URL；使用 `--url true` 可只返回链接。
+
+启用 `llm_tools.enable_video_generation_tool` 后会注册
+`banana_video_generation` 函数调用工具，支持文生视频和单张参考图生视频。
+工具默认读取 `llm_tools.llm_video_tool_preset_name` 指定的 `bnv` 预设，
+也可以由 LLM 传入 `quality`、`size`、`fps`、`with_audio` 和
+`watermark_enabled` 覆盖本次参数。
+
+示例：
+
+```text
+bnv 一只猫在雨后的霓虹街道上奔跑 --quality speed --fps 30
+bnv 让画面中的人物自然转身并微笑 --with_audio true
+```
 
 ## 故障排查
 

@@ -45,6 +45,11 @@ class ProviderDispatcher:
                 logger.error(f"[BIG BANANA] {last_err}，已跳过")
                 continue
 
+            if provider_config.capability != "image_generation":
+                last_err = f"提供商 {provider_config.name} 不支持图片生成"
+                logger.warning(f"[BIG BANANA] {last_err}，已跳过")
+                continue
+
             # 检查提供商是否启用
             if not provider_config.enabled:
                 last_err = f"提供商 {provider_config.name} 未启用"
@@ -62,7 +67,7 @@ class ProviderDispatcher:
                     f"[BIG BANANA] 提供商 {provider_config.name} 限制最大图片数为 {provider_config.max_images}，"
                     f"当前有 {len(image_list)} 张图片，已截断为 {provider_config.max_images} 张"
                 )
-                provider_image_list = image_list[:provider_config.max_images]
+                provider_image_list = image_list[: provider_config.max_images]
 
             # 使用统一 provider 注册表分发
             result = await self._dispatch_provider(

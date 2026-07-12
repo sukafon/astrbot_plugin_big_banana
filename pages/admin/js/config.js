@@ -23,14 +23,17 @@ function addPromptItem(data) {
 }
 
 // 渲染一个模型提供商优先级配置项。
-function addProviderItem(selectedProvider) {
+function addProviderItem(selectedProvider, containerId, capability) {
   selectedProvider = selectedProvider || '';
-  var container = document.getElementById('providers-list');
+  containerId = containerId || 'providers-list';
+  capability = capability || 'image_generation';
+  var container = document.getElementById(containerId);
   var card = document.createElement('div');
   card.className = 'list-item-card';
   
   var selectOptions = '<option value="">请选择提供商</option>';
   providers.forEach(function (p) {
+    if ((p.capability || 'image_generation') !== capability) return;
     var selectedAttr = p.id === selectedProvider ? 'selected' : '';
     selectOptions += `<option value="${p.id}" ${selectedAttr}>${p.name}</option>`;
   });
@@ -45,6 +48,10 @@ function addProviderItem(selectedProvider) {
     </div>
   `;
   container.appendChild(card);
+}
+
+function addVideoProviderItem(selectedProvider) {
+  addProviderItem(selectedProvider, 'video-providers-list', 'video_generation');
 }
 
 // 渲染一个参数别名映射配置项。
@@ -350,6 +357,7 @@ function loadData() {
     // 绑定 LLM 工具配置。
     var tools = config.llm_tools || {};
     document.getElementById('tools_llm_tool_enabled').checked = tools.enable_image_generation_tool !== false;
+    document.getElementById('tools_llm_video_tool_enabled').checked = tools.enable_video_generation_tool !== false;
     document.getElementById('tools_llm_tool_use_background_task').checked = tools.llm_tool_use_background_task !== false;
 
     // 绑定 save_images 嵌套字段。
@@ -374,6 +382,11 @@ function loadData() {
     providersList.innerHTML = '';
     (config.image_generation_providers || []).forEach(function (prov) {
       addProviderItem(prov);
+    });
+    var videoProvidersList = document.getElementById('video-providers-list');
+    videoProvidersList.innerHTML = '';
+    (config.video_generation_providers || []).forEach(function (prov) {
+      addVideoProviderItem(prov);
     });
 
     // 渲染参数别名列表。
@@ -517,6 +530,7 @@ function saveAll() {
   updatedConfig.llm_tools = Object.assign({}, config.llm_tools || {}, {
     enable_preset_tool: llmToolEnabled,
     enable_image_generation_tool: llmToolEnabled,
+    enable_video_generation_tool: document.getElementById('tools_llm_video_tool_enabled').checked,
     llm_tool_use_background_task: document.getElementById('tools_llm_tool_use_background_task').checked
   });
 
@@ -571,6 +585,12 @@ function saveAll() {
     if (val) providersList.push(val);
   });
   updatedConfig.image_generation_providers = providersList;
+  var videoProvidersList = [];
+  document.querySelectorAll('#video-providers-list .provider-select').forEach(function (select) {
+    var val = select.value;
+    if (val) videoProvidersList.push(val);
+  });
+  updatedConfig.video_generation_providers = videoProvidersList;
 
   // 收集参数别名列表。
   var aliasList = [];

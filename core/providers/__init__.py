@@ -3,6 +3,7 @@ from pkgutil import iter_modules
 
 from .base import BaseProvider
 from .standard import StandardProvider
+from .video_base import BaseVideoProvider
 
 for module in iter_modules(__path__):
     module_name = module.name
@@ -11,8 +12,9 @@ for module in iter_modules(__path__):
         "base",
         "standard",
         "utils",
+        "video_base",
     }:
         continue
     import_module(f"{__name__}.{module_name}")
 
-__all__ = ["BaseProvider", "StandardProvider"]
+__all__ = ["BaseProvider", "BaseVideoProvider", "StandardProvider"]

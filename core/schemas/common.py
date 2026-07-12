@@ -39,6 +39,8 @@ class PreferenceConfig:
     """ 未返回图片但返回文本时是否发送文本 """
     drawing_message: str = "🎨 在画了，请稍等一会..."
     """ 图片生成中提示消息 """
+    video_generation_message: str = "🎬 正在生成视频，请稍等一会..."
+    """ 视频生成中提示消息 """
     group_cooldown: int = 0
     """ 群组冷却时间(秒) """
     command_use_background_task: bool = True
@@ -47,7 +49,6 @@ class PreferenceConfig:
     """ 后台任务消息发送方式。event：事件消息（被动消息，默认）；active：主动消息 """
     gather_timeout: int = 120
     """ 收集模式超时时间, 单位: 秒 """
-
 
 
 @dataclass(repr=False, slots=True)
@@ -78,8 +79,12 @@ class LlmToolsConfig:
     """ 启用预设查询工具 """
     enable_image_generation_tool: bool = True
     """ 启用图片生成工具 """
+    enable_video_generation_tool: bool = True
+    """ 启用视频生成工具 """
     llm_tool_preset_name: str = "llm_default"
     """ LLM 工具调用预设参数的触发词 """
+    llm_video_tool_preset_name: str = "bnv"
+    """ LLM 视频工具调用预设参数的触发词 """
     llm_tool_use_background_task: bool = True
     """ Tools调用使用后台任务 """
     llm_tool_direct_send_result: bool = False

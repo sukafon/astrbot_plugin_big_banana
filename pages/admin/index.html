@@ -52,6 +52,15 @@
     </div>
 
     <div class="config-card">
+      <h2 class="section-title">视频供应商优先级</h2>
+      <div class="hint-text" style="margin-bottom: 16px;">
+        视频预设只会调用具有 video_generation 能力的提供商。
+      </div>
+      <div class="list-container" id="video-providers-list"></div>
+      <button class="add-btn" onclick="addVideoProviderItem()">＋ 添加视频提供商</button>
+    </div>
+
+    <div class="config-card">
       <h2 class="section-title">画图选项</h2>
       <div class="form-group">
         <label for="pc_min_images">最小输入图片数量</label>
@@ -281,9 +290,17 @@
     <div class="config-card">
       <h2 class="section-title">函数调用工具</h2>
       <div class="form-group checkbox-row">
-        <label for="tools_llm_tool_enabled">启用 LLM 函数调用工具</label>
+        <label for="tools_llm_tool_enabled">启用图片生成工具</label>
         <label class="switch">
           <input type="checkbox" id="tools_llm_tool_enabled">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group checkbox-row">
+        <label for="tools_llm_video_tool_enabled">启用视频生成工具</label>
+        <label class="switch">
+          <input type="checkbox" id="tools_llm_video_tool_enabled">
           <span class="switch-slider"></span>
         </label>
       </div>

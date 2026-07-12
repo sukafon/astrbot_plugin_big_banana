@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING, Any
 
 import mcp
@@ -9,23 +8,19 @@ from pydantic.dataclasses import dataclass
 
 import astrbot.api.message_components as Comp
 from astrbot.api import logger
-from astrbot.core.agent.tool import FunctionTool
 from astrbot.core.astr_agent_context import AstrAgentContext
 from astrbot.core.message.message_event_result import MessageChain
 
-from ..drawing.collector import ImageCollector
 from ..schemas import GenerationResult
+from .media_generation_base import BaseMediaGenerationTool
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from astrbot.core.agent.run_context import ContextWrapper
     from astrbot.core.agent.tool import ToolExecResult
     from astrbot.core.message.components import BaseMessageComponent
     from astrbot.core.platform.astr_message_event import AstrMessageEvent
 
     from ...main import BigBanana
-    from ..schemas import ImageResource
 
 TOOL_DESCRIPTION = "Draw or edit images based on text or reference images."
 
@@ -36,9 +31,7 @@ PROMPT_DESCRIPTION = (
     "1-based index (e.g., 'image 1', 'image 2')."
 )
 
-PRESET_DESCRIPTION = (
-    "The name of an existing preset to apply to the generation."
-)
+PRESET_DESCRIPTION = "The name of an existing preset to apply to the generation."
 
 REFERENCES_DESCRIPTION = (
     "Optional list of reference image URLs, cached local image paths, or platform "
@@ -81,11 +74,13 @@ def build_parameters() -> dict:
 
 
 @dataclass
-class BigBananaImageGenerationTool(FunctionTool[AstrAgentContext]):
+class BigBananaImageGenerationTool(BaseMediaGenerationTool):
     plugin: Any = None
     name: str = "banana_image_generation"
     description: str = TOOL_DESCRIPTION
     parameters: dict = Field(default_factory=build_parameters)
+    media_name = "图片"
+    generation_name = "绘图"
 
     async def call(
         self,
@@ -170,6 +165,11 @@ class BigBananaImageGenerationTool(FunctionTool[AstrAgentContext]):
         if not params:
             logger.warning("[BIG BANANA] 解析后的绘图参数为空")
             return "解析后的绘图参数为空，请检查提示词和预设名称是否有效。"
+        if params.get("capability", "image_generation") != "image_generation":
+            logger.warning("[BIG BANANA] 图片生成工具拒绝执行非图片预设")
+            return (
+                "banana_image_generation 只支持图片预设，请通过视频生成命令执行该预设。"
+            )
 
         logger.info(f"[BIG BANANA] 生成图片提示词: {params.get('prompt', '')[:128]}")
         result = await self._submit_drawing_task(
@@ -229,193 +229,6 @@ class BigBananaImageGenerationTool(FunctionTool[AstrAgentContext]):
 
         return params, None
 
-    async def _submit_drawing_task(
-        self,
-        plugin: BigBanana,
-        event: AstrMessageEvent,
-        params: dict,
-        image_references: list[str] | None = None,
-    ) -> ToolExecResult | None:
-        """按配置选择前台执行或插件内部后台任务。
-
-        Args:
-            plugin: 当前 Big Banana 插件实例。
-            event: 发起绘图工具调用的消息事件。
-            params: 本次绘图使用的参数。
-            image_references: AI 明确传入的参考图片或用户 ID。
-
-        Returns:
-            任务启动状态、前台工具结果或空值。
-        """
-        task_id = plugin.task_manager.build_task_id(event)
-        if plugin.task_manager.is_running(task_id):
-            return "该任务已在执行中，请勿重复操作。"
-
-        current_task = asyncio.current_task()
-        if current_task:
-            plugin.task_manager.start(task_id, current_task)
-
-        try:
-            direct_send_result = plugin.llm_tools_config.llm_tool_direct_send_result
-            # 插件自行管理后台任务，避免依赖 AstrBot 核心的后台工具实现细节。
-            is_background_task = plugin.llm_tools_config.llm_tool_use_background_task
-            use_background_callback = (
-                is_background_task and plugin.background_callback.enabled()
-            )
-            # 发送开始绘图的提示信息
-            if plugin.preference_config.enable_llm_tool_drawing_message:
-                drawing_message = plugin.preference_config.drawing_message.strip()
-                if drawing_message:
-                    drawing_chain: list[BaseMessageComponent] = [
-                        Comp.Reply(id=event.message_obj.message_id),
-                        Comp.Plain(drawing_message),
-                    ]
-                    await event.send(event.chain_result(drawing_chain))
-
-            # 后台结果必须有明确去向：回调上游，或由插件直接发送给用户。
-            if is_background_task and (use_background_callback or direct_send_result):
-                task = asyncio.create_task(
-                    self._generate_and_send_result(
-                        plugin,
-                        event,
-                        params,
-                        image_references,
-                        is_background_task=True,
-                        use_background_callback=use_background_callback,
-                        direct_send_result=direct_send_result,
-                    )
-                )
-                plugin.task_manager.start(task_id, task)
-                if not use_background_callback:
-                    return (
-                        "后台绘图任务已启动，完成后会直接把图片发送给用户。"
-                        "请告知用户图片正在生成，不要重复调用绘图工具。"
-                    )
-                return (
-                    "后台绘图任务已启动。请告知用户图片正在生成，不要重复调用绘图工具；"
-                    "任务完成后会再次通知你处理结果。"
-                )
-
-            if is_background_task:
-                logger.warning(
-                    "[BIG BANANA] 后台任务未配置回调且未开启直接发送，"
-                    "已改为前台执行以便把图片结果返回给模型"
-                )
-
-            # 没有异步结果接收方时在当前调用中完成，确保富媒体结果不会丢失。
-            return await self._generate_and_send_result(
-                plugin,
-                event,
-                params,
-                image_references,
-                is_background_task=False,
-                direct_send_result=direct_send_result,
-            )
-        finally:
-            if plugin.task_manager.running_tasks.get(task_id) is current_task:
-                plugin.task_manager.finish(task_id)
-
-    async def _generate_and_send_result(
-        self,
-        plugin: BigBanana,
-        event: AstrMessageEvent,
-        params: dict,
-        image_references: list[str] | None = None,
-        *,
-        is_background_task: bool = False,
-        use_background_callback: bool = False,
-        direct_send_result: bool = True,
-    ) -> ToolExecResult | None:
-        """生成图片并按是否直接发送处理结果。
-
-        执行逻辑:
-        1. 生成图片
-        2. 不直接发送时，插件后台回调完整结果，其他模式返回富媒体工具结果
-        3. 插件后台回调失败时，继续进入统一发送流程并主动发送图片
-        4. 统一发送流程中，前台通过事件发送，后台通过主动消息发送
-        5. 插件后台原本配置为直接发送时，将发送后的文字状态回调给上游插件
-
-        Args:
-            plugin: 当前 Big Banana 插件实例。
-            event: 发起绘图工具调用的消息事件。
-            params: 本次绘图使用的参数。
-            image_references: 显式传入的参考图片或用户 ID。
-            is_background_task: 是否为后台任务。
-            use_background_callback: 是否由插件内部后台执行并回调上游插件。
-            direct_send_result: 是否由插件直接发送生成结果。
-
-        Returns:
-            返回给模型的ToolExecResult、后台任务状态文本或空值。
-        """
-        group_id = event.get_group_id()
-        temporary_paths: list[Path] = []
-        try:
-            result = await self._generate_result(
-                plugin,
-                event,
-                params,
-                image_references,
-            )
-
-            # 只有生成成功才记录冷却，失败任务仍允许用户调整参数后重试。
-            if not result.error_message:
-                plugin.cooldown_guard.mark_cooldown(group_id)
-
-            # 不直接发送时，前台把富媒体结果返回给模型；
-            # 插件后台则把完整结果消息链交给配置的上游回调。
-            if not direct_send_result:
-                # 前台任务直接构建富媒体工具结果，图片尚未发送给用户。
-                if not use_background_callback:
-                    return self._build_model_tool_result(result)
-
-                # 插件后台任务，回调消息链包含文字以及尚未发送给用户的图片。
-                handled = await plugin.background_callback.dispatch(
-                    event=event,
-                    result=self._build_callback_result_chain(result),
-                    params=params,
-                    is_success=not result.error_message,
-                )
-                if handled:
-                    return None
-
-                # 回调失败时不提前返回，继续进入下方统一发送流程完成降级发送。
-
-            # 统一发送入口：直接发送任务正常进入，插件回调失败也会降级到这里。
-            # 前台使用当前事件发送；插件后台使用统一会话来源主动发送。
-            completion_text = await self._send_generation_result(
-                plugin,
-                event,
-                result,
-                params,
-                use_proactive_send=is_background_task and (plugin.preference_config.background_task_send_type == "active"),
-                temporary_paths=temporary_paths,
-            )
-
-            # 只有原本配置为直接发送的插件后台任务，才回调发送后的文字状态。
-            # 不直接发送但回调失败的任务不会再次调用同一个回调。
-            if use_background_callback and direct_send_result:
-                handled = await plugin.background_callback.dispatch(
-                    event=event,
-                    result=self._build_callback_result_chain(completion_text),
-                    params=params,
-                    is_success=not result.error_message,
-                )
-                if handled:
-                    return None
-
-            # 前台直接发送后把文字状态返回给当前模型。
-            return completion_text
-        finally:
-            if is_background_task:
-                plugin.task_manager.finish(plugin.task_manager.build_task_id(event))
-            if event.platform_meta.name == "telegram":
-                for path in temporary_paths:
-                    try:
-                        path.unlink(missing_ok=True)
-                        logger.debug(f"[BIG BANANA] 已删除当前任务缓存文件: {path}")
-                    except Exception as e:
-                        logger.error(f"[BIG BANANA] 删除缓存文件 {path} 失败: {e}")
-
     async def _generate_result(
         self,
         plugin: BigBanana,
@@ -466,64 +279,6 @@ class BigBananaImageGenerationTool(FunctionTool[AstrAgentContext]):
             logger.error(f"[BIG BANANA] LLM 工具绘图执行失败: {e}", exc_info=True)
             return GenerationResult(error_message="图片生成发生内部错误，请稍后重试。")
 
-    async def _send_generation_result(
-        self,
-        plugin: BigBanana,
-        event: AstrMessageEvent,
-        result: GenerationResult,
-        params: dict,
-        *,
-        use_proactive_send: bool,
-        temporary_paths: list[Path],
-    ) -> str:
-        """发送生成结果并返回文字完成状态。
-
-        Args:
-            plugin: 当前 Big Banana 插件实例。
-            event: 发起绘图工具调用的消息事件。
-            result: 本次图片生成结果。
-            params: 本次绘图使用的参数。
-            use_proactive_send: 是否使用统一会话来源主动发送消息。
-            temporary_paths: 用于记录本次任务创建的临时文件。
-
-        Returns:
-            描述发送结果的文字状态。
-        """
-        try:
-            if result.error_message:
-                msg_chain: list[BaseMessageComponent] = [
-                    Comp.Reply(id=event.message_obj.message_id),
-                    Comp.Plain(f"❌ 图片生成失败：{result.error_message}"),
-                ]
-            else:
-                msg_chain = plugin.drawing_command_handler._build_result_message_chain(
-                    event,
-                    result=result,
-                    url_only=params.get("url", plugin.params_config.url),
-                    temporary_paths=temporary_paths,
-                )
-
-            if use_proactive_send:
-                await plugin.context.send_message(
-                    event.unified_msg_origin,
-                    MessageChain(msg_chain),
-                )
-            else:
-                await event.send(event.chain_result(msg_chain))
-        except Exception as e:
-            logger.error(f"[BIG BANANA] 绘图结果发送失败: {e}", exc_info=True)
-            return (
-                "绘图结果发送失败。请告知用户发送失败，并根据当前结果决定是否重试；"
-                "不要声称图片已经发送成功。"
-            )
-
-        if result.error_message:
-            return (
-                f"绘图任务执行失败：{result.error_message}。失败原因已发送给用户。"
-                "无需重复发送相同错误；如需重试，请先根据失败原因调整参数。"
-            )
-        return "图片已成功发送给用户。请勿重复发送图片，只需用简短文字确认生成完成。"
-
     @staticmethod
     def _build_callback_result_chain(
         result: GenerationResult | str,
@@ -569,49 +324,6 @@ class BigBananaImageGenerationTool(FunctionTool[AstrAgentContext]):
                 "请如实告知用户，或决定是否重新生成。"
             )
         return MessageChain(chain=chain)
-
-    async def _collect_images(
-        self,
-        plugin: BigBanana,
-        event: AstrMessageEvent,
-        params: dict,
-        image_references: list[str] | None,
-    ) -> tuple[list[ImageResource], list[str], str | None]:
-        """收集 LLM 工具明确指定的参考图。
-
-        Args:
-            plugin: 当前 Big Banana 插件实例。
-            event: 发起绘图工具调用的消息事件。
-            params: 本次绘图使用的参数。
-            image_references: AI 明确传入的参考图片或用户 ID。
-
-        Returns:
-            已加载图片、图片索引补充信息和可选错误消息组成的元组。
-        """
-        collector = ImageCollector(
-            plugin=plugin,
-            event=event,
-            params=params,
-            is_llm_tool=True,
-        )
-        if image_references:
-            await collector.add_explicit_references(image_references)
-        if not collector.check_urls_limit():
-            return (
-                [],
-                [],
-                f"参考图片数量不足，当前仅 {len(collector.get_final_urls())} 张，"
-                f"最少需要 {collector.min_images} 张。请补充 image_references 后重试。",
-            )
-        images = await collector.fetch_collected_images()
-        if not collector.check_images_limit():
-            return (
-                [],
-                [],
-                f"可用参考图片数量不足，成功加载 {len(images)} 张，"
-                f"最少需要 {collector.min_images} 张。请更换或补充 image_references 后重试。",
-            )
-        return images, collector.image_supplement_infos, None
 
     @staticmethod
     def _build_model_tool_result(

@@ -32,6 +32,11 @@ PARAMS_LIST = [
     "url",
     "sub_brain",
     "moderation",
+    "capability",
+    "quality",
+    "fps",
+    "with_audio",
+    "watermark_enabled",
 ]
 
 # 部分平台对单张图片大小有限制，超过限制需要作为文件发送

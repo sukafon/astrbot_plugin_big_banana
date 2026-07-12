@@ -6,6 +6,7 @@
             "bnn {{user_text}} --min_images 1",
             "bnt {{user_text}} --min_images 0",
             "bna {{user_text}} --min_images 0 --gather_mode",
+            "bnv {{user_text}} --capability video_generation --min_images 0 --max_images 1 --quality speed --fps 30 --size default --with_audio false --watermark_enabled true",
             "llm_default {{user_text}} --min_images 0 --max_images 6 --aspect_ratio default --image_size 1K --google_search true --gather_mode false --n 1 --partial_images 0 --size default --url false --moderation auto",
             "手办化 Create a premium, collectible 1/7 scale standalone figurine based on the image, meticulously replicating the character, made from smooth PVC and ABS plastic with a professional matte finish. It stands on a minimalist transparent acrylic base. Next to it is its retail packaging box displaying the price and brand information, with the figure wrapped in plastic inside the slightly larger box. They are naturally arranged on a clean wooden table surrounded by reference books, with a bookshelf in the background and soft afternoon sunlight streaming through the window. Photo-realistic, DSLR effect, depth of field, bokeh background."
         ],
@@ -32,6 +33,27 @@
                 "model": "gemini-3-pro-image-preview",
                 "response_modalities": "['IMAGE']",
                 "enable_proxy": false
+            },
+            {
+                "__template_key": "zhipu_videos",
+                "provider_type": "Zhipu_Videos",
+                "capability": "video_generation",
+                "enabled": false,
+                "name": "zhipu_videos",
+                "enabled_as_default": true,
+                "fallback_order": 0,
+                "keys": [],
+                "base_url": "https://open.bigmodel.cn/api/paas/v4",
+                "model": "cogvideox-flash",
+                "quality": "speed",
+                "with_audio": false,
+                "size": "default",
+                "fps": 30,
+                "watermark_enabled": true,
+                "poll_interval": 5,
+                "job_timeout": 900,
+                "enable_proxy": false,
+                "max_images": 1
             }
         ],
         "templates": {
@@ -129,8 +151,132 @@
                     "max_images": {
                         "description": "最大输入图片限制",
                         "type": "int",
-                        "default": 6,
+                        "default": 14,
                         "hint": "该提供商支持的最大输入图片数量，超出此数量的图片将被截断。这等价于模型能力，具有最高优先级。输入 -1 表示不限制。"
+                    }
+                }
+            },
+            "zhipu_videos": {
+                "name": "智谱视频 (CogVideoX-Flash)",
+                "items": {
+                    "provider_type": {
+                        "type": "str",
+                        "default": "Zhipu_Videos",
+                        "invisible": true
+                    },
+                    "capability": {
+                        "type": "str",
+                        "default": "video_generation",
+                        "invisible": true
+                    },
+                    "enabled": {
+                        "type": "bool",
+                        "description": "启用提供商",
+                        "default": false
+                    },
+                    "name": {
+                        "description": "提供商名称",
+                        "hint": "名称区分大小写，必须唯一。",
+                        "type": "str",
+                        "default": "zhipu_videos"
+                    },
+                    "enabled_as_default": {
+                        "type": "bool",
+                        "description": "设为默认视频提供商",
+                        "default": true
+                    },
+                    "fallback_order": {
+                        "description": "默认视频提供商优先级",
+                        "type": "int",
+                        "default": 0
+                    },
+                    "keys": {
+                        "description": "智谱 API Key",
+                        "hint": "在 bigmodel.cn 控制台创建，不需要填写 Bearer 前缀。",
+                        "type": "list",
+                        "default": []
+                    },
+                    "base_url": {
+                        "description": "Base URL",
+                        "type": "string",
+                        "default": "https://open.bigmodel.cn/api/paas/v4",
+                        "hint": "可填写到 /paas/v4，插件会自动拼接 videos/generations 和 async-result。"
+                    },
+                    "model": {
+                        "description": "模型",
+                        "type": "string",
+                        "default": "cogvideox-flash",
+                        "hint": "主要适配 cogvideox-flash，同时兼容同接口的 cogvideox-2。"
+                    },
+                    "quality": {
+                        "description": "生成模式",
+                        "type": "string",
+                        "options": [
+                            "speed",
+                            "quality"
+                        ],
+                        "default": "speed",
+                        "hint": "speed 速度优先，quality 质量优先。"
+                    },
+                    "with_audio": {
+                        "description": "生成 AI 音效",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "size": {
+                        "description": "视频分辨率",
+                        "type": "string",
+                        "options": [
+                            "default",
+                            "720x480",
+                            "1024x1024",
+                            "1280x960",
+                            "960x1280",
+                            "1920x1080",
+                            "1080x1920",
+                            "2048x1080",
+                            "3840x2160"
+                        ],
+                        "default": "default",
+                        "hint": "default 表示不传递，由模型根据输入决定。"
+                    },
+                    "fps": {
+                        "description": "视频帧率",
+                        "type": "int",
+                        "options": [
+                            30,
+                            60
+                        ],
+                        "default": 30
+                    },
+                    "watermark_enabled": {
+                        "description": "添加 AI 水印",
+                        "type": "bool",
+                        "default": true,
+                        "hint": "关闭水印要求账户先在“个人中心 → 安全管理 → 去水印管理”实名认证并签署免责声明"
+                    },
+                    "poll_interval": {
+                        "description": "任务轮询间隔",
+                        "type": "float",
+                        "default": 5,
+                        "hint": "单位：秒，最小按 1 秒处理。"
+                    },
+                    "job_timeout": {
+                        "description": "视频任务总超时",
+                        "type": "float",
+                        "default": 900,
+                        "hint": "单位：秒，超时后停止轮询。"
+                    },
+                    "enable_proxy": {
+                        "description": "启用代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "max_images": {
+                        "description": "最大输入图片限制",
+                        "type": "int",
+                        "default": 1,
+                        "hint": "CogVideoX-Flash 仅使用第一张参考图。"
                     }
                 }
             },
@@ -216,7 +362,7 @@
                     "max_images": {
                         "description": "最大输入图片限制",
                         "type": "int",
-                        "default": 6,
+                        "default": 14,
                         "hint": "该提供商支持的最大输入图片数量，超出此数量的图片将被截断。这等价于模型能力，具有最高优先级。输入 -1 表示不限制。"
                     }
                 }
@@ -291,7 +437,7 @@
                     "max_images": {
                         "description": "最大输入图片限制",
                         "type": "int",
-                        "default": 6,
+                        "default": 16,
                         "hint": "该提供商支持的最大输入图片数量，超出此数量的图片将被截断。这等价于模型能力，具有最高优先级。输入 -1 表示不限制。"
                     }
                 }
@@ -366,7 +512,7 @@
                     "max_images": {
                         "description": "最大输入图片限制",
                         "type": "int",
-                        "default": 6,
+                        "default": 16,
                         "hint": "该提供商支持的最大输入图片数量，超出此数量的图片将被截断。这等价于模型能力，具有最高优先级。输入 -1 表示不限制。"
                     }
                 }
@@ -441,7 +587,7 @@
                     "max_images": {
                         "description": "最大输入图片限制",
                         "type": "int",
-                        "default": 6,
+                        "default": 1,
                         "hint": "该提供商支持的最大输入图片数量，超出此数量的图片将被截断。这等价于模型能力，具有最高优先级。输入 -1 表示不限制。"
                     }
                 }
@@ -516,7 +662,7 @@
                     "max_images": {
                         "description": "最大输入图片限制",
                         "type": "int",
-                        "default": 6,
+                        "default": 16,
                         "hint": "该提供商支持的最大输入图片数量，超出此数量的图片将被截断。这等价于模型能力，具有最高优先级。输入 -1 表示不限制。"
                     }
                 }
@@ -627,7 +773,7 @@
                     "max_images": {
                         "description": "最大输入图片限制",
                         "type": "int",
-                        "default": 6,
+                        "default": 3,
                         "hint": "该提供商支持的最大输入图片数量，超出此数量的图片将被截断。这等价于模型能力，具有最高优先级。输入 -1 表示不限制。"
                     }
                 }
@@ -702,7 +848,7 @@
                     "max_images": {
                         "description": "最大输入图片限制",
                         "type": "int",
-                        "default": 6,
+                        "default": -1,
                         "hint": "该提供商支持的最大输入图片数量，超出此数量的图片将被截断。这等价于模型能力，具有最高优先级。输入 -1 表示不限制。"
                     }
                 }
@@ -1007,6 +1153,11 @@
                 "default": "🎨 在画了，请稍等一会...",
                 "hint": "开始生成图片时，发送给用户的提示文字。"
             },
+            "video_generation_message": {
+                "description": "视频生成中提示消息",
+                "type": "string",
+                "default": "🎬 正在生成视频，请稍等一会..."
+            },
             "send_text_when_no_image": {
                 "description": "无图片时发送文本响应",
                 "type": "bool",
@@ -1060,11 +1211,23 @@
                 "default": true,
                 "hint": "允许 LLM 根据文本、聊天图片或头像参考生成图片"
             },
+            "enable_video_generation_tool": {
+                "description": "启用视频生成工具",
+                "type": "bool",
+                "default": true,
+                "hint": "允许 LLM 根据文本和一张可选参考图生成视频"
+            },
             "llm_tool_preset_name": {
                 "description": "LLM工具调用预设参数",
                 "type": "string",
                 "default": "llm_default",
                 "hint": "填写预设提示词配置中的触发词。该预设按字段覆盖插件默认参数；LLM 本次调用指定的预设再按字段覆盖此预设，未被后一级指定的参数会继续保留。留空表示不使用。"
+            },
+            "llm_video_tool_preset_name": {
+                "description": "LLM视频工具调用预设参数",
+                "type": "string",
+                "default": "bnv",
+                "hint": "填写视频生成预设的触发词，默认使用 bnv。留空时直接使用工具参数。"
             },
             "llm_tool_use_background_task": {
                 "description": "工具调用使用后台任务",

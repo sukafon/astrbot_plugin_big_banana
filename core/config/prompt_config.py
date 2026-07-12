@@ -15,6 +15,7 @@ _INTEGER_PARAMS = {
     "seed",
     "n",
     "partial_images",
+    "fps",
 }
 _FLOAT_PARAMS = {"guidance_scale"}
 _INTEGER_RANGES = {
@@ -23,6 +24,7 @@ _INTEGER_RANGES = {
     "num_inference_steps": (1, None),
     "n": (1, 10),
     "partial_images": (0, 3),
+    "fps": (1, 120),
 }
 _BOOLEAN_PARAMS = {
     "google_search",
@@ -30,6 +32,8 @@ _BOOLEAN_PARAMS = {
     "gather_mode",
     "url",
     "sub_brain",
+    "with_audio",
+    "watermark_enabled",
 }
 
 if TYPE_CHECKING:

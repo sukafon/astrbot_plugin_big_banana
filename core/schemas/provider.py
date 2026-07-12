@@ -16,10 +16,6 @@ class ProviderConfig:
     """是否启用"""
     name: str = ""
     """提供商名称"""
-    enabled_as_default: bool = False
-    """是否加入默认提供商集合"""
-    fallback_order: int = 0
-    """默认回退优先级"""
     keys: list[str] = field(default_factory=list)
     """API 密钥列表"""
     base_url: str = ""

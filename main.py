@@ -19,12 +19,15 @@ from .core import (
     ProviderDispatcher,
     R2ImageHoster,
     SubBrainOptimizer,
+    VideoPipeline,
+    VideoProviderDispatcher,
     WhitelistHandler,
 )
 from .core.guards import CooldownGuard, WhitelistGuard
 from .core.llm_tools import (
     BigBananaImageGenerationTool,
     BigBananaPromptTool,
+    BigBananaVideoGenerationTool,
     remove_tools,
 )
 from .core.schemas import (
@@ -126,6 +129,7 @@ class BigBanana(Star):
         self.provider_config_manager = ProviderConfigManager(self.conf)
         # 调度器
         self.dispatcher = ProviderDispatcher(self)
+        self.video_dispatcher = VideoProviderDispatcher(self)
         # 副脑提示词优化器
         self.sub_brain_optimizer = SubBrainOptimizer(
             context=self.context,
@@ -133,6 +137,8 @@ class BigBanana(Star):
         )
         # 绘图管线
         self.drawing_pipeline = DrawingPipeline(self)
+        # Video generation pipeline
+        self.video_pipeline = VideoPipeline(self)
         # 进度表情包处理器
         self.progress_meme_handler = ProgressMemeHandler()
         # 绘图命令处理器
@@ -150,6 +156,10 @@ class BigBanana(Star):
             image_generation_tool = BigBananaImageGenerationTool(plugin=self)
             self.context.add_llm_tools(image_generation_tool)
             logger.info("[BIG BANANA] 已注册函数调用工具: banana_image_generation")
+        if self.llm_tools_config.enable_video_generation_tool:
+            video_generation_tool = BigBananaVideoGenerationTool(plugin=self)
+            self.context.add_llm_tools(video_generation_tool)
+            logger.info("[BIG BANANA] 已注册函数调用工具: banana_video_generation")
         # 启动WEB API
         self.web_api = BigBananaWebApi(self)
         self.web_api.register_routes()

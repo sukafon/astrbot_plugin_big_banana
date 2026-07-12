@@ -130,7 +130,10 @@ class DrawingCommandHandler:
 
         # 先发送开始画图消息，再开始下载图片，防止用户体感卡顿
         if self.plugin.preference_config.enable_drawing_message:
-            text = self.plugin.preference_config.drawing_message
+            if params.get("capability", "image_generation") == "video_generation":
+                text = self.plugin.preference_config.video_generation_message
+            else:
+                text = self.plugin.preference_config.drawing_message
             if text.strip():
                 async for start_msg in self._build_start_msg(event, text):
                     yield start_msg
@@ -201,14 +204,29 @@ class DrawingCommandHandler:
                         params.get("prompt", "draw a picture"),
                         collector.image_supplement_infos,
                     )
-                # 调度底层提供商生成图片
-                result = await self.drawing_pipeline.run(params, image_list=image_list)
+                # Route the request through the matching media pipeline.
+                if params.get("capability", "image_generation") == "video_generation":
+                    result = await self.plugin.video_pipeline.run(
+                        params,
+                        image_list=image_list,
+                    )
+                else:
+                    result = await self.drawing_pipeline.run(
+                        params,
+                        image_list=image_list,
+                    )
 
             # 构建消息链
             if result.error_message:
+                media_name = (
+                    "视频"
+                    if params.get("capability", "image_generation")
+                    == "video_generation"
+                    else "图片"
+                )
                 msg_chain: list[BaseMessageComponent] = [
                     Comp.Reply(id=event.message_obj.message_id),
-                    Comp.Plain(f"❌ 图片生成失败：{result.error_message}"),
+                    Comp.Plain(f"❌ {media_name}生成失败：{result.error_message}"),
                 ]
             else:
                 # 成功，标记冷却时间
@@ -287,14 +305,18 @@ class DrawingCommandHandler:
             Comp.Reply(id=event.message_obj.message_id)
         ]
         result_urls = result.urls
+        video_urls = [video.url for video in result.videos if video.url]
         # 如果仅url，这里尝试检查有无url，无则报错
         if url_only:
-            if result_urls:
-                msg_chain.append(Comp.Plain("\n".join(result_urls)))
+            urls = video_urls or result_urls
+            if urls:
+                msg_chain.append(Comp.Plain("\n".join(urls)))
             else:
-                msg_chain.append(
-                    Comp.Plain("❌ 图片生成失败：无可用URL，且无法上传图片")
-                )
+                msg_chain.append(Comp.Plain("❌ 生成失败：没有可用的媒体 URL"))
+            return msg_chain
+
+        if video_urls:
+            msg_chain.extend(Comp.Video.fromURL(url) for url in video_urls)
             return msg_chain
 
         images_with_bytes = [image for image in result.images if image.bytes]
