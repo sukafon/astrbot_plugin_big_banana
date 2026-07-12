@@ -128,7 +128,16 @@ class DrawingCommandHandler:
             )
             return
 
-        # 先发送开始画图消息，再开始下载图片，防止用户体感卡顿
+        # 后台任务会超出当前事件生命周期。AstrBot 会在事件结束时清理
+        # media_image_* 临时文件，因此必须先把参考图读入内存。
+        use_bg = self.plugin.preference_config.command_use_background_task
+        if use_bg:
+            await image_collector.fetch_collected_images()
+            if not image_collector.check_images_limit():
+                await image_collector.supplement_avatars(use_downloaded_images=True)
+                await image_collector.fetch_collected_images()
+
+        # 先发送开始画图消息，再开始生成，防止用户体感卡顿
         if self.plugin.preference_config.enable_drawing_message:
             if params.get("capability", "image_generation") == "video_generation":
                 text = self.plugin.preference_config.video_generation_message
@@ -137,9 +146,6 @@ class DrawingCommandHandler:
             if text.strip():
                 async for start_msg in self._build_start_msg(event, text):
                     yield start_msg
-
-        # 判断前台还是后台执行
-        use_bg = self.plugin.preference_config.command_use_background_task
 
         if use_bg:
             # 后台任务处理：使用 Task 包装
