@@ -25,13 +25,16 @@ if TYPE_CHECKING:
 TOOL_DESCRIPTION = "Draw or edit images based on text or reference images."
 
 PROMPT_DESCRIPTION = (
-    "The detailed description of the image to generate. If a preset is used, "
-    "provide only the subject text for the placeholder, without repeating the preset's "
-    "template. If reference images are used, refer to them in the prompt by their "
-    "1-based index (e.g., 'image 1', 'image 2')."
+    "The detailed description of the image to generate. If the selected preset contains "
+    "a placeholder, this prompt changes only the placeholder's content; the rest of the "
+    "preset remains unchanged. If reference images are used, refer to them in the "
+    "prompt by their 1-based index (e.g., 'image 1', 'image 2')."
 )
 
-PRESET_DESCRIPTION = "The name of an existing preset to apply to the generation."
+PRESET_DESCRIPTION = (
+    "The name of an existing preset to apply to the generation. Leave empty to use the "
+    "default preset."
+)
 
 REFERENCES_DESCRIPTION = (
     "Optional list of reference image URLs, cached local image paths, or platform "

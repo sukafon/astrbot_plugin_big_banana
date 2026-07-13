@@ -1,13 +1,12 @@
 import asyncio
 from io import BytesIO
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
-from PIL import Image
-
-from core.client.downloader import _read_image_response
+from core.client.downloader import Downloader, _read_image_response
 from core.schemas import GenerationResult, ImageResource, VideoResource
 from core.video.pipeline import VideoPipeline
+from PIL import Image
 
 
 class ChunkedContent:
@@ -17,6 +16,41 @@ class ChunkedContent:
     async def iter_chunked(self, _size: int):
         for chunk in self.chunks:
             yield chunk
+
+
+class FakeResponse:
+    def __init__(
+        self,
+        url: str,
+        status: int,
+        *,
+        location: str | None = None,
+        body: bytes = b"",
+    ) -> None:
+        self.url = url
+        self.status = status
+        self.headers = {}
+        if location is not None:
+            self.headers["Location"] = location
+        self.content = ChunkedContent([body] if body else [])
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, _exc_type, _exc, _traceback) -> None:
+        return None
+
+
+class FakeSession:
+    def __init__(self, responses: list[FakeResponse]) -> None:
+        self.responses = responses
+        self.requested_urls: list[str] = []
+        self.request_kwargs: list[dict] = []
+
+    def get(self, url: str, **kwargs) -> FakeResponse:
+        self.requested_urls.append(url)
+        self.request_kwargs.append(kwargs)
+        return self.responses.pop(0)
 
 
 def build_jpeg() -> bytes:
@@ -58,3 +92,130 @@ def test_video_pipeline_drops_a_truncated_reference_without_crashing() -> None:
 
     assert result.videos[0].url == "https://example.com/video.mp4"
     assert dispatcher.await_args.args[1] == []
+
+
+def test_restricted_download_follows_relative_redirect_and_checks_each_hop() -> None:
+    image_bytes = build_jpeg()
+    session = FakeSession(
+        [
+            FakeResponse(
+                "https://public.example/start/image",
+                302,
+                location="../final.jpg#preview",
+            ),
+            FakeResponse(
+                "https://public.example/final.jpg",
+                200,
+                body=image_bytes,
+            ),
+        ]
+    )
+    validator = AsyncMock(return_value=True)
+
+    with patch("core.client.downloader.is_public_http_url", validator):
+        content, success = asyncio.run(
+            Downloader(session)._download_image(
+                "https://public.example/start/image",
+                restrict_private_network=True,
+            )
+        )
+
+    assert success is True
+    assert content == ("image/jpeg", image_bytes)
+    assert session.requested_urls == [
+        "https://public.example/start/image",
+        "https://public.example/final.jpg",
+    ]
+    assert [
+        call.args[0] for call in validator.await_args_list
+    ] == session.requested_urls
+    assert all(kwargs["allow_redirects"] is False for kwargs in session.request_kwargs)
+
+
+def test_restricted_download_rejects_private_redirect_before_requesting_it() -> None:
+    private_url = "http://127.0.0.1/secret.jpg"
+    session = FakeSession(
+        [
+            FakeResponse(
+                "https://public.example/image",
+                302,
+                location=private_url,
+            )
+        ]
+    )
+    validator = AsyncMock(side_effect=[True, False])
+
+    with patch("core.client.downloader.is_public_http_url", validator):
+        content, success = asyncio.run(
+            Downloader(session)._download_image(
+                "https://public.example/image",
+                restrict_private_network=True,
+            )
+        )
+
+    assert content is None
+    assert success is True
+    assert session.requested_urls == ["https://public.example/image"]
+    assert [call.args[0] for call in validator.await_args_list] == [
+        "https://public.example/image",
+        private_url,
+    ]
+
+
+def test_restricted_download_allows_exactly_five_redirects() -> None:
+    image_bytes = build_jpeg()
+    responses = [
+        FakeResponse(
+            f"https://public.example/{index}",
+            302,
+            location=f"/{index + 1}",
+        )
+        for index in range(5)
+    ]
+    responses.append(FakeResponse("https://public.example/5", 200, body=image_bytes))
+    session = FakeSession(responses)
+    validator = AsyncMock(return_value=True)
+
+    with patch("core.client.downloader.is_public_http_url", validator):
+        content, success = asyncio.run(
+            Downloader(session)._download_image(
+                "https://public.example/0",
+                restrict_private_network=True,
+            )
+        )
+
+    assert success is True
+    assert content == ("image/jpeg", image_bytes)
+    assert session.requested_urls == [
+        f"https://public.example/{index}" for index in range(6)
+    ]
+    assert validator.await_count == 6
+
+
+def test_restricted_download_stops_before_a_sixth_redirect_target() -> None:
+    responses = [
+        FakeResponse(
+            f"https://public.example/{index}",
+            302,
+            location=f"/{index + 1}",
+        )
+        for index in range(6)
+    ]
+    session = FakeSession(responses)
+    validator = AsyncMock(return_value=True)
+
+    with patch("core.client.downloader.is_public_http_url", validator):
+        content, success = asyncio.run(
+            Downloader(session)._download_image(
+                "https://public.example/0",
+                restrict_private_network=True,
+            )
+        )
+
+    assert content is None
+    assert success is True
+    assert session.requested_urls == [
+        f"https://public.example/{index}" for index in range(6)
+    ]
+    assert "https://public.example/6" not in session.requested_urls
+    assert validator.await_count == 6

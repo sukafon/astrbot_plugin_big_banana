@@ -37,6 +37,8 @@ _GIF_MIME_MAP = {
 
 _MAX_IMAGE_BYTES = 50 * 1024 * 1024
 _DOWNLOAD_CHUNK_SIZE = 64 * 1024
+_MAX_REDIRECTS = 5
+_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
 
 async def _read_image_response(response: ClientResponse) -> bytes | None:
@@ -243,53 +245,25 @@ class Downloader:
         restrict_private_network: bool = False,
     ) -> tuple[tuple[str, bytes] | None, bool]:
         """执行远程图片下载并返回处理结果及请求成功标记。"""
-        if restrict_private_network and not await is_public_http_url(url):
-            logger.warning(f"[BIG BANANA] 已拒绝访问非公网图片地址：{url}")
-            return None, True
         try:
-            async with self.session.get(
+            return await self._download_image_with_redirects(
                 url,
+                use_proxy=use_proxy,
+                convert=convert,
                 headers=headers,
-                timeout=ClientTimeout(connect=30, total=60),
-                proxy=self.http_proxy if use_proxy else None,
-                allow_redirects=not restrict_private_network,
-            ) as response:
-                if response.status != 200:
-                    logger.warning(
-                        f"[BIG BANANA] 图片下载失败，状态码: {response.status}"
-                    )
-                    return None, False
-                content_bytes = await _read_image_response(response)
-                if content_bytes is None:
-                    return None, True
-
-                content = await asyncio.to_thread(handle_image, content_bytes, convert)
-                return content, True
+                restrict_private_network=restrict_private_network,
+            )
         except ClientConnectorCertificateError:
             # 证书校验失败时回退为关闭 SSL 验证重试一次。
             try:
-                async with self.session.get(
+                return await self._download_image_with_redirects(
                     url,
+                    use_proxy=use_proxy,
+                    convert=convert,
                     headers=headers,
-                    timeout=ClientTimeout(connect=30, total=60),
-                    proxy=self.http_proxy if use_proxy else None,
-                    ssl=False,
-                    allow_redirects=not restrict_private_network,
-                ) as response:
-                    if response.status != 200:
-                        logger.warning(
-                            f"[BIG BANANA] 图片下载失败，状态码: {response.status}"
-                        )
-                        return None, False
-
-                    content_bytes = await _read_image_response(response)
-                    if content_bytes is None:
-                        return None, True
-
-                    content = await asyncio.to_thread(
-                        handle_image, content_bytes, convert
-                    )
-                    return content, True
+                    restrict_private_network=restrict_private_network,
+                    verify_ssl=False,
+                )
             except Exception as e:
                 logger.error(f"[BIG BANANA] 下载图片失败(重试): {url}，错误信息：{e}")
                 return None, False
@@ -299,6 +273,82 @@ class Downloader:
         except Exception as e:
             logger.error(f"[BIG BANANA] 下载图片失败: {url}，错误信息：{e}")
             return None, False
+
+    async def _download_image_with_redirects(
+        self,
+        url: str,
+        *,
+        use_proxy: bool,
+        convert: bool,
+        headers: dict[str, str] | None,
+        restrict_private_network: bool,
+        verify_ssl: bool = True,
+    ) -> tuple[tuple[str, bytes] | None, bool]:
+        """下载图片，并在 SSRF 防护开启时逐跳校验重定向目标。"""
+        current_url = url
+        redirect_count = 0
+
+        while True:
+            if restrict_private_network and not await is_public_http_url(current_url):
+                logger.warning(f"[BIG BANANA] 已拒绝访问非公网图片地址：{current_url}")
+                return None, True
+
+            async with self.session.get(
+                current_url,
+                headers=headers,
+                timeout=ClientTimeout(connect=30, total=60),
+                proxy=self.http_proxy if use_proxy else None,
+                ssl=verify_ssl,
+                allow_redirects=not restrict_private_network,
+            ) as response:
+                if restrict_private_network and response.status in _REDIRECT_STATUSES:
+                    location = response.headers.get("Location", "").strip()
+                    if not location:
+                        logger.warning(
+                            "[BIG BANANA] 图片下载重定向缺少 Location 响应头"
+                        )
+                        return None, True
+                    if redirect_count >= _MAX_REDIRECTS:
+                        logger.warning(
+                            f"[BIG BANANA] 图片下载重定向超过 {_MAX_REDIRECTS} 次"
+                        )
+                        return None, True
+
+                    base_url = str(getattr(response, "url", current_url))
+                    try:
+                        next_url, _fragment = urllib.parse.urldefrag(
+                            urllib.parse.urljoin(base_url, location)
+                        )
+                        parsed_next_url = urllib.parse.urlparse(next_url)
+                        if (
+                            parsed_next_url.scheme not in {"http", "https"}
+                            or not parsed_next_url.hostname
+                        ):
+                            raise ValueError("unsupported redirect URL")
+                        # 触发无效端口的解析异常，避免将其留到下一次请求。
+                        parsed_next_url.port
+                    except ValueError:
+                        logger.warning(
+                            f"[BIG BANANA] 图片下载重定向地址无效：{location}"
+                        )
+                        return None, True
+
+                    current_url = next_url
+                    redirect_count += 1
+                    continue
+
+                if response.status != 200:
+                    logger.warning(
+                        f"[BIG BANANA] 图片下载失败，状态码: {response.status}"
+                    )
+                    return None, False
+
+                content_bytes = await _read_image_response(response)
+                if content_bytes is None:
+                    return None, True
+
+                content = await asyncio.to_thread(handle_image, content_bytes, convert)
+                return content, True
 
 
 async def is_public_http_url(url: str) -> bool:
