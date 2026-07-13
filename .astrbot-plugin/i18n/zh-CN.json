@@ -2,8 +2,113 @@
   "pages": {
     "admin": {
       "title": "画图设置",
-      "persona_replace": { "title": "人设替换" }
+      "document_title": "大香蕉画图配置",
+      "heading": "大香蕉画图设置",
+      "subtitle": "配置图片生成提供商、参数、白名单及命令前缀",
+      "tabs": { "presets": "预设提示词", "draw": "画图参数", "general": "常规配置", "trigger": "指令与触发", "whitelist": "白名单与存储", "hosting": "图床设置", "sub_brain": "副脑设置", "advanced": "高级与其它", "persona_replace": "人设替换" },
+      "presets": { "title": "预设提示词规则", "description": "配置触发词对应的预设提示词内容。支持单触发词或 [词1,词2] 列表格式。占位符 {{user_text}} 将被用户输入替换。", "add": "＋ 添加提示词规则" },
+      "draw": {
+        "providers": { "title": "绘图供应商优先级", "description": "多选且排序以确定优先级。第一个失败时会自动降级尝试后面的提供商。留空则跟随当前对话正在使用的服务商。", "add": "＋ 添加提供商" },
+        "video_providers": { "title": "视频供应商优先级", "description": "视频预设只会调用具有 video_generation 能力的提供商。", "add": "＋ 添加视频提供商" },
+        "options": {
+          "title": "画图选项",
+          "min_images": { "label": "最小输入图片数量", "hint": "如果输入图片不够，会自动添加At对象或发送者头像。" },
+          "max_images": { "label": "最大输入图片数量", "hint": "插件不设置全局上限，实际可用数量由具体提供商决定。" },
+          "aspect_ratio": { "label": "默认宽高比", "default": "default (默认/保持原样)", "square": "1:1 (正方形)", "portrait": "2:3 (竖版高图)", "landscape": "3:2 (横版图)", "phone": "9:16 (手机屏幕)", "desktop": "16:9 (电脑屏幕)", "ultrawide": "21:9 (超宽屏)", "hint": "设置输出图片的宽高比（仅对部分支持此参数的提供商有效）。" },
+          "image_size": { "label": "默认分辨率" },
+          "moderation": { "label": "内容审核级别", "auto": "auto (自动/标准)", "low": "low (低敏感度)", "hint": "GPT 图像编辑模型（如 gpt-image-*）的内容安全过滤级别。设置为 low 可降低过滤敏感度。" },
+          "google_search": { "label": "允许模型使用谷歌搜索工具" },
+          "refer_images": { "label": "参考图片文件名列表", "placeholder": "例如: ref1.jpg, ref2.png", "hint": "用逗号分隔，把图片放在插件数据目录的 refer_images 文件夹下。" },
+          "gather_mode": { "label": "启用收集模式" },
+          "url_only": { "label": "默认仅返回图片 URL", "hint": "提示词中的 --url true/false 可覆盖此默认值。" }
+        }
+      },
+      "general": {
+        "title": "常规配置",
+        "preset_append": { "label": "启用预设提示词追加", "hint": "如果提示词没有 {{user_text}} 占位符，会自动在末尾追加用户输入。" },
+        "smart_retry": { "label": "启用智能重试" },
+        "max_retry": { "label": "最大重试次数", "placeholder": "例如: 3" },
+        "timeout": { "label": "请求超时时长" },
+        "proxy": { "label": "HTTP 代理地址", "placeholder": "例如: http://127.0.0.1:7890" }
+      },
+      "trigger": {
+        "prefix": { "title": "前缀与触发方式", "coexist_enabled": "启用混合模式 (前缀与免前缀皆可触发)", "provider_prefix": "启用提供商前缀", "add": "＋ 添加命令前缀" },
+        "preferences": {
+          "title": "触发与偏好偏好", "skip_at_first": "跳过第一次 @ 机器人头像", "skip_quote_first": "跳过第一次引用消息发送者头像", "skip_llm_at_first": "LLM 函数调用跳过第一次 @ 头像", "enable_drawing_message": "启用生成中提示消息", "send_text_when_no_image": "无图时发送文本响应", "send_text_when_no_image_hint": "开启后，如果响应未包含图片但包含文本内容，将把文本内容作为结果发送。", "drawing_message": "生成中提示消息", "drawing_message_placeholder": "🎨 在画了，请稍等一会...", "group_cooldown": "群组画图冷却时间 (秒)", "group_cooldown_hint": "控制每个群组使用画画命令或工具的冷却间隔时间，0 为不限制。", "use_background_task": "使用后台任务执行绘图", "use_background_task_hint": "关闭后会等待绘图完成再回发结果。", "background_task_send_type": "后台任务消息发送方式", "send_type_event": "事件消息（被动消息）", "send_type_active": "主动消息", "background_task_send_type_hint": "后台任务完成后的消息发送方式，默认使用事件消息（被动消息）。"
+        },
+        "tools": { "title": "函数调用工具", "image_enabled": "启用图片生成工具", "video_enabled": "启用视频生成工具", "use_background_task": "Tools 调用使用后台任务", "use_background_task_hint": "关闭后函数调用会等待绘图完成再返回。" }
+      },
+      "whitelist": {
+        "scope": { "title": "白名单生效范围限制", "only_for_commands": "白名单仅对指令生效 (LLM 触发不受拦截限制)" },
+        "groups": { "title": "群组白名单限制", "enabled": "启用群组白名单", "add": "＋ 添加白名单群组" },
+        "users": { "title": "用户白名单限制", "enabled": "启用用户白名单", "add": "＋ 添加白名单用户" },
+        "storage": { "title": "图片存储", "local": "图片存储到本地插件数据目录", "r2": "图片保存到 R2 图床" }
+      },
+      "hosting": { "title": "R2/Cloudflare 图床上传设置", "enabled": "启用图床上传", "upload_url": "上传入口基础地址", "upload_url_placeholder": "例如: https://your-worker.workers.dev", "public_base_url": "公开访问基础地址", "public_base_url_placeholder": "例如: https://your-worker.workers.dev", "auth_token": "鉴权令牌 (Auth Token)", "auth_token_placeholder": "例如: your-secret-token", "path_prefix": "路径前缀 (Path Prefix)", "path_prefix_placeholder": "例如: big-banana" },
+      "sub_brain": { "title": "副脑提示词优化设置", "description": "启用后，当对话大模型调用画图工具生成图片时，会将传给工具的简短描述先提交给副脑进行扩写优化，再交给画图供应商生成图片。", "enabled": "启用副脑优化", "provider": "副脑模型供应商 (LLM Provider)", "default_provider": "当前会话默认供应商", "provider_hint": "选择用于优化提示词的 LLM 提供商。留空则使用当前对话正在使用的提供商。", "system_prompt": "副脑系统提示词", "system_prompt_placeholder": "引导副脑优化提示词的系统提示词" },
+      "advanced": { "aliases": { "title": "参数别名映射 (Params Alias Map)", "description": "为内置参数名映射自定义别名，让用户可以使用别名来调用对应的画图参数。", "add": "＋ 添加别名映射" } },
+      "persona_replace": { "title": "人设头像替换", "description": "配置目标 ID (如机器人 QQ 号、用户 QQ 号，或别名 \"bot\"、\"self\") 与对应的参考头像图片列表。当触发时，系统会随机从中选择一张头像。支持输入图片 URL，或直接上传本地图片。", "add": "＋ 添加人设替换规则" },
+      "actions": { "discard": "🔄 放弃更改", "save": "💾 保存配置", "saving": "保存中..." },
+      "dynamic": {
+        "prompt": {
+          "trigger_label": "触发词 / 触发词列表",
+          "trigger_placeholder": "例如: bnn 或 [词1,词2]",
+          "content_label": "提示词内容及参数",
+          "content_placeholder": "例如: {{user_text}} --min_images 1"
+        },
+        "provider": {
+          "choose": "请选择提供商",
+          "label": "模型供应商"
+        },
+        "alias": {
+          "alias_label": "自定义参数名 (别名)",
+          "alias_placeholder": "例如: append_mode",
+          "target_label": "内置参数名称",
+          "target_placeholder": "例如: gather_mode"
+        },
+        "persona": {
+          "target_label": "目标 ID / 别名 (例如: 1234567, bot, self)",
+          "target_placeholder": "输入 QQ 号或 bot / self",
+          "images_label": "参考图片列表",
+          "add_url": "＋ 添加图片 URL",
+          "upload_local": "＋ 上传本地图片",
+          "url_prompt": "请输入图片 URL:",
+          "image_alt": "头像参考图"
+        },
+        "whitelist": {
+          "id_label": "标识 ID / UMO",
+          "group_placeholder": "群组 UMO 标识",
+          "user_placeholder": "用户 QQ 号"
+        },
+        "prefix": {
+          "label": "命令前缀",
+          "placeholder": "例如: /"
+        },
+        "sub_brain": {
+          "default_provider": "当前会话默认供应商"
+        },
+        "toast": {
+          "sdk_unavailable": "SDK 不可用",
+          "reading_file": "正在读取文件...",
+          "uploading_image": "正在上传图片...",
+          "upload_success": "图片上传成功",
+          "upload_failed": "图片上传失败: ",
+          "read_failed": "读取图片文件失败",
+          "load_success": "配置数据加载成功",
+          "load_failed": "数据获取失败: ",
+          "save_success": "配置已保存，重新加载插件后生效",
+          "save_error": "保存错误: "
+        },
+        "errors": {
+          "unknown": "未知错误",
+          "config_save_failed": "基本配置保存失败",
+          "substitutions_save_failed": "人设替换保存失败"
+        },
+        "validation": {
+          "non_negative_images": "最小和最大输入图片数量必须是非负整数",
+          "empty_prompt": "预设「{trigger}」的提示词正文不能为空"
+        }
+      }
     }
   }
 }
-

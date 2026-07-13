@@ -1,0 +1,911 @@
+{
+  "metadata": {
+    "display_name": "🍌 Big Banana 🍌",
+    "desc": "Image and video generation plugin supporting Gemini, OpenAI, CogVideoX, Agnes, reverse-engineered Vertex AI, and advanced configuration parameters.",
+    "short_desc": "Generate and edit images and videos with multiple AI providers."
+  },
+  "config": {
+    "prompt": {
+      "description": "Preset Prompts",
+      "hint": "Format 1: Trigger word Prompt word --Parameter 1 Parameter value 1 --Parameter 2 Parameter value 2. Format 2: [Trigger word 1, Trigger word 2] Prompt word --Parameter 1 Parameter value 1 --Parameter 2 Parameter value 2. Trigger words and trigger word lists cannot have spaces. If the parameter value is omitted, it is regarded as a Boolean value true. Placeholder prompt words {{user_text}}: The placeholder prompt words will be overwritten by the message content. Fixed preset prompt words can be added before and after the placeholder prompt words. Please refer to README.md for optional parameters. Conflicting trigger words may overwrite each other."
+    },
+    "provider_template": {
+      "description": "Providers",
+      "hint": "Add provider configuration.",
+      "templates": {
+        "vertex_ai_anonymous": {
+          "name": "Vertex AI Anonymous",
+          "enabled": {
+            "description": "Enable Provider",
+            "hint": "When disabled, this provider is silently skipped, including when selected as a default provider or explicitly specified via parameters."
+          },
+          "enabled_as_default": {
+            "description": "Use as Default Provider",
+            "hint": "Join the default provider set. When the user does not specify the --providers parameter, it will fall back to use according to priority from the set."
+          },
+          "fallback_order": {
+            "description": "Default Provider Priority",
+            "hint": "The smaller the number, the higher the priority and will be overridden by the provider order specified directly by the --providers parameter."
+          },
+          "base_url": {
+            "description": "Base URL",
+            "hint": "You can configure the reverse proxy here"
+          },
+          "recaptcha_base_api": {
+            "description": "Recaptcha Base API",
+            "hint": "You can configure the reverse proxy here"
+          },
+          "system_prompt": {
+            "description": "System Prompt",
+            "hint": "Leave blank to not pass this parameter."
+          },
+          "max_refresh": {
+            "description": "Token maximum refresh times",
+            "hint": "After obtaining the Token for the first time, the maximum number of times the Token is reacquired is allowed; when the upper limit is reached, switch to the next provider."
+          },
+          "retry_before_switch": {
+            "description": "Number of retries before switching",
+            "hint": "After the cumulative number of verification failures or common request failures reaches this number, switch to the next provider."
+          },
+          "retry_delay": {
+            "description": "Retry delay",
+            "hint": "A larger retry delay may be able to avoid the problem of concentrated failures in a short period of time, unit: seconds"
+          },
+          "model": {
+            "description": "Model",
+            "hint": "Default gemini-3-pro-image-preview"
+          },
+          "response_modalities": {
+            "description": "Response Modalities",
+            "hint": "Image-generation models may fail if ‘IMAGE’ is omitted. Some models fail if response modalities are sent at all. Select ‘None’ to omit this parameter.",
+            "labels": [
+              "Text + Image",
+              "Text Only",
+              "Image Only",
+              "None"
+            ]
+          },
+          "enable_proxy": {
+            "description": "Enable Proxy",
+            "hint": "To enable the proxy, you must first configure the proxy address in 'General Configuration'"
+          },
+          "max_images": {
+            "description": "Maximum Input Images",
+            "hint": "The maximum number of input images supported by this provider, after which images will be truncated. This is equivalent to the model capability, which has the highest priority. Enter -1 for no limit."
+          }
+        },
+        "gemini": {
+          "name": "Gemini",
+          "enabled": {
+            "description": "Enable Provider",
+            "hint": "When disabled, this provider is silently skipped, including when selected as a default provider or explicitly specified via parameters."
+          },
+          "enabled_as_default": {
+            "description": "Use as Default Provider",
+            "hint": "Join the default provider set. When the user does not specify the --providers parameter, it will fall back to use according to priority from the set."
+          },
+          "fallback_order": {
+            "description": "Default Provider Priority",
+            "hint": "The smaller the number, the higher the priority and will be overridden by the provider order specified directly by the --providers parameter."
+          },
+          "keys": {
+            "description": "API Keys",
+            "hint": "API Key list. Each request is retried out of sequence."
+          },
+          "base_url": {
+            "description": "Base URL",
+            "hint": "No need to fill in the /v1beta path"
+          },
+          "system_prompt": {
+            "description": "System Prompt",
+            "hint": "Leave blank to not pass this parameter."
+          },
+          "model": {
+            "description": "Model",
+            "hint": "Default gemini-3-pro-image"
+          },
+          "response_modalities": {
+            "description": "Response Modalities",
+            "hint": "Image-generation models may fail if ‘IMAGE’ is omitted. Some models fail if response modalities are sent at all. Select ‘None’ to omit this parameter.",
+            "labels": [
+              "Text + Image",
+              "Text Only",
+              "Image Only",
+              "None"
+            ]
+          },
+          "stream": {
+            "description": "Streaming",
+            "hint": "Provider support required"
+          },
+          "enable_proxy": {
+            "description": "Enable Proxy",
+            "hint": "To enable the proxy, you must first configure the proxy address in 'General Configuration'"
+          },
+          "max_images": {
+            "description": "Maximum Input Images",
+            "hint": "The maximum number of input images supported by this provider, after which images will be truncated. This is equivalent to the model capability, which has the highest priority. Enter -1 for no limit."
+          }
+        },
+        "openai_chat": {
+          "name": "OpenAI Chat",
+          "enabled": {
+            "description": "Enable Provider",
+            "hint": "When disabled, this provider is silently skipped, including when selected as a default provider or explicitly specified via parameters."
+          },
+          "enabled_as_default": {
+            "description": "Use as Default Provider",
+            "hint": "Join the default provider set. When the user does not specify the --providers parameter, it will fall back to use according to priority from the set."
+          },
+          "fallback_order": {
+            "description": "Default Provider Priority",
+            "hint": "The smaller the number, the higher the priority and will be overridden by the provider order specified directly by the --providers parameter."
+          },
+          "keys": {
+            "description": "API Keys",
+            "hint": "API Key list. There is no need to fill in the Bearer prefix, the backend will automatically splice it. Each request is retried out of sequence."
+          },
+          "base_url": {
+            "description": "Base URL",
+            "hint": "By convention, this base url usually needs to be supplemented with /v1."
+          },
+          "model": {
+            "description": "Model",
+            "hint": "Default gpt-image-2"
+          },
+          "stream": {
+            "description": "Streaming",
+            "hint": "Provider support required"
+          },
+          "enable_proxy": {
+            "description": "Enable Proxy",
+            "hint": "To enable the proxy, you must first configure the proxy address in 'General Configuration'"
+          },
+          "max_images": {
+            "description": "Maximum Input Images",
+            "hint": "The maximum number of input images supported by this provider, after which images will be truncated. This is equivalent to the model capability, which has the highest priority. Enter -1 for no limit."
+          }
+        },
+        "openai_images": {
+          "name": "OpenAI Images",
+          "enabled": {
+            "description": "Enable Provider",
+            "hint": "When disabled, this provider is silently skipped, including when selected as a default provider or explicitly specified via parameters."
+          },
+          "enabled_as_default": {
+            "description": "Use as Default Provider",
+            "hint": "Join the default provider set. When the user does not specify the --providers parameter, it will fall back to use according to priority from the set."
+          },
+          "fallback_order": {
+            "description": "Default Provider Priority",
+            "hint": "The smaller the number, the higher the priority and will be overridden by the provider order specified directly by the --providers parameter."
+          },
+          "keys": {
+            "description": "API Keys",
+            "hint": "API Key list. There is no need to fill in the Bearer prefix, the backend will automatically splice it. Each request is retried out of sequence."
+          },
+          "base_url": {
+            "description": "Base URL",
+            "hint": "By convention, this base URL usually needs to include /v1. The plugin automatically routes requests to the images/generations or images/edits endpoint depending on whether input images are present."
+          },
+          "model": {
+            "description": "Model",
+            "hint": "Default gpt-image-2"
+          },
+          "stream": {
+            "description": "Streaming",
+            "hint": "Provider support required"
+          },
+          "enable_proxy": {
+            "description": "Enable Proxy",
+            "hint": "To enable the proxy, you must first configure the proxy address in 'General Configuration'"
+          },
+          "max_images": {
+            "description": "Maximum Input Images",
+            "hint": "The maximum number of input images supported by this provider, after which images will be truncated. This is equivalent to the model capability, which has the highest priority. Enter -1 for no limit."
+          }
+        },
+        "minimax_images": {
+          "name": "MiniMax Images",
+          "enabled": {
+            "description": "Enable Provider",
+            "hint": "When disabled, this provider is silently skipped, including when selected as a default provider or explicitly specified via parameters."
+          },
+          "enabled_as_default": {
+            "description": "Use as Default Provider",
+            "hint": "Join the default provider set. When the user does not specify the --providers parameter, it will fall back to use according to priority from the set."
+          },
+          "fallback_order": {
+            "description": "Default Provider Priority",
+            "hint": "The smaller the number, the higher the priority and will be overridden by the provider order specified directly by the --providers parameter."
+          },
+          "keys": {
+            "description": "API Keys",
+            "hint": "API Key list. There is no need to fill in the Bearer prefix, the backend will automatically splice it. Each request is retried out of sequence."
+          },
+          "base_url": {
+            "description": "Base URL",
+            "hint": "MiniMax image-generation endpoint. You may enter the URL up to /v1 and the plugin will append image_generation automatically, or enter the full /v1/image_generation URL."
+          },
+          "model": {
+            "description": "Model",
+            "hint": "Default image-01. minimax only supports 1 reference image"
+          },
+          "stream": {
+            "description": "Streaming",
+            "hint": "Provider support required"
+          },
+          "enable_proxy": {
+            "description": "Enable Proxy",
+            "hint": "To enable the proxy, you must first configure the proxy address in 'General Configuration'"
+          },
+          "max_images": {
+            "description": "Maximum Input Images",
+            "hint": "The maximum number of input images supported by this provider, after which images will be truncated. This is equivalent to the model capability, which has the highest priority. Enter -1 for no limit."
+          }
+        },
+        "openai_responses": {
+          "name": "OpenAI Responses",
+          "enabled": {
+            "description": "Enable Provider",
+            "hint": "When disabled, this provider is silently skipped, including when selected as a default provider or explicitly specified via parameters."
+          },
+          "enabled_as_default": {
+            "description": "Use as Default Provider",
+            "hint": "Join the default provider set. When the user does not specify the --providers parameter, it will fall back to use according to priority from the set."
+          },
+          "fallback_order": {
+            "description": "Default Provider Priority",
+            "hint": "The smaller the number, the higher the priority and will be overridden by the provider order specified directly by the --providers parameter."
+          },
+          "keys": {
+            "description": "API Keys",
+            "hint": "API Key list. There is no need to fill in the Bearer prefix, the backend will automatically splice it. Each request is retried out of sequence."
+          },
+          "base_url": {
+            "description": "Base URL",
+            "hint": "By convention, this base url usually needs to be supplemented with /v1."
+          },
+          "model": {
+            "description": "Model",
+            "hint": "For the Responses API, specify a mainline model that supports the image_generation tool, such as gpt-5.5."
+          },
+          "stream": {
+            "description": "Streaming",
+            "hint": "Provider support required"
+          },
+          "enable_proxy": {
+            "description": "Enable Proxy",
+            "hint": "To enable the proxy, you must first configure the proxy address in 'General Configuration'"
+          },
+          "max_images": {
+            "description": "Maximum Input Images",
+            "hint": "The maximum number of input images supported by this provider, after which images will be truncated. This is equivalent to the model capability, which has the highest priority. Enter -1 for no limit."
+          }
+        },
+        "siliconflow_images": {
+          "name": "SiliconFlow Images",
+          "enabled": {
+            "description": "Enable Provider",
+            "hint": "When disabled, this provider is silently skipped, including when selected as a default provider or explicitly specified via parameters."
+          },
+          "enabled_as_default": {
+            "description": "Use as Default Provider",
+            "hint": "Join the default provider set. When the user does not specify the --providers parameter, it will fall back to use according to priority from the set."
+          },
+          "fallback_order": {
+            "description": "Default Provider Priority",
+            "hint": "The smaller the number, the higher the priority and will be overridden by the provider order specified directly by the --providers parameter."
+          },
+          "keys": {
+            "description": "API Keys",
+            "hint": "API Key list. There is no need to fill in the Bearer prefix, the backend will automatically splice it. Each request is retried out of sequence."
+          },
+          "base_url": {
+            "description": "Base URL",
+            "hint": "Enter the URL up to /v1 and the plugin will append images/generations automatically, or enter the full /v1/images/generations URL."
+          },
+          "model": {
+            "description": "Model",
+            "hint": "Default Kwai-Kolors/Kolors. A maximum of 3 reference images can be transferred."
+          },
+          "image_size": {
+            "description": "Resolution",
+            "hint": "For example 1024x1024, 960x1280, 1664x928. Not passed when left blank or when the prompt word specifies --image_size default."
+          },
+          "batch_size": {
+            "description": "Number of Images",
+            "hint": "The request field is batch_size; it can be overridden with --n in the prompt word."
+          },
+          "negative_prompt": {
+            "description": "Negative Prompt",
+            "hint": "Leave blank to not pass. The prompt word can be overwritten with --negative_prompt. English commas can be used to replace spaces in the prompt words, and the backend will convert them into spaces."
+          },
+          "num_inference_steps": {
+            "description": "Inference Steps",
+            "hint": "Leave blank to not pass. The prompt word can be overwritten with --num_inference_steps."
+          },
+          "guidance_scale": {
+            "description": "Guidance Scale",
+            "hint": "Leave blank to not pass. The prompt word can be overwritten with --guidance_scale."
+          },
+          "seed": {
+            "description": "Random Seed",
+            "hint": "Leave blank to not pass. The prompt word can be overwritten with --seed."
+          },
+          "stream": {
+            "description": "Streaming",
+            "hint": "Provider support required"
+          },
+          "enable_proxy": {
+            "description": "Enable Proxy",
+            "hint": "To enable the proxy, you must first configure the proxy address in 'General Configuration'"
+          },
+          "max_images": {
+            "description": "Maximum Input Images",
+            "hint": "The maximum number of input images supported by this provider, after which images will be truncated. This is equivalent to the model capability, which has the highest priority. Enter -1 for no limit."
+          }
+        },
+        "agnes_images": {
+          "name": "Agnes Images",
+          "enabled": {
+            "description": "Enable Provider",
+            "hint": "When disabled, this provider is silently skipped, including when selected as a default provider or explicitly specified via parameters."
+          },
+          "enabled_as_default": {
+            "description": "Use as Default Provider",
+            "hint": "Join the default provider set. When the user does not specify the --providers parameter, it will fall back to use according to priority from the set."
+          },
+          "fallback_order": {
+            "description": "Default Provider Priority",
+            "hint": "The smaller the number, the higher the priority and will be overridden by the provider order specified directly by the --providers parameter."
+          },
+          "keys": {
+            "description": "API Keys",
+            "hint": "API Key list. There is no need to fill in the Bearer prefix, the backend will automatically splice it. Each request is retried out of sequence."
+          },
+          "base_url": {
+            "description": "Base URL",
+            "hint": "According to the openai compatible endpoint convention, remember to add /v1 here."
+          },
+          "model": {
+            "description": "Model",
+            "hint": "Default agnes-image-2.1-flash"
+          },
+          "stream": {
+            "description": "Streaming",
+            "hint": "Provider support required"
+          },
+          "enable_proxy": {
+            "description": "Enable Proxy",
+            "hint": "To enable the proxy, you must first configure the proxy address in 'General Configuration'"
+          },
+          "max_images": {
+            "description": "Maximum Input Images",
+            "hint": "The maximum number of input images supported by this provider, after which images will be truncated. This is equivalent to the model capability, which has the highest priority. Enter -1 for no limit."
+          }
+        },
+        "zhipu_videos": {
+          "name": "ZhipuAI Video",
+          "enabled": {
+            "description": "Enable Provider"
+          },
+          "enabled_as_default": {
+            "description": "Set as default video provider"
+          },
+          "fallback_order": {
+            "description": "Default Video Provider Priority"
+          },
+          "keys": {
+            "description": "ZhipuAI API Key",
+            "hint": "Created in the bigmodel.cn console, no need to fill in the Bearer prefix."
+          },
+          "base_url": {
+            "description": "Base URL",
+            "hint": "Can be filled in / paas/v4, the plugin will automatically splice videos/generations and async-result."
+          },
+          "model": {
+            "description": "Model",
+            "hint": "Mainly adapted to cogvideox-flash, and also compatible with cogvideox-2 with the same interface."
+          },
+          "quality": {
+            "description": "Generation Mode",
+            "hint": "Speed ​​gives priority to speed and quality gives priority to quality.",
+            "labels": [
+              "Speed Priority",
+              "Quality Priority"
+            ]
+          },
+          "with_audio": {
+            "description": "Generate AI Sound Effects"
+          },
+          "size": {
+            "description": "Video Resolution",
+            "hint": "default means not passed, it is decided by the model based on the input.",
+            "labels": [
+              "Default (model-selected)",
+              "720 × 480",
+              "1024 × 1024",
+              "1280 × 960",
+              "960 × 1280",
+              "1920 × 1080",
+              "1080 × 1920",
+              "2048 × 1080",
+              "3840 × 2160"
+            ]
+          },
+          "fps": {
+            "description": "Video Frame Rate",
+            "labels": [
+              "30 FPS",
+              "60 FPS"
+            ]
+          },
+          "watermark_enabled": {
+            "description": "Add AI Watermark",
+            "hint": "Disabling the watermark requires identity verification and signing the disclaimer under ‘Personal Center → Security Management → Watermark Removal Management’."
+          },
+          "poll_interval": {
+            "description": "Task Polling Interval",
+            "hint": "Unit: second, minimum processing is 1 second."
+          },
+          "job_timeout": {
+            "description": "Overall Video Task Timeout",
+            "hint": "Unit: second, stop polling after timeout."
+          },
+          "enable_proxy": {
+            "description": "Enable Proxy"
+          },
+          "max_images": {
+            "description": "Maximum Input Images",
+            "hint": "CogVideoX-Flash only uses the first reference image."
+          }
+        }
+      }
+    },
+    "default_astr_providers": {
+      "description": "Native default provider",
+      "hint": "Even if you do not select a provider here, you can directly specify the provider of the native configuration through the --providers parameter. This configuration is only a supplement to the default provider. The priority of the native provider is fixed at 0; when sorting, the priority is ascending. Template providers with the same priority precede native providers. Template providers are arranged in the order of configuration files, and native providers are arranged in the order of this list."
+    },
+    "params_config": {
+      "description": "Default Prompt Parameters",
+      "hint": "If no parameters are specified in the prompt word, the default parameters here will be used. Custom prompt words can also specify parameters directly, remember to include spaces. Example: bnn prompt word --image_size 4K --google_search",
+      "min_images": {
+        "description": "Minimum Input Images",
+        "hint": "Must be a non-negative integer. If the collected images are less than this value, and it is aiocqhttp, non-tool call, the sender's avatar will be automatically collected. If there are not enough images, the robot avatar will continue to be added. If the final number of images is still not enough, an error message will be returned."
+      },
+      "max_images": {
+        "description": "Maximum Input Images",
+        "hint": "Must be a non-negative integer. If the number of images in the message exceeds this value n, the first n images will be automatically intercepted. Please refer to the corresponding provider for the upper limit of input images supported by a specific provider."
+      },
+      "refer_images": {
+        "description": "Reference Images",
+        "hint": "Fill in the image file names (including suffix) separated by commas. The image files are placed in the refer_images folder of the plugin data directory and will be passed to the context as reference images first. Prompt word parameter usage: --refer_images file name 1, file name 2"
+      },
+      "gather_mode": {
+        "description": "Enable Collection Mode",
+        "hint": "After being enabled, the plugin will not start drawing immediately, allowing users to send multiple messages continuously. The collected text and images will not be used for image generation until they reply \"Start\". Tool calls automatically ignore this parameter."
+      },
+      "url": {
+        "description": "Return Image URLs by Default",
+        "hint": "After enabling, when the --url parameter is not specified in the prompt word, only the image URL will be returned by default and the image will not be sent directly. --url true/false in the prompt word overrides this default."
+      }
+    },
+    "gemini_image_config": {
+      "description": "Gemini Parameters",
+      "hint": "Usually only used by Gemini and Vertex provider types, but other supported providers are also able to read",
+      "aspect_ratio": {
+        "description": "Aspect Ratio",
+        "hint": "Setting to default will not pass this parameter. According to the Gemini API documentation, by default the model will keep the size of the output image consistent with the size of the input image. Only Gemini specifications are valid.",
+        "labels": [
+          "Default",
+          "1:1",
+          "2:3",
+          "3:2",
+          "3:4",
+          "4:3",
+          "4:5",
+          "5:4",
+          "9:16",
+          "16:9",
+          "21:9"
+        ]
+      },
+      "image_size": {
+        "description": "Resolution",
+        "hint": "The resolution of the generated image must be uppercase K. Currently only valid for gemini-3 models of the Gemini specification",
+        "labels": [
+          "512 px",
+          "1K",
+          "2K",
+          "4K"
+        ]
+      },
+      "google_search": {
+        "description": "Enable Google Search Tool",
+        "hint": "Allows models to use Google search tools to obtain real-time information. Currently only valid for gemini-3 models of the Gemini specification"
+      }
+    },
+    "openai_image_config": {
+      "description": "OpenAI Parameters",
+      "hint": "Usually only used by the OpenAI Images provider type, but other supported providers are also able to read it.",
+      "moderation": {
+        "description": "Content Moderation Level",
+        "hint": "Content security audit level for GPT image editing models such as gpt-image-*. Set to low to make content filtering less sensitive.",
+        "labels": [
+          "Automatic",
+          "Low"
+        ]
+      },
+      "size": {
+        "description": "Resolution",
+        "hint": "The resolution of the generated image. Filling in default will be automatically judged by the plugin based on the size keywords and the first image entered by the user. The priority is: keywords > first image. If there is no image input and no keywords, the default is auto.",
+        "labels": [
+          "Default (auto-detect)",
+          "Auto",
+          "1536 × 1024",
+          "1024 × 1536"
+        ]
+      },
+      "size_keyword_map": {
+        "description": "Resolution Keyword Mapping",
+        "hint": "It only takes effect when the resolution is default. Format: Keyword 1, Keyword 2: Resolution. For example, mobile phone, vertical screen: 1024x1536. Match in list order, with the rule matching first taking precedence."
+      },
+      "n": {
+        "description": "Number of Images",
+        "hint": ""
+      },
+      "partial_images": {
+        "description": "Streaming Preview Images",
+        "hint": "OpenAI Images The number of preview images returned during streaming response, ranging from 0-3. 0 means only the final image is returned. Only takes effect when streaming responses are enabled."
+      }
+    },
+    "params_alias_map": {
+      "description": "Parameter Alias Mapping",
+      "hint": "The format is custom name: built-in parameter name. After setting, both the custom name and the built-in parameter name can be used to apply parameters. Conflicting parameter names may overwrite each other."
+    },
+    "common_config": {
+      "description": "General Settings",
+      "hint": "",
+      "preset_append": {
+        "description": "Append User Text to Preset Prompts",
+        "hint": "When enabled, user input text will be appended after the preset prompt word. It is equivalent to adding the {{user_text}} placeholder to the end of the default prompt word. If there is already a {{user_text}} placeholder, it will be ignored."
+      },
+      "smart_retry": {
+        "description": "Enable Smart Retry",
+        "hint": "After enabling, retries are skipped for some response codes and the next Key is switched directly."
+      },
+      "max_retry": {
+        "description": "Maximum Retries",
+        "hint": "The maximum number of retries for each Key"
+      },
+      "timeout": {
+        "description": "Timeout",
+        "hint": "Unit: seconds, only valid for model requests. The timeout is calculated independently for each retry."
+      },
+      "proxy": {
+        "description": "HTTP Proxy",
+        "hint": "Format example: http://127.0.0.1:7890. Filling in this item will not cause the proxy to be enabled by default. It needs to be explicitly enabled in other configuration items."
+      },
+      "strip_metadata": {
+        "description": "Strip Private Metadata",
+        "hint": "Before sending the reference image, try to erase the metadata containing privacy as much as possible. If the processing fails, the reference image will be removed. Multi-frame images (such as GIF) are currently not supported and will be removed directly."
+      }
+    },
+    "image_hosting": {
+      "description": "Image Hosting",
+      "hint": "Used in --url mode to upload images that only return base64 to your own image bed and then return to the public link.",
+      "enabled": {
+        "description": "Enable Image Hosting",
+        "hint": "Only valid for --url mode. When the provider returns the URL natively, no upload is required."
+      },
+      "upload_url": {
+        "description": "Upload Base URL",
+        "hint": "Example: https://your-worker.your-subdomain.workers.dev Do not manually add the file name at the end."
+      },
+      "public_base_url": {
+        "description": "Public Base URL",
+        "hint": "If the same Worker domain name is used for uploading and accessing, you can fill in the same address as upload_url."
+      },
+      "auth_token": {
+        "description": "Authentication Token",
+        "hint": "It will be sent as the request header X-Auth-Token, corresponding to your Cloudflare Worker environment variable X_AUTH_TOKEN."
+      },
+      "path_prefix": {
+        "description": "Path Prefix",
+        "hint": "Uploaded files will be saved under this prefix, such as big-banana/2026/06/01/uuid.jpg."
+      }
+    },
+    "prefix_config": {
+      "description": "Image Command Triggering",
+      "hint": "By default, @bot will ignore the prefix requirement (equivalent to enabling hybrid mode)",
+      "coexist_enabled": {
+        "description": "Mixed Mode",
+        "hint": "After enabling, the image generation function can be triggered both without command prefix and with command prefix. There is no need to enable it if there are no special requirements."
+      },
+      "prefix_list": {
+        "description": "Command Prefixes",
+        "hint": "List of command prefixes. The trigger format is command prefix + trigger word."
+      },
+      "provider_prefix": {
+        "description": "Provider Prefix",
+        "hint": "When enabled, it will be checked whether the provider name is included after the command prefix (if any) and before the default prompt word. Overrides the default provider and --providers parameters if present."
+      }
+    },
+    "preference_config": {
+      "description": "Preferences",
+      "hint": "The following configurations vary depending on individual usage needs, and there is currently no one-size-fits-all solution. The three options for skipping the At avatar share a count.",
+      "skip_at_first": {
+        "description": "Skip the First @Bot Avatar",
+        "hint": "When waking up a robot via @, skip collecting the robot's avatar once."
+      },
+      "skip_quote_first": {
+        "description": "Skip the First @Quoted User Avatar",
+        "hint": "If the @ object is the sender of the referenced message, the avatar collection of the @ object is skipped once."
+      },
+      "skip_llm_at_first": {
+        "description": "LLM Tool: Skip the First @Bot Avatar",
+        "hint": "Trigger the LLM function call tool through @robot to skip collecting the robot's avatar once."
+      },
+      "enable_at_avatar_note": {
+        "description": "Add Numbering Notes for @Mention Avatars",
+        "hint": "After enabling, when the @ object avatar is added as a reference image, an English number description will be appended to the bottom of the prompt word before final generation, helping the AI ​​to determine which image in the final input image list each @ corresponds to. After closing, the avatar reference image will still be added, but this description will not be added."
+      },
+      "enable_drawing_message": {
+        "description": "Send Progress Message for Commands",
+        "hint": "After enabling it, after sending the trigger command, a generating prompt message will be sent first, and then the image will be generated."
+      },
+      "enable_llm_tool_drawing_message": {
+        "description": "Send Progress Message for LLM Tools",
+        "hint": "After enabling it, after sending the trigger command, a generating prompt message will be sent first, and then the image will be generated."
+      },
+      "drawing_message": {
+        "description": "Image Generation Progress Message",
+        "hint": "Prompt text sent to the user when starting to generate images."
+      },
+      "video_generation_message": {
+        "description": "Video Generation Progress Message"
+      },
+      "send_text_when_no_image": {
+        "description": "Send Text Responses When No Image Is Returned",
+        "hint": "After turning on, if the response does not contain an image but contains text content, the text content will be sent as the result; otherwise, \"the response does not contain image data\" will be returned."
+      },
+      "group_cooldown": {
+        "description": "Group Cooldown",
+        "hint": "Controls the cooling time (in seconds) for each group to use drawing tools, 0 means no limit. The cooldown calculation starts after the image is successfully sent."
+      },
+      "command_use_background_task": {
+        "description": "Run Command Image Generation as a Background Task",
+        "hint": "After it is turned on, drawing will be executed as a background task and the results will be sent back after completion; after it is turned off, it will wait for the drawing to be completed in the current message processing process. Only command calls take effect."
+      },
+      "background_task_send_type": {
+        "description": "Background Task Message Delivery",
+        "hint": "How to send messages after the background task is completed. event: event message (passive message, default); active: active message.",
+        "labels": [
+          "Event Message",
+          "Active Message"
+        ]
+      },
+      "gather_timeout": {
+        "description": "Collection Mode Timeout",
+        "hint": "The maximum time (seconds) to wait for the user to send a image or trigger an end command after sending a message. The remaining time is reset after each collection."
+      }
+    },
+    "llm_tools": {
+      "description": "LLM Function-Calling Tools",
+      "hint": "",
+      "enable_preset_tool": {
+        "description": "Enable Preset Lookup Tool",
+        "hint": "Allows LLM to query available presets and preset prompt word content"
+      },
+      "enable_image_generation_tool": {
+        "description": "Enable Image Generation Tool",
+        "hint": "Allows LLM to generate images based on text, chat images, or avatar references. If you enable this option, make sure at least one image provider is enabled."
+      },
+      "enable_video_generation_tool": {
+        "description": "Enable Video Generation Tool",
+        "hint": "Allows LLM to generate a video based on text and an optional reference image. If you enable this, make sure at least one video provider is enabled."
+      },
+      "llm_tool_preset_name": {
+        "description": "LLM Tool Preset Parameters",
+        "hint": "Fill in the trigger words in the default prompt word configuration. This preset overwrites the plugin default parameters by field; LLM calls the specified preset this time and then overwrites this preset by field. Parameters that are not specified by the subsequent level will continue to be retained. Leave it blank to not use it."
+      },
+      "llm_video_tool_preset_name": {
+        "description": "LLM Video Tool Preset Parameters",
+        "hint": "Fill in the preset trigger words for video generation. By default, the plugin built-in llm_video_default is used. When left blank, the tool parameters are used directly."
+      },
+      "llm_tool_direct_send_result": {
+        "description": "Let LLM Tools Send Image Results Directly",
+        "hint": "When it is turned off, the image result is returned to AI or the upstream callback, which decides to send, regenerate or perform other operations; when it is turned on, the plugin sends the image directly, and then returns the text completion status to AI or the upstream callback."
+      },
+      "llm_tool_truncate_images": {
+        "description": "Limit Returned Images to the Requested Count",
+        "hint": "After turning on, if the number of images actually returned by the image provider exceeds the current generation quantity ( --n ), only the first n images will be passed to the AI, upstream callback or chat window; when the generation quantity is not set this time, the default is 1."
+      },
+      "llm_tool_restrict_private_network": {
+        "description": "Restrict LLM Tool Access to Private-Network Image URLs",
+        "hint": "When enabled, refuse to resolve remote image URLs to intranet, loopback, or reserved addresses. If the proxy software Fake-IP mode is used and the public network images are misjudged, it can be closed; after closing, please bear the security risk of LLM accessing the intranet URL."
+      },
+      "llm_tool_use_background_task": {
+        "description": "Run Tool Calls as Background Tasks",
+        "hint": "After being enabled, BigBanana will perform background tasks inside the plugin. When configuring the upstream callback, hand the result to the callback; when enabling direct sending, actively send the image after completion. When neither is configured, it will automatically change to the foreground execution to avoid loss of image results."
+      },
+      "background_callback_plugin": {
+        "description": "Background Callback Plugin",
+        "hint": "The name of the upstream plugin that receives the results after background drawing is completed. It will only take effect if filled in together with the background callback method. Fill in astrbot_plugin_giftia when using Giftia. If the callback call fails, it will automatically fall back to active sending."
+      },
+      "background_callback_method": {
+        "description": "Background Callback Method",
+        "hint": "The method name in the upstream plugin; the method name defined by astrbot_plugin_giftia is on_drawing_complete. It will be called with five keyword parameters: event, result, params, unified_msg_origin and is_success. result is always MessageChain; params are the final generation parameters; unified_msg_origin is the original session ID snapshot when the task is submitted; is_success indicates whether the generation is successful. When direct sending is not enabled, the result contains unsent media or failure text; when enabled, the plugin will send the media first, and the result only contains the text completion status. The method can be a synchronous function, coroutine, or asynchronous generator; explicitly returning False indicates that it has not been taken over and triggers BigBanana fallback processing, and returning True or a non-bool value indicates that it has been taken over."
+      }
+    },
+    "save_images": {
+      "description": "Image Storage",
+      "hint": "",
+      "local_save": {
+        "description": "Local Storage",
+        "hint": "The generated images are saved to the save_images folder in the plugin data directory."
+      },
+      "r2_save": {
+        "description": "Save to R2 Image Hosting",
+        "hint": "After generation, upload the image to the R2 image bed configured in \"Image bed upload\", which does not affect the normal sending of the image. Image bed upload needs to be enabled and fully configured first. Only upload once when used with --url mode."
+      }
+    },
+    "sub_brain": {
+      "description": "Prompt-Optimization Assistant",
+      "hint": "After enabling it, when the large dialogue model calls the drawing tool to generate a image, the short description passed to the tool will be submitted to the assistant brain for expansion and optimization, and then to the drawing provider to generate the image.",
+      "cmd_enabled": {
+        "description": "Enable Prompt Optimization for Commands by Default",
+        "hint": "Whether the command call enables the side brain by default. After it is turned off, only the prompt word explicitly uses the --sub_brain parameter to enable the side brain optimization."
+      },
+      "tool_enabled": {
+        "description": "Enable Prompt Optimization for Tools by Default",
+        "hint": "Whether the tool call enables the side brain by default. After it is turned off, only the prompt word explicitly uses the --sub_brain parameter to enable the side brain optimization."
+      },
+      "provider_id": {
+        "description": "Prompt-Optimization LLM Provider",
+        "hint": "LLM provider for optimizing prompt words. Leave blank to use the provider currently used by the current conversation."
+      },
+      "system_prompt": {
+        "description": "Prompt-Optimization System Prompt",
+        "hint": "System prompt words that guide the accessory brain to optimize prompt words"
+      }
+    },
+    "whitelist_config": {
+      "description": "Allowlist Settings",
+      "hint": "",
+      "enabled": {
+        "description": "Enable Group Allowlist",
+        "hint": "After turning it on, only groups in the allowlist can use it."
+      },
+      "whitelist": {
+        "description": "Group UMO Allowlist",
+        "hint": "The allowlist group UMO list can be obtained by using /sid in the corresponding group. UMO must be written completely."
+      },
+      "user_enabled": {
+        "description": "Enable User Allowlist",
+        "hint": "After turning it on, only users in the allowlist can use it."
+      },
+      "user_whitelist": {
+        "description": "User ID Allowlist",
+        "hint": "User QQ number list"
+      },
+      "only_for_commands": {
+        "description": "Apply Allowlist to Commands Only",
+        "hint": "When turned on, the allowlist only intercepts direct commands to draw, and LLM triggering is not restricted by interception."
+      }
+    }
+  },
+  "pages": {
+    "admin": {
+      "title": "Image Generation Settings",
+      "document_title": "Big Banana Image Generation Configuration",
+      "heading": "Big Banana Image Generation Settings",
+      "subtitle": "Configure image generation providers, parameters, allowlists, and command prefixes",
+      "tabs": { "presets": "Preset Prompts", "draw": "Image Parameters", "general": "General", "trigger": "Commands & Triggers", "whitelist": "Allowlists & Storage", "hosting": "Image Hosting", "sub_brain": "Prompt Optimizer", "advanced": "Advanced & Other", "persona_replace": "Persona Replacement" },
+      "presets": { "title": "Preset Prompt Rules", "description": "Configure preset prompts for trigger words. Both a single trigger and a [word1,word2] list are supported. The {{user_text}} placeholder is replaced with the user's input.", "add": "＋ Add Prompt Rule" },
+      "draw": {
+        "providers": { "title": "Image Provider Priority", "description": "Select and reorder providers to set their priority. If the first provider fails, the plugin automatically falls back to the next one. Leave empty to use the provider from the current conversation.", "add": "＋ Add Provider" },
+        "video_providers": { "title": "Video Provider Priority", "description": "Video presets only use providers with the video_generation capability.", "add": "＋ Add Video Provider" },
+        "options": {
+          "title": "Image Generation Options",
+          "min_images": { "label": "Minimum Input Images", "hint": "If too few images are provided, the mentioned user's or sender's avatar is added automatically." },
+          "max_images": { "label": "Maximum Input Images", "hint": "The plugin does not impose a global limit; the actual limit depends on the selected provider." },
+          "aspect_ratio": { "label": "Default Aspect Ratio", "default": "default (Default / Keep Original)", "square": "1:1 (Square)", "portrait": "2:3 (Portrait)", "landscape": "3:2 (Landscape)", "phone": "9:16 (Phone Screen)", "desktop": "16:9 (Desktop Screen)", "ultrawide": "21:9 (Ultrawide)", "hint": "Set the output image aspect ratio. This only applies to providers that support this parameter." },
+          "image_size": { "label": "Default Resolution" },
+          "moderation": { "label": "Content Moderation Level", "auto": "auto (Automatic / Standard)", "low": "low (Low Sensitivity)", "hint": "Content safety filtering level for GPT image-editing models such as gpt-image-*. Set it to low to reduce filtering sensitivity." },
+          "google_search": { "label": "Allow the Model to Use Google Search" },
+          "refer_images": { "label": "Reference Image Filenames", "placeholder": "Example: ref1.jpg, ref2.png", "hint": "Separate filenames with commas and place the images in the refer_images folder under the plugin data directory." },
+          "gather_mode": { "label": "Enable Collection Mode" },
+          "url_only": { "label": "Return Image URLs Only by Default", "hint": "The --url true/false option in a prompt overrides this default." }
+        }
+      },
+      "general": {
+        "title": "General Settings",
+        "preset_append": { "label": "Append User Input to Preset Prompts", "hint": "If a prompt does not contain the {{user_text}} placeholder, the user's input is appended automatically." },
+        "smart_retry": { "label": "Enable Smart Retry" },
+        "max_retry": { "label": "Maximum Retries", "placeholder": "Example: 3" },
+        "timeout": { "label": "Request Timeout" },
+        "proxy": { "label": "HTTP Proxy Address", "placeholder": "Example: http://127.0.0.1:7890" }
+      },
+      "trigger": {
+        "prefix": { "title": "Prefixes and Trigger Modes", "coexist_enabled": "Enable Mixed Mode (With or Without Prefix)", "provider_prefix": "Enable Provider Prefixes", "add": "＋ Add Command Prefix" },
+        "preferences": {
+          "title": "Trigger Preferences", "skip_at_first": "Skip the First Mentioned Bot Avatar", "skip_quote_first": "Skip the First Quoted Sender Avatar", "skip_llm_at_first": "LLM Tool Calls: Skip the First Mentioned Avatar", "enable_drawing_message": "Enable Generation Progress Messages", "send_text_when_no_image": "Send Text Responses When No Image Is Returned", "send_text_when_no_image_hint": "When enabled, a response containing text but no image is sent as the result.", "drawing_message": "Generation Progress Message", "drawing_message_placeholder": "🎨 Generating your image, please wait...", "group_cooldown": "Group Image Generation Cooldown (Seconds)", "group_cooldown_hint": "Set the cooldown between image commands or tool calls for each group. Use 0 for no limit.", "use_background_task": "Run Image Generation as a Background Task", "use_background_task_hint": "When disabled, the plugin waits for image generation to finish before sending the result.", "background_task_send_type": "Background Task Message Delivery", "send_type_event": "Event Message (Passive)", "send_type_active": "Active Message", "background_task_send_type_hint": "Choose how completed background tasks send messages. Event messages (passive) are used by default."
+        },
+        "tools": { "title": "Function-Calling Tools", "image_enabled": "Enable Image Generation Tool", "video_enabled": "Enable Video Generation Tool", "use_background_task": "Run Tool Calls as Background Tasks", "use_background_task_hint": "When disabled, function calls wait for image generation to finish before returning." }
+      },
+      "whitelist": {
+        "scope": { "title": "Allowlist Scope", "only_for_commands": "Apply the Allowlist to Commands Only (LLM Triggers Are Not Blocked)" },
+        "groups": { "title": "Group Allowlist", "enabled": "Enable Group Allowlist", "add": "＋ Add Group" },
+        "users": { "title": "User Allowlist", "enabled": "Enable User Allowlist", "add": "＋ Add User" },
+        "storage": { "title": "Image Storage", "local": "Store Images in the Local Plugin Data Directory", "r2": "Save Images to R2 Hosting" }
+      },
+      "hosting": { "title": "R2 / Cloudflare Image Hosting", "enabled": "Enable Image Uploads", "upload_url": "Upload Base URL", "upload_url_placeholder": "Example: https://your-worker.workers.dev", "public_base_url": "Public Base URL", "public_base_url_placeholder": "Example: https://your-worker.workers.dev", "auth_token": "Authentication Token (Auth Token)", "auth_token_placeholder": "Example: your-secret-token", "path_prefix": "Path Prefix", "path_prefix_placeholder": "Example: big-banana" },
+      "sub_brain": { "title": "Prompt Optimization Assistant", "description": "When enabled, short descriptions passed by the conversation model to the image generation tool are expanded and refined by a secondary LLM before being sent to the image provider.", "enabled": "Enable Prompt Optimization", "provider": "Prompt Optimization Model Provider (LLM Provider)", "default_provider": "Current Conversation's Default Provider", "provider_hint": "Select the LLM provider used to optimize prompts. Leave empty to use the provider from the current conversation.", "system_prompt": "Prompt Optimization System Prompt", "system_prompt_placeholder": "System prompt that guides prompt optimization" },
+      "advanced": { "aliases": { "title": "Parameter Alias Mapping (Params Alias Map)", "description": "Map custom aliases to built-in parameter names so users can invoke image generation parameters by their aliases.", "add": "＋ Add Alias Mapping" } },
+      "persona_replace": { "title": "Persona Avatar Replacement", "description": "Map a target ID (such as a bot or user QQ ID, or the aliases \"bot\" and \"self\") to a list of reference avatars. When triggered, the system randomly selects one image. Image URLs and local uploads are supported.", "add": "＋ Add Persona Replacement Rule" },
+      "actions": { "discard": "🔄 Discard Changes", "save": "💾 Save Configuration", "saving": "Saving..." },
+      "dynamic": {
+        "prompt": {
+          "trigger_label": "Trigger / Trigger List",
+          "trigger_placeholder": "Example: bnn or [word1,word2]",
+          "content_label": "Prompt Content and Parameters",
+          "content_placeholder": "Example: {{user_text}} --min_images 1"
+        },
+        "provider": {
+          "choose": "Select a provider",
+          "label": "Model Provider"
+        },
+        "alias": {
+          "alias_label": "Custom Parameter Name (Alias)",
+          "alias_placeholder": "Example: append_mode",
+          "target_label": "Built-in Parameter Name",
+          "target_placeholder": "Example: gather_mode"
+        },
+        "persona": {
+          "target_label": "Target ID / Alias (e.g. 1234567, bot, self)",
+          "target_placeholder": "Enter a QQ ID or bot / self",
+          "images_label": "Reference Images",
+          "add_url": "＋ Add Image URL",
+          "upload_local": "＋ Upload Local Image",
+          "url_prompt": "Enter an image URL:",
+          "image_alt": "Avatar reference image"
+        },
+        "whitelist": {
+          "id_label": "Identifier / UMO",
+          "group_placeholder": "Group UMO identifier",
+          "user_placeholder": "User QQ ID"
+        },
+        "prefix": {
+          "label": "Command Prefix",
+          "placeholder": "Example: /"
+        },
+        "sub_brain": {
+          "default_provider": "Current Conversation's Default Provider"
+        },
+        "toast": {
+          "sdk_unavailable": "SDK is unavailable",
+          "reading_file": "Reading file...",
+          "uploading_image": "Uploading image...",
+          "upload_success": "Image uploaded successfully",
+          "upload_failed": "Image upload failed: ",
+          "read_failed": "Failed to read the image file",
+          "load_success": "Configuration loaded successfully",
+          "load_failed": "Failed to load data: ",
+          "save_success": "Configuration saved. Reload the plugin for changes to take effect.",
+          "save_error": "Save error: "
+        },
+        "errors": {
+          "unknown": "Unknown error",
+          "config_save_failed": "Failed to save the basic configuration",
+          "substitutions_save_failed": "Failed to save persona replacement settings"
+        },
+        "validation": {
+          "non_negative_images": "Minimum and maximum input image counts must be non-negative integers",
+          "empty_prompt": "The prompt body for preset “{trigger}” cannot be empty"
+        }
+      }
+    }
+  }
+}

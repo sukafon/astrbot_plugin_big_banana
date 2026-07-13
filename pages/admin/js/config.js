@@ -10,16 +10,17 @@ function addPromptItem(data) {
     <button class="remove-btn" onclick="this.parentElement.remove()">&times;</button>
     <div class="list-grid">
       <div class="form-group" style="grid-column: span 1">
-        <label>触发词 / 触发词列表</label>
-        <input type="text" class="text-input prompt-trigger" value="${data.trigger}" placeholder="例如: bnn 或 [词1,词2]">
+        <label data-i18n="pages.admin.dynamic.prompt.trigger_label">触发词 / 触发词列表</label>
+        <input type="text" class="text-input prompt-trigger" value="${data.trigger}" placeholder="例如: bnn 或 [词1,词2]" data-i18n-placeholder="pages.admin.dynamic.prompt.trigger_placeholder">
       </div>
       <div class="form-group" style="grid-column: span 2">
-        <label>提示词内容及参数</label>
-        <textarea class="textarea-input prompt-content" style="min-height: 44px;" placeholder="例如: {{user_text}} --min_images 1">${data.content}</textarea>
+        <label data-i18n="pages.admin.dynamic.prompt.content_label">提示词内容及参数</label>
+        <textarea class="textarea-input prompt-content" style="min-height: 44px;" placeholder="例如: {{user_text}} --min_images 1" data-i18n-placeholder="pages.admin.dynamic.prompt.content_placeholder">${data.content}</textarea>
       </div>
     </div>
   `;
   container.appendChild(card);
+  applyI18n(card);
 }
 
 // 渲染一个模型提供商优先级配置项。
@@ -31,7 +32,7 @@ function addProviderItem(selectedProvider, containerId, capability) {
   var card = document.createElement('div');
   card.className = 'list-item-card';
   
-  var selectOptions = '<option value="">请选择提供商</option>';
+  var selectOptions = '<option value="" data-i18n="pages.admin.dynamic.provider.choose">请选择提供商</option>';
   providers.forEach(function (p) {
     if ((p.capability || 'image_generation') !== capability) return;
     var selectedAttr = p.id === selectedProvider ? 'selected' : '';
@@ -42,12 +43,13 @@ function addProviderItem(selectedProvider, containerId, capability) {
     <button class="remove-btn" onclick="this.parentElement.remove()">&times;</button>
     <div class="list-grid">
       <div class="form-group" style="grid-column: span 3">
-        <label>模型供应商</label>
+        <label data-i18n="pages.admin.dynamic.provider.label">模型供应商</label>
         <select class="select-input provider-select">${selectOptions}</select>
       </div>
     </div>
   `;
   container.appendChild(card);
+  applyI18n(card);
 }
 
 function addVideoProviderItem(selectedProvider) {
@@ -64,16 +66,17 @@ function addAliasItem(data) {
     <button class="remove-btn" onclick="this.parentElement.remove()">&times;</button>
     <div class="list-grid">
       <div class="form-group">
-        <label>自定义参数名 (别名)</label>
-        <input type="text" class="text-input alias-name" value="${data.alias}" placeholder="例如: append_mode">
+        <label data-i18n="pages.admin.dynamic.alias.alias_label">自定义参数名 (别名)</label>
+        <input type="text" class="text-input alias-name" value="${data.alias}" placeholder="例如: append_mode" data-i18n-placeholder="pages.admin.dynamic.alias.alias_placeholder">
       </div>
       <div class="form-group">
-        <label>内置参数名称</label>
-        <input type="text" class="text-input alias-target" value="${data.target}" placeholder="例如: gather_mode">
+        <label data-i18n="pages.admin.dynamic.alias.target_label">内置参数名称</label>
+        <input type="text" class="text-input alias-target" value="${data.target}" placeholder="例如: gather_mode" data-i18n-placeholder="pages.admin.dynamic.alias.target_placeholder">
       </div>
     </div>
   `;
   container.appendChild(card);
+  applyI18n(card);
 }
 
 // 渲染一个头像替换规则配置卡片。
@@ -92,23 +95,24 @@ function addPersonaReplaceItem(targetId, imgList) {
     <button class="remove-btn" onclick="this.parentElement.remove()">&times;</button>
     <div class="list-grid" style="grid-template-columns: 1fr;">
       <div class="form-group">
-        <label>目标 ID / 别名 (例如: 1234567, bot, self)</label>
-        <input type="text" class="text-input target-id-input" value="${targetId}" placeholder="输入 QQ 号或 bot / self">
+        <label data-i18n="pages.admin.dynamic.persona.target_label">目标 ID / 别名 (例如: 1234567, bot, self)</label>
+        <input type="text" class="text-input target-id-input" value="${targetId}" placeholder="输入 QQ 号或 bot / self" data-i18n-placeholder="pages.admin.dynamic.persona.target_placeholder">
       </div>
       <div class="form-group">
-        <label>参考图片列表</label>
+        <label data-i18n="pages.admin.dynamic.persona.images_label">参考图片列表</label>
         <div class="images-sub-list" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 12px;">
           <!-- 已有图片会渲染到这里 -->
         </div>
         <div style="margin-top: 12px; display: flex; gap: 10px;">
-          <button class="btn btn-secondary btn-sm" onclick="promptPersonaImageUrl('${cardId}')" type="button">＋ 添加图片 URL</button>
-          <button class="btn btn-secondary btn-sm" onclick="triggerPersonaImageUpload('${cardId}')" type="button">＋ 上传本地图片</button>
+          <button class="btn btn-secondary btn-sm" onclick="promptPersonaImageUrl('${cardId}')" type="button" data-i18n="pages.admin.dynamic.persona.add_url">＋ 添加图片 URL</button>
+          <button class="btn btn-secondary btn-sm" onclick="triggerPersonaImageUpload('${cardId}')" type="button" data-i18n="pages.admin.dynamic.persona.upload_local">＋ 上传本地图片</button>
           <input type="file" id="file_${cardId}" style="display: none;" accept="image/*" onchange="handlePersonaImageUpload(this, '${cardId}')">
         </div>
       </div>
     </div>
   `;
   container.appendChild(card);
+  applyI18n(card);
   
   // 回填已有图片。
   imgList.forEach(function(url) {
@@ -118,7 +122,7 @@ function addPersonaReplaceItem(targetId, imgList) {
 
 // 通过输入框添加头像参考图 URL。
 function promptPersonaImageUrl(cardId) {
-  var url = prompt("请输入图片 URL:");
+  var url = prompt(tr('pages.admin.dynamic.persona.url_prompt', '请输入图片 URL:'));
   if (url && url.trim()) {
     addPersonaImageRow(cardId, url.trim());
   }
@@ -149,11 +153,12 @@ function addPersonaImageRow(cardId, url, overrideDisplayUrl) {
   var displayUrl = overrideDisplayUrl || (isUrl ? url : '');
   
   row.innerHTML = `
-    <img src="${displayUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="avatar" class="avatar-preview">
+    <img src="${displayUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="头像参考图" data-i18n-alt="pages.admin.dynamic.persona.image_alt" class="avatar-preview">
     <input type="hidden" class="image-url-input" value="${url}">
     <button class="remove-btn" onclick="this.parentElement.remove()" style="position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; font-size: 10px; padding: 0; display: flex; align-items: center; justify-content: center; background: rgba(255, 59, 48, 0.85); color: white; border-radius: 50%; border: none; cursor: pointer; font-weight: bold; transition: background 0.2s;" type="button" onmouseover="this.style.background='rgba(255, 59, 48, 1)'" onmouseout="this.style.background='rgba(255, 59, 48, 0.85)'">&times;</button>
   `;
   list.appendChild(row);
+  applyI18n(row);
 
   // 本地文件没有预览地址时，通过 API 异步读取。
   if (!isUrl && !overrideDisplayUrl) {
@@ -187,15 +192,15 @@ function handlePersonaImageUpload(fileInput, cardId) {
 
   var SDK = window.AstrBotPluginPage;
   if (!SDK) {
-    showToast('SDK 不可用');
+    showToast(tr('pages.admin.dynamic.toast.sdk_unavailable', 'SDK 不可用'));
     return;
   }
 
-  showToast('正在读取文件...');
+  showToast(tr('pages.admin.dynamic.toast.reading_file', '正在读取文件...'));
   var reader = new FileReader();
   reader.onload = function (e) {
     var base64Data = e.target.result;
-    showToast('正在上传图片...');
+    showToast(tr('pages.admin.dynamic.toast.uploading_image', '正在上传图片...'));
     SDK.apiPost('upload_image', {
       filename: file.name,
       base64: base64Data
@@ -204,17 +209,17 @@ function handlePersonaImageUpload(fileInput, cardId) {
         var data = parseResponse(res);
         if (data && data.filename) {
           addPersonaImageRow(cardId, data.filename, base64Data);
-          showToast('图片上传成功');
+          showToast(tr('pages.admin.dynamic.toast.upload_success', '图片上传成功'));
         } else {
-          throw new Error(res.message || '未知错误');
+          throw new Error(res.message || tr('pages.admin.dynamic.errors.unknown', '未知错误'));
         }
       })
       .catch(function (err) {
-        showToast('图片上传失败: ' + err.message);
+        showToast(tr('pages.admin.dynamic.toast.upload_failed', '图片上传失败: ') + err.message);
       });
   };
   reader.onerror = function () {
-    showToast('读取图片文件失败');
+    showToast(tr('pages.admin.dynamic.toast.read_failed', '读取图片文件失败'));
   };
   reader.readAsDataURL(file);
 
@@ -225,6 +230,9 @@ function handlePersonaImageUpload(fileInput, cardId) {
 // 渲染用户或群组白名单配置项。
 function addWhitelistItem(containerId, value, placeholder) {
   value = value || '';
+  var placeholderKey = containerId === 'group-whitelist-list'
+    ? 'pages.admin.dynamic.whitelist.group_placeholder'
+    : 'pages.admin.dynamic.whitelist.user_placeholder';
   var container = document.getElementById(containerId);
   var card = document.createElement('div');
   card.className = 'list-item-card';
@@ -232,12 +240,13 @@ function addWhitelistItem(containerId, value, placeholder) {
     <button class="remove-btn" onclick="this.parentElement.remove()">&times;</button>
     <div class="list-grid">
       <div class="form-group" style="grid-column: span 3">
-        <label>标识 ID / UMO</label>
-        <input type="text" class="text-input whitelist-value" value="${value}" placeholder="${placeholder}">
+        <label data-i18n="pages.admin.dynamic.whitelist.id_label">标识 ID / UMO</label>
+        <input type="text" class="text-input whitelist-value" value="${value}" placeholder="${placeholder}" data-i18n-placeholder="${placeholderKey}">
       </div>
     </div>
   `;
   container.appendChild(card);
+  applyI18n(card);
 }
 
 // 渲染命令前缀配置项。
@@ -250,12 +259,13 @@ function addPrefixItem(value) {
     <button class="remove-btn" onclick="this.parentElement.remove()">&times;</button>
     <div class="list-grid">
       <div class="form-group" style="grid-column: span 3">
-        <label>命令前缀</label>
-        <input type="text" class="text-input prefix-value" value="${value}" placeholder="例如: /">
+        <label data-i18n="pages.admin.dynamic.prefix.label">命令前缀</label>
+        <input type="text" class="text-input prefix-value" value="${value}" placeholder="例如: /" data-i18n-placeholder="pages.admin.dynamic.prefix.placeholder">
       </div>
     </div>
   `;
   container.appendChild(card);
+  applyI18n(card);
 }
 
 // 拆分配置中的触发词和提示词正文。
@@ -289,13 +299,14 @@ function loadData() {
     // 动态填充副脑提供商选项。
     var sbSelect = document.getElementById('sb_provider_id');
     if (sbSelect) {
-      sbSelect.innerHTML = '<option value="">当前会话默认供应商</option>';
+      sbSelect.innerHTML = '<option value="" data-i18n="pages.admin.dynamic.sub_brain.default_provider">当前会话默认供应商</option>';
       providers.forEach(function (p) {
         var opt = document.createElement('option');
         opt.value = p.id;
         opt.textContent = p.name;
         sbSelect.appendChild(opt);
       });
+      applyI18n(sbSelect);
     }
 
     // 如有提供商下拉框则填充选项。
@@ -430,9 +441,9 @@ function loadData() {
     // 初始化所有自定义滑块显示。
     initSliders();
     document.getElementById('btnSave').disabled = false;
-    showToast('配置数据加载成功');
+    showToast(tr('pages.admin.dynamic.toast.load_success', '配置数据加载成功'));
   }).catch(function (error) {
-    showToast('数据获取失败: ' + error.message);
+    showToast(tr('pages.admin.dynamic.toast.load_failed', '数据获取失败: ') + error.message);
   });
 }
 
@@ -440,7 +451,7 @@ function loadData() {
 function saveAll() {
   var btnSave = document.getElementById('btnSave');
   btnSave.disabled = true;
-  btnSave.textContent = '保存中...';
+  btnSave.textContent = tr('pages.admin.actions.saving', '保存中...');
   var SDK = window.AstrBotPluginPage;
   if (!SDK) return;
 
@@ -451,9 +462,9 @@ function saveAll() {
   var minImages = Number(document.getElementById('pc_min_images').value);
   var maxImages = Number(document.getElementById('pc_max_images').value);
   if (!Number.isInteger(minImages) || minImages < 0 || !Number.isInteger(maxImages) || maxImages < 0) {
-    showToast('最小和最大输入图片数量必须是非负整数');
+    showToast(tr('pages.admin.dynamic.validation.non_negative_images', '最小和最大输入图片数量必须是非负整数'));
     btnSave.disabled = false;
-    btnSave.textContent = '💾 保存配置';
+    btnSave.textContent = tr('pages.admin.actions.save', '💾 保存配置');
     return;
   }
 
@@ -573,9 +584,13 @@ function saveAll() {
     }
   });
   if (emptyPromptTrigger) {
-    showToast('预设「' + emptyPromptTrigger + '」的提示词正文不能为空');
+    var emptyPromptMessage = tr(
+      'pages.admin.dynamic.validation.empty_prompt',
+      '预设「{trigger}」的提示词正文不能为空'
+    ).replace('{trigger}', function () { return emptyPromptTrigger; });
+    showToast(emptyPromptMessage);
     btnSave.disabled = false;
-    btnSave.textContent = '💾 保存配置';
+    btnSave.textContent = tr('pages.admin.actions.save', '💾 保存配置');
     return;
   }
   updatedConfig.prompt = promptList;
@@ -628,19 +643,23 @@ function saveAll() {
       var subsRes = results[1];
       if (configRes && configRes.status === 'ok' && subsRes && subsRes.status === 'ok') {
         config = updatedConfig;
-        showToast(configRes.message || '配置已保存，重新加载插件后生效');
+        showToast(configRes.message || tr('pages.admin.dynamic.toast.save_success', '配置已保存，重新加载插件后生效'));
       } else {
         var errMsg = [];
-        if (!configRes || configRes.status !== 'ok') errMsg.push(configRes ? configRes.message : '基本配置保存失败');
-        if (!subsRes || subsRes.status !== 'ok') errMsg.push(subsRes ? subsRes.message : '人设替换保存失败');
+        if (!configRes || configRes.status !== 'ok') {
+          errMsg.push(configRes ? configRes.message : tr('pages.admin.dynamic.errors.config_save_failed', '基本配置保存失败'));
+        }
+        if (!subsRes || subsRes.status !== 'ok') {
+          errMsg.push(subsRes ? subsRes.message : tr('pages.admin.dynamic.errors.substitutions_save_failed', '人设替换保存失败'));
+        }
         throw new Error(errMsg.join('; '));
       }
     })
     .catch(function (err) {
-      showToast('保存错误: ' + err.message);
+      showToast(tr('pages.admin.dynamic.toast.save_error', '保存错误: ') + err.message);
     })
     .finally(function () {
       btnSave.disabled = false;
-      btnSave.textContent = '💾 保存配置';
+      btnSave.textContent = tr('pages.admin.actions.save', '💾 保存配置');
     });
 }

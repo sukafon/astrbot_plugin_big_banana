@@ -3,6 +3,49 @@ var toastTimer = null;
 var config = {};
 var providers = [];
 
+// ===== AstrBot 插件页面国际化 =====
+// 页面也支持脱离 Dashboard 直接打开；此时回退到 HTML/JS 中的中文文案。
+function getPluginPageBridge() {
+  return window.AstrBotPluginPage || null;
+}
+
+function tr(key, fallback) {
+  var bridge = getPluginPageBridge();
+  if (!bridge || typeof bridge.t !== 'function') return fallback || '';
+  var translated = bridge.t(key, fallback || '');
+  return typeof translated === 'string' ? translated : (fallback || '');
+}
+
+function rememberFallback(el, datasetKey, value) {
+  if (el.dataset[datasetKey] === undefined) el.dataset[datasetKey] = value || '';
+  return el.dataset[datasetKey];
+}
+
+// 翻译带 data-i18n 属性的静态及动态 DOM，并可在语言切换时原地刷新。
+function applyI18n(root) {
+  root = root || document;
+
+  root.querySelectorAll('[data-i18n]').forEach(function (el) {
+    var fallback = rememberFallback(el, 'i18nFallback', el.textContent);
+    el.textContent = tr(el.dataset.i18n, fallback);
+  });
+
+  root.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+    var fallback = rememberFallback(el, 'i18nPlaceholderFallback', el.getAttribute('placeholder'));
+    el.setAttribute('placeholder', tr(el.dataset.i18nPlaceholder, fallback));
+  });
+
+  root.querySelectorAll('[data-i18n-title]').forEach(function (el) {
+    var fallback = rememberFallback(el, 'i18nTitleFallback', el.getAttribute('title'));
+    el.setAttribute('title', tr(el.dataset.i18nTitle, fallback));
+  });
+
+  root.querySelectorAll('[data-i18n-alt]').forEach(function (el) {
+    var fallback = rememberFallback(el, 'i18nAltFallback', el.getAttribute('alt'));
+    el.setAttribute('alt', tr(el.dataset.i18nAlt, fallback));
+  });
+}
+
 // ===== 跟随系统明暗主题 =====
 (function () {
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
