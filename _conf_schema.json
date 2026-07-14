@@ -1213,14 +1213,14 @@
             "llm_tool_preset_name": {
                 "description": "LLM工具调用预设参数",
                 "type": "string",
-                "default": "llm_default",
-                "hint": "填写预设提示词配置中的触发词。该预设按字段覆盖插件默认参数；LLM 本次调用指定的预设再按字段覆盖此预设，未被后一级指定的参数会继续保留。留空表示不使用。"
+                "default": "",
+                "hint": "覆盖规则：插件默认配置 -> LLM工具预设参数 -> 提示词预设参数，依次差分覆盖。留空表示不使用。"
             },
             "llm_video_tool_preset_name": {
                 "description": "LLM视频工具调用预设参数",
                 "type": "string",
-                "default": "llm_video_default",
-                "hint": "填写视频生成预设的触发词，默认使用插件内置的 llm_video_default。留空时直接使用工具参数。"
+                "default": "",
+                "hint": "覆盖规则：插件默认配置 -> LLM工具预设参数 -> 提示词预设参数，依次差分覆盖。留空表示不使用。"
             },
             "llm_tool_direct_send_result": {
                 "description": "LLM工具直接发送图片结果",

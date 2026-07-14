@@ -83,9 +83,9 @@ class LlmToolsConfig:
     """ 启用图片生成工具 """
     enable_video_generation_tool: bool = True
     """ 启用视频生成工具 """
-    llm_tool_preset_name: str = "llm_default"
+    llm_tool_preset_name: str = ""
     """ LLM 工具调用预设参数的触发词 """
-    llm_video_tool_preset_name: str = "llm_video_default"
+    llm_video_tool_preset_name: str = ""
     """ LLM 视频工具调用预设参数的触发词 """
     llm_tool_use_background_task: bool = False
     """ Tools调用使用后台任务 """

@@ -12,6 +12,23 @@ def test_llm_presets_are_in_default_configuration() -> None:
     assert {"llm_default", "llm_video_default"} <= preset_names
 
 
+def test_default_configuration_llm_presets_match_internal_presets() -> None:
+    schema_path = Path(__file__).parents[1] / "_conf_schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    names = {"llm_default", "llm_video_default"}
+    configured_presets = [
+        item
+        for item in schema["prompt"]["default"]
+        if item.split(maxsplit=1)[0] in names
+    ]
+
+    configured = PromptConfigManager({"prompt": configured_presets}).prompt_config
+    internal = PromptConfigManager({}).prompt_config
+
+    for name in names:
+        assert configured[name] == internal[name]
+
+
 def test_builtin_llm_presets_exist_without_user_configuration() -> None:
     manager = PromptConfigManager({})
 
@@ -19,26 +36,12 @@ def test_builtin_llm_presets_exist_without_user_configuration() -> None:
         "prompt": "{{user_text}}",
         "min_images": 0,
         "max_images": 6,
-        "aspect_ratio": "default",
-        "image_size": "1K",
-        "google_search": True,
-        "gather_mode": False,
-        "n": 1,
-        "partial_images": 0,
-        "size": "default",
-        "url": False,
-        "moderation": "auto",
     }
     assert manager.prompt_config["llm_video_default"] == {
         "prompt": "{{user_text}}",
         "capability": "video_generation",
         "min_images": 0,
         "max_images": 1,
-        "quality": "speed",
-        "fps": 30,
-        "size": "default",
-        "with_audio": False,
-        "watermark_enabled": True,
     }
 
 
@@ -84,11 +87,6 @@ def test_rebuild_restores_internal_default_after_config_override_is_removed() ->
         "capability": "video_generation",
         "min_images": 0,
         "max_images": 1,
-        "quality": "speed",
-        "fps": 30,
-        "size": "default",
-        "with_audio": False,
-        "watermark_enabled": True,
     }
 
 

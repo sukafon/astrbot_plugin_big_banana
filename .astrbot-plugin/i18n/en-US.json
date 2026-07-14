@@ -708,11 +708,11 @@
       },
       "llm_tool_preset_name": {
         "description": "LLM Tool Preset Parameters",
-        "hint": "Fill in the trigger words in the default prompt word configuration. This preset overwrites the plugin default parameters by field; LLM calls the specified preset this time and then overwrites this preset by field. Parameters that are not specified by the subsequent level will continue to be retained. Leave it blank to not use it."
+        "hint": "Override order: plugin defaults, configured LLM tool preset, then the preset selected for the current call. Each later level overrides only the fields it specifies. Leave blank to disable the configured preset."
       },
       "llm_video_tool_preset_name": {
         "description": "LLM Video Tool Preset Parameters",
-        "hint": "Fill in the preset trigger words for video generation. By default, the plugin built-in llm_video_default is used. When left blank, the tool parameters are used directly."
+        "hint": "Override order: plugin defaults, configured LLM video tool preset, then the preset selected for the current call. Each later level overrides only the fields it specifies. Leave blank to disable the configured preset."
       },
       "llm_tool_direct_send_result": {
         "description": "Let LLM Tools Send Image Results Directly",
