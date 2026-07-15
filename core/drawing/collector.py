@@ -118,20 +118,21 @@ class ImageCollector:
             if isinstance(comp, Comp.Reply) and comp.chain:
                 reply_sender_id = str(comp.sender_id)
                 for quote in comp.chain:
-                    if isinstance(quote, Comp.Image) and quote.url:
-                        self.urls.append(quote.url)
+                    if isinstance(quote, Comp.Image):
+                        image_ref = self._component_ref(quote, "url", "file", "path")
+                        if image_ref:
+                            self.urls.append(image_ref)
                     elif isinstance(quote, Comp.File):
                         # File不会自动缓存
-                        is_valid_url = quote.url and quote.url.lower().endswith(
+                        file_ref = self._component_ref(quote, "url", "file_", "file", "path")
+                        is_valid_url = file_ref and str(file_ref).lower().endswith(
                             SUPPORTED_FILE_FORMATS_WITH_DOT
                         )
                         is_valid_name = quote.name and quote.name.lower().endswith(
                             SUPPORTED_FILE_FORMATS_WITH_DOT
                         )
-                        if is_valid_url or is_valid_name:
-                            file_ref = quote.url or quote.file_
-                            if file_ref:
-                                self.urls.append(file_ref)
+                        if file_ref and (is_valid_url or is_valid_name):
+                            self.urls.append(file_ref)
             # 收集@头像
             elif isinstance(comp, Comp.At) and comp.qq:
                 user_id = str(comp.qq)
@@ -154,22 +155,22 @@ class ImageCollector:
                     avatar_url = await self._get_avatar_url(user_id, event)
                     if avatar_url:
                         self.avatar_mappings[user_id] = avatar_url
-            elif isinstance(comp, Comp.Image) and comp.url:
-                self.urls.append(comp.url)
+            elif isinstance(comp, Comp.Image):
+                image_ref = self._component_ref(comp, "url", "file", "path")
+                if image_ref:
+                    self.urls.append(image_ref)
             elif isinstance(comp, Comp.File):
+                file_ref = self._component_ref(comp, "url", "file_", "file", "path")
                 is_valid_url = (
-                    comp.url
-                    and comp.url.startswith(("http://", "https://"))
-                    and comp.url.lower().endswith(SUPPORTED_FILE_FORMATS_WITH_DOT)
+                    file_ref
+                    and str(file_ref).lower().endswith(SUPPORTED_FILE_FORMATS_WITH_DOT)
                 )
                 is_valid_name = comp.name and comp.name.lower().endswith(
                     SUPPORTED_FILE_FORMATS_WITH_DOT
                 )
 
-                if is_valid_url or is_valid_name:
-                    file_ref = comp.url or comp.file_
-                    if file_ref:
-                        self.urls.append(file_ref)
+                if file_ref and (is_valid_url or is_valid_name):
+                    self.urls.append(file_ref)
             else:
                 continue
 
@@ -438,6 +439,15 @@ class ImageCollector:
     def qq_avatar_url(target_id: str) -> str:
         """构造 QQ 头像 URL。"""
         return f"https://q.qlogo.cn/g?b=qq&s=0&nk={target_id}"
+
+    @staticmethod
+    def _component_ref(component: object, *attrs: str) -> str | Path | None:
+        """Return the first non-empty media reference from an AstrBot component."""
+        for attr in attrs:
+            value = getattr(component, attr, None)
+            if value:
+                return value
+        return None
 
     def _record_image_supplement_info(self, url: str | Path, image_index: int) -> None:
         """Record avatar annotations after a reference image has been downloaded."""
