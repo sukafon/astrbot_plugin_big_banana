@@ -114,15 +114,15 @@ class DrawingCommandHandler:
             if gather_session.cancelled:
                 return
 
-        # Check collected image references before downloading and supplement avatars.
-        if not image_collector.check_urls_limit():
+        # 检查收集到的图片数量，必要时补充 AT 头像。
+        if not image_collector.check_images_limit():
             await image_collector.supplement_avatars()
-        if not image_collector.check_urls_limit():
+        if not image_collector.check_images_limit():
             yield event.chain_result(
                 [
                     Comp.Reply(id=event.message_obj.message_id),
                     Comp.Plain(
-                        f"❌ 图片数量不足，当前仅 {len(image_collector.get_final_urls())} 张，最少需要 {image_collector.min_images} 张"
+                        f"❌ 图片数量不足，当前仅 {len(image_collector.images)} 张，最少需要 {image_collector.min_images} 张"
                     ),
                 ]
             )
@@ -130,12 +130,8 @@ class DrawingCommandHandler:
 
         # 后台任务会超出当前事件生命周期。AstrBot 会在事件结束时清理
         # media_image_* 临时文件，因此必须先把参考图读入内存。
+        # 目前已经在进入后台任务前完成图片收集、缓存与去重
         use_bg = self.plugin.preference_config.command_use_background_task
-        if use_bg:
-            await image_collector.fetch_collected_images()
-            if not image_collector.check_images_limit():
-                await image_collector.supplement_avatars(use_downloaded_images=True)
-                await image_collector.fetch_collected_images()
 
         # 先发送开始画图消息，再开始生成，防止用户体感卡顿
         if self.plugin.preference_config.enable_drawing_message:
@@ -188,18 +184,10 @@ class DrawingCommandHandler:
         """生成图片并发送结果"""
         temporary_paths: list[Path] = []
         try:
-            # 下载收集到的图片
-            image_list = await collector.fetch_collected_images()
-            # Check successfully downloaded images and incrementally download supplements.
-            if not collector.check_images_limit():
-                await collector.supplement_avatars(use_downloaded_images=True)
-                image_list = await collector.fetch_collected_images()
-
-            # Perform the final check after downloading supplemental avatars.
             if not collector.check_images_limit():
                 result = GenerationResult(
                     error_message=(
-                        f"图片数量不足，当前仅 {len(image_list)} 张，"
+                        f"图片数量不足，当前仅 {len(collector.images)} 张，"
                         f"最少需要 {collector.min_images} 张"
                     )
                 )
@@ -226,12 +214,12 @@ class DrawingCommandHandler:
                 if params.get("capability", "image_generation") == "video_generation":
                     result = await self.plugin.video_pipeline.run(
                         params,
-                        image_list=image_list,
+                        image_list=collector.images,
                     )
                 else:
                     result = await self.drawing_pipeline.run(
                         params,
-                        image_list=image_list,
+                        image_list=collector.images,
                     )
 
             # 构建消息链

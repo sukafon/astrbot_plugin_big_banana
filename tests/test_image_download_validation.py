@@ -1,4 +1,5 @@
 import asyncio
+import base64
 from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -59,6 +60,23 @@ def build_jpeg() -> bytes:
     return output.getvalue()
 
 
+def build_animated_gif() -> bytes:
+    output = BytesIO()
+    frames = [
+        Image.new("RGB", (16, 16), (255, 0, 0)),
+        Image.new("RGB", (16, 16), (0, 0, 255)),
+    ]
+    frames[0].save(
+        output,
+        format="GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=100,
+        loop=0,
+    )
+    return output.getvalue()
+
+
 def test_reads_the_complete_chunked_response() -> None:
     response = SimpleNamespace(
         headers={"Content-Length": "11"},
@@ -92,6 +110,46 @@ def test_video_pipeline_drops_a_truncated_reference_without_crashing() -> None:
 
     assert result.videos[0].url == "https://example.com/video.mp4"
     assert dispatcher.await_args.args[1] == []
+
+
+def test_downloader_defaults_flatten_animated_gif() -> None:
+    animated = build_animated_gif()
+    encoded = base64.b64encode(animated).decode("ascii")
+    data_url = f"data:image/gif;base64,{encoded}"
+    downloader = Downloader(FakeSession([]))
+
+    flattened = asyncio.run(downloader.fetch_image(data_url))
+    preserved = asyncio.run(
+        downloader.fetch_image(data_url, convert=True, allow_gif=True)
+    )
+
+    assert flattened is not None
+    assert flattened.mime == "image/jpeg"
+    with Image.open(BytesIO(flattened.bytes)) as image:
+        assert image.format == "JPEG"
+        assert getattr(image, "n_frames", 1) == 1
+    assert preserved is not None
+    assert preserved.mime == "image/gif"
+    assert preserved.bytes == animated
+
+
+def test_output_base64_preserves_animated_gif() -> None:
+    animated = build_animated_gif()
+    encoded = base64.b64encode(animated).decode("ascii")
+
+    image = asyncio.run(
+        Downloader(FakeSession([])).fetch_base64_image(
+            encoded,
+            convert=True,
+            allow_gif=True,
+        )
+    )
+
+    assert image is not None
+    assert image.mime == "image/gif"
+    assert image.bytes == animated
+    with Image.open(BytesIO(image.bytes)) as gif:
+        assert getattr(gif, "n_frames", 1) == 2
 
 
 def test_restricted_download_follows_relative_redirect_and_checks_each_hop() -> None:

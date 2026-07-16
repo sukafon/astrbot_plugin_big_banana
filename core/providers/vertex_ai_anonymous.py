@@ -173,7 +173,11 @@ class VertexAIAnonymousProvider(BaseProvider):
             image_sources, status_code, reason = self._extract_result(result)
             images: list[ImageResource] = []
             for source in image_sources:
-                image = ImageResource.from_base64(source)
+                image = await self.plugin.downloader.fetch_base64_image(
+                    source,
+                    convert=True,
+                    allow_gif=True,
+                )
                 if image:
                     images.append(image)
             if images:

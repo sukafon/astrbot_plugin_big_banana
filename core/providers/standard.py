@@ -154,6 +154,8 @@ class StandardProvider(BaseProvider):
                     return GenerationResult(images=dedupe_images(call_result.images))
                 # 更新错误信息
                 last_err = call_result.error_message or "响应中未包含图片数据"
+                if call_result.status_code != 0:
+                    last_err = f"HTTP {call_result.status_code}：{last_err}"
                 # 如果重试次数已达上限，跳出循环
                 if attempt >= max_retry:
                     break
@@ -335,7 +337,11 @@ class StandardProvider(BaseProvider):
             if source.startswith(("http://", "https://")):
                 image_urls.append(source)
                 continue
-            image = ImageResource.from_base64(source)
+            image = await self.plugin.downloader.fetch_base64_image(
+                source,
+                convert=True,
+                allow_gif=True,
+            )
             if image:
                 images.append(image)
             else:
@@ -345,6 +351,8 @@ class StandardProvider(BaseProvider):
                 await self.plugin.downloader.fetch_images(
                     image_urls,
                     use_proxy=self.provider_config.enable_proxy,
+                    convert=True,
+                    allow_gif=True,
                     headers=self.image_download_headers,
                 )
             )

@@ -1039,7 +1039,7 @@
                 "description": "抹除隐私元数据",
                 "type": "bool",
                 "default": true,
-                "hint": "参考图发送前尽可能抹除包含隐私的元数据，处理失败将会移除该参考图。当前不支持多帧图片（如GIF），会被直接移除。"
+                "hint": "参考图发送前尽可能抹除包含隐私的元数据，处理失败将会移除该参考图。"
             }
         }
     },
@@ -1213,13 +1213,13 @@
             "llm_tool_preset_name": {
                 "description": "LLM工具调用预设参数",
                 "type": "string",
-                "default": "",
+                "default": "llm_default",
                 "hint": "覆盖规则：插件默认配置 -> LLM工具预设参数 -> 提示词预设参数，依次差分覆盖。留空表示不使用。"
             },
             "llm_video_tool_preset_name": {
                 "description": "LLM视频工具调用预设参数",
                 "type": "string",
-                "default": "",
+                "default": "llm_video_default",
                 "hint": "覆盖规则：插件默认配置 -> LLM工具预设参数 -> 提示词预设参数，依次差分覆盖。留空表示不使用。"
             },
             "llm_tool_direct_send_result": {

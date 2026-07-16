@@ -105,7 +105,7 @@ class DrawingGatherSession:
         return (
             f"📝 {title}：\n"
             f"文本：{self.params['prompt']}\n"
-            f"图片：{len(self.collector.urls)} 张\n\n"
+            f"图片：{len(self.collector.images)} 张\n\n"
             f"💡 继续发送图片或文本，或者：\n"
             f"• 发送「开始」开始生成\n"
             f"• 发送「取消」取消操作\n"

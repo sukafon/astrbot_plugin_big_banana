@@ -96,7 +96,11 @@ class NativeProvider(BaseProvider):
                             "[BIG BANANA] 无法处理图片：消息链中的图片引用 comp.url or comp.file 为空"
                         )
                         continue
-                    fetched = await self.plugin.downloader.fetch_image(image_ref)
+                    fetched = await self.plugin.downloader.fetch_image(
+                        image_ref,
+                        convert=True,
+                        allow_gif=True,
+                    )
                     if fetched:
                         images.append(fetched)
                     else:
@@ -105,11 +109,13 @@ class NativeProvider(BaseProvider):
         # 如果消息链没有图片，尝试从 completion_text 中查找 Markdown 图片
         completion_text = response.completion_text or ""
         if not images:
-            base64_sources, image_urls = extract_markdown_images(
-                completion_text
-            )
+            base64_sources, image_urls = extract_markdown_images(completion_text)
             for base64_source in base64_sources:
-                image = ImageResource.from_base64(base64_source)
+                image = await self.plugin.downloader.fetch_base64_image(
+                    base64_source,
+                    convert=True,
+                    allow_gif=True,
+                )
                 if image:
                     images.append(image)
                 else:
@@ -118,6 +124,8 @@ class NativeProvider(BaseProvider):
                 fetched = await self.plugin.downloader.fetch_image(
                     image_url,
                     use_proxy=self.provider_config.enable_proxy,
+                    convert=True,
+                    allow_gif=True,
                 )
                 if fetched:
                     images.append(fetched)

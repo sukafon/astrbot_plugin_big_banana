@@ -68,12 +68,39 @@ class Downloader:
         self.session = session
         self.http_proxy = http_proxy
 
+    async def fetch_base64_image(
+        self,
+        source: str,
+        *,
+        convert: bool = True,
+        allow_gif: bool = False,
+    ) -> ImageResource | None:
+        """Load a Base64 image through the common Downloader pipeline.
+
+        Args:
+            source: Bare Base64, base64://, or data URL image source.
+            convert: Whether unsupported formats should be converted to JPEG.
+            allow_gif: Whether GIF should remain in its original format.
+
+        Returns:
+            The loaded image resource, or None when decoding fails.
+        """
+        source = source.strip().strip("\"'")
+        if not source.startswith(("base64://", "data:image/")):
+            source = f"base64://{source}"
+        return await self.fetch_image(
+            source,
+            convert=convert,
+            allow_gif=allow_gif,
+        )
+
     async def fetch_image(
         self,
         url: str | Path,
         *,
         use_proxy: bool = False,
-        convert: bool = False,
+        convert: bool = True,
+        allow_gif: bool = False,
         headers: dict[str, str] | None = None,
         restrict_private_network: bool = False,
         allowed_local_roots: Sequence[Path] | None = None,
@@ -93,10 +120,16 @@ class Downloader:
                     decode_base64_image,
                     url.removeprefix("base64://"),
                     convert,
+                    allow_gif,
                 )
                 return build_image_resource(content, source_ref)
             if url.lower().startswith("data:image/"):
-                content = await asyncio.to_thread(read_data_url, url, convert)
+                content = await asyncio.to_thread(
+                    read_data_url,
+                    url,
+                    convert,
+                    allow_gif,
+                )
                 return build_image_resource(content, source_ref)
 
         if isinstance(url, str) and not url.lower().startswith(("http://", "https://")):
@@ -149,7 +182,7 @@ class Downloader:
                     f"[BIG BANANA] 本地图片引用格式无效，已跳过：{source_ref}，错误：{e}"
                 )
                 return None
-            content = await asyncio.to_thread(read_file, url, convert)
+            content = await asyncio.to_thread(read_file, url, convert, allow_gif)
             return build_image_resource(content, source_ref)
 
         # 非文件系统路径，下载远程图片
@@ -158,6 +191,7 @@ class Downloader:
                 url,
                 use_proxy=use_proxy,
                 convert=convert,
+                allow_gif=allow_gif,
                 headers=headers,
                 restrict_private_network=restrict_private_network,
             )
@@ -172,7 +206,8 @@ class Downloader:
         image_urls: Sequence[str | Path],
         *,
         use_proxy: bool = False,
-        convert: bool = False,
+        convert: bool = True,
+        allow_gif: bool = False,
         headers: dict[str, str] | None = None,
         restrict_private_network: bool = False,
         allowed_local_roots: Sequence[Path] | None = None,
@@ -187,6 +222,7 @@ class Downloader:
             use_proxy: 是否对远程 URL 下载使用 Downloader 初始化时传入的代理；
                 本地路径、data URL 和 base64 不受影响。
             convert: 是否把不在允许列表内的图片格式转换为 JPEG。
+            allow_gif: 是否允许 GIF 保持原格式。
             headers: 下载远程 URL 时附加的请求头；本地路径、data URL 和
                 base64 不受影响。
 
@@ -197,6 +233,7 @@ class Downloader:
             image_urls,
             use_proxy=use_proxy,
             convert=convert,
+            allow_gif=allow_gif,
             headers=headers,
             restrict_private_network=restrict_private_network,
             allowed_local_roots=allowed_local_roots,
@@ -209,7 +246,8 @@ class Downloader:
         image_urls: Sequence[str | Path],
         *,
         use_proxy: bool = False,
-        convert: bool = False,
+        convert: bool = True,
+        allow_gif: bool = False,
         headers: dict[str, str] | None = None,
         restrict_private_network: bool = False,
         allowed_local_roots: Sequence[Path] | None = None,
@@ -226,6 +264,7 @@ class Downloader:
                 url,
                 use_proxy=use_proxy,
                 convert=convert,
+                allow_gif=allow_gif,
                 headers=headers,
                 restrict_private_network=restrict_private_network,
                 allowed_local_roots=allowed_local_roots,
@@ -240,7 +279,8 @@ class Downloader:
         url: str,
         *,
         use_proxy: bool = False,
-        convert: bool = False,
+        convert: bool = True,
+        allow_gif: bool = False,
         headers: dict[str, str] | None = None,
         restrict_private_network: bool = False,
     ) -> tuple[tuple[str, bytes] | None, bool]:
@@ -250,6 +290,7 @@ class Downloader:
                 url,
                 use_proxy=use_proxy,
                 convert=convert,
+                allow_gif=allow_gif,
                 headers=headers,
                 restrict_private_network=restrict_private_network,
             )
@@ -260,6 +301,7 @@ class Downloader:
                     url,
                     use_proxy=use_proxy,
                     convert=convert,
+                    allow_gif=allow_gif,
                     headers=headers,
                     restrict_private_network=restrict_private_network,
                     verify_ssl=False,
@@ -280,6 +322,7 @@ class Downloader:
         *,
         use_proxy: bool,
         convert: bool,
+        allow_gif: bool,
         headers: dict[str, str] | None,
         restrict_private_network: bool,
         verify_ssl: bool = True,
@@ -347,7 +390,12 @@ class Downloader:
                 if content_bytes is None:
                     return None, True
 
-                content = await asyncio.to_thread(handle_image, content_bytes, convert)
+                content = await asyncio.to_thread(
+                    handle_image,
+                    content_bytes,
+                    convert,
+                    allow_gif,
+                )
                 return content, True
 
 
@@ -384,7 +432,7 @@ async def is_public_http_url(url: str) -> bool:
 
 
 def handle_image(
-    image_bytes: bytes, convert: bool = False, allow_gif: bool = True
+    image_bytes: bytes, convert: bool = True, allow_gif: bool = False
 ) -> tuple[str, bytes] | None:
     """把图片字节标准化。不在允许格式内且 convert=True 时转换为 JPEG。"""
     try:
@@ -431,7 +479,7 @@ def build_image_resource(
 
 
 def decode_base64_image(
-    data_base64: str, convert: bool = False, allow_gif: bool = True
+    data_base64: str, convert: bool = True, allow_gif: bool = False
 ) -> tuple[str, bytes] | None:
     """Decode a base64 image and return mime/bytes."""
     normalized = "".join(data_base64.split())
@@ -451,7 +499,7 @@ def decode_base64_image(
 
 
 def read_data_url(
-    data_url: str, convert: bool = False, allow_gif: bool = True
+    data_url: str, convert: bool = True, allow_gif: bool = False
 ) -> tuple[str, bytes] | None:
     """Read a data:image/...;base64,... image."""
     header, sep, payload = data_url.partition(",")
@@ -468,7 +516,7 @@ def read_data_url(
 
 
 def read_file(
-    path: str | Path, convert: bool = False, allow_gif: bool = True
+    path: str | Path, convert: bool = True, allow_gif: bool = False
 ) -> tuple[str, bytes] | None:
     """读取本地文件并返回 mime/bytes。"""
     try:

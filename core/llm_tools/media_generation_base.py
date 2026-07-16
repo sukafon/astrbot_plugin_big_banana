@@ -250,24 +250,15 @@ class BaseMediaGenerationTool(FunctionTool[AstrAgentContext], ABC):
             await collector.add_explicit_references(image_references)
         if collector.reference_failures:
             return [], [], "\n".join(collector.reference_failures)
-        if not collector.check_urls_limit():
-            return (
-                [],
-                [],
-                f"参考图片数量不足，当前仅 {len(collector.get_final_urls())} 张，"
-                f"最少需要 {collector.min_images} 张。请补充 image_references 后重试。",
-            )
-        images = await collector.fetch_collected_images()
-        if collector.reference_failures:
-            return [], [], "\n".join(collector.reference_failures)
+
         if not collector.check_images_limit():
             return (
                 [],
                 [],
-                f"可用参考图片数量不足，成功加载 {len(images)} 张，"
+                f"可用参考图片数量不足，成功加载 {len(collector.images)} 张，"
                 f"最少需要 {collector.min_images} 张。请更换或补充 image_references 后重试。",
             )
-        return images, collector.image_supplement_infos, None
+        return collector.images, collector.image_supplement_infos, None
 
     @abstractmethod
     async def _generate_result(
