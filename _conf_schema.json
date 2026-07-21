@@ -30,7 +30,7 @@
                 "recaptcha_base_api": "https://www.google.com",
                 "system_prompt": "",
                 "max_refresh": 5,
-                "max_recaptcha_retry": 5,
+                "max_retry": 5,
                 "retry_delay": 1,
                 "model": "gemini-3-pro-image-preview",
                 "response_modalities": "['IMAGE']",
@@ -99,11 +99,11 @@
                         "default": 5,
                         "hint": "初次获取 recaptchaToken 后，最多允许重新获取 recaptchaToken 的次数。"
                     },
-                    "max_recaptcha_retry": {
-                        "description": "每个 recaptchaToken 最大重试次数",
+                    "max_retry": {
+                        "description": "recaptchaToken 最大重试次数",
                         "type": "int",
                         "default": 5,
-                        "hint": "每个 recaptchaToken 允许的最大重试次数，达到后刷新 recaptchaToken。"
+                        "hint": "同一 recaptchaToken 最大重试次数，达到后刷新 recaptchaToken"
                     },
                     "retry_delay": {
                         "description": "重试延迟",
