@@ -427,7 +427,8 @@ async def is_public_http_url(url: str) -> bool:
         return bool(addresses) and all(
             ipaddress.ip_address(address).is_global for address in addresses
         )
-    except (OSError, ValueError):
+    except (OSError, ValueError) as e:
+        logger.warning(f"[BIG BANANA] 校验公网图片地址失败: {url}，错误信息：{e}")
         return False
 
 

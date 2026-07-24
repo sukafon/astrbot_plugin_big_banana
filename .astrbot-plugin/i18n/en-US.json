@@ -726,6 +726,10 @@
         "description": "Restrict LLM Tool Access to Private-Network Image URLs",
         "hint": "When enabled, refuse to resolve remote image URLs to intranet, loopback, or reserved addresses. If the proxy software Fake-IP mode is used and the public network images are misjudged, it can be closed; after closing, please bear the security risk of LLM accessing the intranet URL."
       },
+      "llm_tool_allow_custom_url": {
+        "description": "Allow LLM Tool Custom Network Image URLs",
+        "hint": "When disabled (default), the LLM tool only allows local Path images or @user avatars (including system-generated avatar URLs), and rejects custom HTTP/HTTPS network URLs entered by the LLM. Only after enabling can LLM enter custom network image URLs."
+      },
       "llm_tool_use_background_task": {
         "description": "Run Tool Calls as Background Tasks",
         "hint": "After being enabled, BigBanana will perform background tasks inside the plugin. When configuring the upstream callback, hand the result to the callback; when enabling direct sending, actively send the image after completion. When neither is configured, it will automatically change to the foreground execution to avoid loss of image results."

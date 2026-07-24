@@ -1240,6 +1240,12 @@
                 "default": true,
                 "hint": "开启时拒绝解析到内网、回环或保留地址的远程图片 URL。使用代理软件 Fake-IP 模式且公网图片被误判时可关闭；关闭后请自行承担 LLM 访问内网 URL 的安全风险。"
             },
+            "llm_tool_allow_custom_url": {
+                "description": "允许LLM工具自定义网络图片URL",
+                "type": "bool",
+                "default": false,
+                "hint": "关闭时（默认），LLM 工具仅允许使用本地 Path 图片或 @用户头像（包含系统生成的头像 URL），拒绝 LLM 传入的自定义网络 HTTP/HTTPS 地址。"
+            },
             "llm_tool_use_background_task": {
                 "description": "工具调用使用后台任务",
                 "type": "bool",

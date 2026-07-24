@@ -101,7 +101,7 @@ class BigBananaImageGenerationTool(BaseMediaGenerationTool):
         """
         if self.plugin is None:
             logger.warning("[BIG BANANA] 插件未初始化完成，无法处理请求")
-            return "BigBanana 插件未初始化完成，请稍后再试。"
+            return "BigBanana 工具未初始化完成，请稍后再试。"
         plugin: BigBanana = self.plugin
         event: AstrMessageEvent = context.context.event
 
@@ -143,6 +143,19 @@ class BigBananaImageGenerationTool(BaseMediaGenerationTool):
             return (
                 "image_references 不接受 base64:// 或 Data URL。"
                 "请使用聊天记录中已有的 AstrBot 缓存路径或图片 URL。"
+            )
+        if (
+            not plugin.llm_tools_config.llm_tool_allow_custom_url
+            and any(
+                isinstance(reference, str)
+                and reference.strip().lower().startswith(("http://", "https://"))
+                for reference in image_references
+            )
+        ):
+            logger.warning("[BIG BANANA] 绘图工具拒绝接收自定义网络图片 URL")
+            return (
+                "当前工具设置已禁用自定义网络图片 URL (HTTP/HTTPS)。"
+                "请使用聊天记录中已有的本地 Path 图片，或使用 @用户 (或数字 ID) 引用头像。"
             )
 
         prompt = prompt.strip()

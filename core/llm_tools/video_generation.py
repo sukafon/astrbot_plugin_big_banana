@@ -70,7 +70,7 @@ class BigBananaVideoGenerationTool(BaseMediaGenerationTool):
         **kwargs,
     ) -> ToolExecResult:
         if self.plugin is None:
-            return "BigBanana 插件未初始化完成，请稍后再试。"
+            return "BigBanana 工具未初始化完成，请稍后再试。"
         plugin: BigBanana = self.plugin
         event: AstrMessageEvent = context.context.event
 
@@ -104,6 +104,18 @@ class BigBananaVideoGenerationTool(BaseMediaGenerationTool):
             for reference in image_references
         ):
             return "image_references 不接受 base64:// 或 Data URL。"
+        if (
+            not plugin.llm_tools_config.llm_tool_allow_custom_url
+            and any(
+                isinstance(reference, str)
+                and reference.strip().lower().startswith(("http://", "https://"))
+                for reference in image_references
+            )
+        ):
+            return (
+                "当前工具设置已禁用自定义网络图片 URL (HTTP/HTTPS)。"
+                "请使用聊天记录中已有的本地 Path 图片，或使用 @用户 (或数字 ID) 引用头像。"
+            )
 
         prompt = prompt.strip()
         preset_name = preset_name.strip() if preset_name else None

@@ -77,7 +77,7 @@ class BigBananaPromptTool(FunctionTool[AstrAgentContext]):
         """
         if self.plugin is None:
             logger.warning("[BIG BANANA] 插件未初始化完成，无法处理请求")
-            return "BigBanana 插件未初始化完成，请稍后再试。"
+            return "BigBanana 工具未初始化完成，请稍后再试。"
         plugin: BigBanana = self.plugin
         event: AstrMessageEvent = context.context.event  # type: ignore
 

@@ -10,6 +10,7 @@ def test_background_tasks_are_disabled_by_default() -> None:
     assert PreferenceConfig().command_use_background_task is False
     assert LlmToolsConfig().llm_tool_use_background_task is False
     assert LlmToolsConfig().llm_tool_truncate_images is False
+    assert LlmToolsConfig().llm_tool_allow_custom_url is False
 
 
 def test_llm_tool_presets_are_disabled_when_not_configured() -> None:
@@ -45,6 +46,9 @@ def test_background_tasks_are_disabled_in_config_schema() -> None:
     )
     assert (
         schema["llm_tools"]["items"]["llm_tool_truncate_images"]["default"] is False
+    )
+    assert (
+        schema["llm_tools"]["items"]["llm_tool_allow_custom_url"]["default"] is False
     )
 
 

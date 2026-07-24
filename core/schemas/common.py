@@ -95,6 +95,8 @@ class LlmToolsConfig:
     """ 是否按生成数量截断 LLM 图片工具的返回结果 """
     llm_tool_restrict_private_network: bool = True
     """ 是否限制 LLM 工具读取内网图片 URL """
+    llm_tool_allow_custom_url: bool = False
+    """ 是否允许 LLM 工具自定义网络图片 URL """
     background_callback_plugin: str = ""
     """ 后台任务完成回调插件 """
     background_callback_method: str = ""

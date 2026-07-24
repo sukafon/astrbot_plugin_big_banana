@@ -24,6 +24,7 @@ def build_plugin(
     *,
     refer_images: str | None = None,
     fetched_results: list[ImageResource | None] | None = None,
+    llm_tool_allow_custom_url: bool = True,
 ) -> SimpleNamespace:
     refer_images_dir = tmp_path / "refer_images"
     refer_images_dir.mkdir(exist_ok=True)
@@ -50,6 +51,7 @@ def build_plugin(
         ),
         llm_tools_config=SimpleNamespace(
             llm_tool_restrict_private_network=True,
+            llm_tool_allow_custom_url=llm_tool_allow_custom_url,
         ),
         downloader=SimpleNamespace(fetch_image=AsyncMock(side_effect=mock_fetch_image)),
     )
@@ -359,3 +361,30 @@ def test_refer_images_config_hint_covers_commands_and_llm_tools() -> None:
     hint = schema["params_config"]["items"]["refer_images"]["hint"]
     assert "命令调用" in hint
     assert "LLM 图片/视频工具调用" in hint
+
+
+def test_llm_tool_custom_url_restriction(tmp_path: Path) -> None:
+    plugin = build_plugin(tmp_path, llm_tool_allow_custom_url=False)
+    plugin.whitelist_guard = SimpleNamespace(
+        check=lambda event, is_command: SimpleNamespace(allowed=True)
+    )
+    plugin.cooldown_guard = SimpleNamespace(
+        check=lambda event: SimpleNamespace(allowed=True)
+    )
+
+    tool = BigBananaImageGenerationTool()
+    tool.plugin = plugin
+    context = SimpleNamespace(context=SimpleNamespace(event=build_event()))
+
+    result = asyncio.run(
+        tool.call(
+            context,
+            prompt="draw something",
+            image_references=["https://example.com/custom.png"],
+        )
+    )
+
+    assert "当前工具设置已禁用自定义网络图片 URL" in result
+
+
+
