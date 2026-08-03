@@ -43,6 +43,9 @@ class OpenAIImagesProvider(StandardProvider):
         multipart = FormData()
         for key, val in data.items():
             if val is not None:
+                # 在 multipart 表单中，如果 n 为 1 或默认值，省略该字段以避免部分中转站校验 FormData 字符串 "1" 报错
+                if key == "n" and (val == 1 or val == "1"):
+                    continue
                 multipart.add_field(name=key, value=str(val))
         for index, image in enumerate(self.image_list, start=1):
             file_mime = image.mime.replace("image/jpg", "image/jpeg")
