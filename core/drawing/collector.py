@@ -12,6 +12,7 @@ from astrbot.api.star import StarTools
 from astrbot.core.utils.astrbot_path import get_astrbot_temp_path
 
 from ..schemas import SUPPORTED_FILE_FORMATS_WITH_DOT
+from ..utils import get_message_id
 from .mention_utils import QQ_OFFICIAL_MENTION_RE, get_qq_official_mention_names
 
 if TYPE_CHECKING:
@@ -105,7 +106,7 @@ class ImageCollector:
         if event is None:
             event = self.event
         # 防止同一个 event 重复操作
-        event_id = event.message_obj.message_id
+        event_id = get_message_id(event) or f"event-{id(event)}"
         if event_id in self._processed_events:
             logger.info(f"[BIG BANANA] event {event_id} 已处理过，跳过收集图片")
             return

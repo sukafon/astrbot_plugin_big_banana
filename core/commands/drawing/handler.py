@@ -7,7 +7,12 @@ import astrbot.api.message_components as Comp
 from astrbot.api import logger
 from astrbot.core.message.message_event_result import MessageChain
 
-from ...drawing import DrawingPipeline, ImageSaver, parse_params
+from ...drawing import (
+    DrawingPipeline,
+    ImageSaver,
+    parse_params,
+)
+from ...utils import build_message_chain, build_result_message_chain
 from ...drawing.collector import ImageCollector
 from ...schemas import MAX_SIZE_B64_LEN, GenerationResult
 from .gather_session import DrawingGatherSession
@@ -59,10 +64,12 @@ class DrawingCommandHandler:
         if not cooldown_check.allowed:
             logger.info(cooldown_check.log_message)
             yield event.chain_result(
-                [
-                    Comp.Reply(id=event.message_obj.message_id),
+                build_message_chain(
+                    event,
                     Comp.Plain(f"❌ {cooldown_check.message}"),
-                ]
+                    quote_reply_mode=self.plugin.preference_config.quote_reply_mode,
+                    is_command=True,
+                )
             )
             return
 
@@ -119,12 +126,14 @@ class DrawingCommandHandler:
             await image_collector.supplement_avatars()
         if not image_collector.check_images_limit():
             yield event.chain_result(
-                [
-                    Comp.Reply(id=event.message_obj.message_id),
+                build_message_chain(
+                    event,
                     Comp.Plain(
                         f"❌ 图片数量不足，当前仅 {len(image_collector.images)} 张，最少需要 {image_collector.min_images} 张"
                     ),
-                ]
+                    quote_reply_mode=self.plugin.preference_config.quote_reply_mode,
+                    is_command=True,
+                )
             )
             return
 
@@ -233,19 +242,25 @@ class DrawingCommandHandler:
                     == "video_generation"
                     else "图片"
                 )
-                msg_chain: list[BaseMessageComponent] = [
-                    Comp.Reply(id=event.message_obj.message_id),
+                msg_chain = build_message_chain(
+                    event,
                     Comp.Plain(f"❌ {media_name}生成失败：{result.error_message}"),
-                ]
+                    quote_reply_mode=self.plugin.preference_config.quote_reply_mode,
+                    is_command=True,
+                )
             else:
                 # 成功，标记冷却时间
                 self.plugin.cooldown_guard.mark_cooldown(event.get_group_id())
                 # 构建消息链
-                msg_chain = self._build_result_message_chain(
+                msg_chain = build_result_message_chain(
                     event,
                     result=result,
                     url_only=params.get("url", self.plugin.params_config.url),
+                    quote_reply_mode=self.plugin.preference_config.quote_reply_mode,
+                    is_command=True,
                     temporary_paths=temporary_paths,
+                    image_saver=self.image_saver,
+                    temp_dir=self.plugin.temp_dir,
                 )
 
             # 包装消息链类型
@@ -291,69 +306,6 @@ class DrawingCommandHandler:
         )
         prompt = prompt.rstrip()
         return f"{prompt}\n\n{at_avatar_note}" if prompt else at_avatar_note
-
-    def _build_result_message_chain(
-        self,
-        event: AstrMessageEvent,
-        result: GenerationResult,
-        url_only: bool = False,
-        temporary_paths: list[Path] | None = None,
-    ) -> list[BaseMessageComponent]:
-        """构造适配平台限制的绘图结果消息链。
-
-        Args:
-            event: 当前绘图任务的消息事件。
-            result: 图片生成结果。
-            url_only: 是否只发送图片 URL。
-            temporary_paths: 用于记录本次任务创建的临时文件。
-
-        Returns:
-            可直接发送到消息平台的消息组件列表。
-        """
-        msg_chain: list[BaseMessageComponent] = [
-            Comp.Reply(id=event.message_obj.message_id)
-        ]
-        result_urls = [url for url in result.urls if url is not None]
-        video_urls = [video.url for video in result.videos if video.url]
-        # 如果仅url，这里尝试检查有无url，无则报错
-        if url_only:
-            urls = video_urls or result_urls
-            if urls:
-                msg_chain.append(Comp.Plain("\n".join(urls)))
-            else:
-                msg_chain.append(Comp.Plain("❌ 生成失败：没有可用的媒体 URL"))
-            return msg_chain
-
-        if video_urls:
-            msg_chain.extend(Comp.Video.fromURL(url) for url in video_urls)
-            return msg_chain
-
-        images_with_bytes = [image for image in result.images if image.bytes]
-        # 对tg做特殊处理
-        if event.platform_meta.name == "telegram" and any(
-            (image.base64 and len(image.base64) > MAX_SIZE_B64_LEN)
-            for image in images_with_bytes
-        ):
-            save_results = self.image_saver.save_images_to_local(
-                images_with_bytes, self.plugin.temp_dir
-            )
-            if temporary_paths is not None:
-                temporary_paths.extend(path for _name, path in save_results)
-            for name_, path_ in save_results:
-                msg_chain.append(Comp.File(name=name_, file=str(path_)))
-            return msg_chain
-
-        # 其他平台目前默认不特殊处理图片大小限制
-        if images_with_bytes:
-            msg_chain.extend(
-                Comp.Image.fromBase64(image.base64) for image in images_with_bytes
-            )
-        # 只有urls，那么应该是下载失败了，直接发送url吧
-        elif result_urls:
-            msg_chain.append(Comp.Plain("\n".join(result_urls)))
-        else:
-            msg_chain.append(Comp.Plain("❌ 图片生成失败：响应中未包含图片数据"))
-        return msg_chain
 
     async def _build_start_msg(
         self, event: AstrMessageEvent, text: str

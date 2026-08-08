@@ -7,6 +7,9 @@ if TYPE_CHECKING:
     from astrbot.api.event import AstrMessageEvent
 
 
+from ..utils import get_message_id
+
+
 class DrawingTaskManager:
     """跟踪绘图任务。"""
 
@@ -26,8 +29,7 @@ class DrawingTaskManager:
         Returns:
             可在不同平台和会话之间安全区分的任务键。
         """
-        message_obj = getattr(event, "message_obj", None)
-        message_id = getattr(message_obj, "message_id", None)
+        message_id = get_message_id(event)
         if message_id is None:
             # LLM 工具调用等场景可能只有虚拟事件，没有对应的原始消息对象。
             # 使用事件对象身份作为回退值，既避免属性错误，也不会让同一会话中的

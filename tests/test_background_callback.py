@@ -95,3 +95,5 @@ def test_callback_receives_captured_origin_instead_of_current_event_value() -> N
     assert handled is True
     assert received["event"] is event
     assert received["unified_msg_origin"] == "original:session"
+
+

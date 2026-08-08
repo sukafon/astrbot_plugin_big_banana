@@ -13,6 +13,7 @@ from astrbot.core.message.message_event_result import MessageChain
 
 from ..drawing.collector import ImageCollector
 from ..schemas import GenerationResult
+from ..utils import build_message_chain, build_result_message_chain
 
 if TYPE_CHECKING:
     from astrbot.core.agent.tool import ToolExecResult
@@ -72,10 +73,12 @@ class BaseMediaGenerationTool(FunctionTool[AstrAgentContext], ABC):
                     else plugin.preference_config.drawing_message
                 ).strip()
                 if drawing_message:
-                    drawing_chain: list[BaseMessageComponent] = [
-                        Comp.Reply(id=event.message_obj.message_id),
+                    drawing_chain = build_message_chain(
+                        event,
                         Comp.Plain(drawing_message),
-                    ]
+                        quote_reply_mode=plugin.preference_config.quote_reply_mode,
+                        is_command=False,
+                    )
                     await event.send(event.chain_result(drawing_chain))
 
             if is_background_task and (use_background_callback or direct_send_result):
@@ -147,10 +150,7 @@ class BaseMediaGenerationTool(FunctionTool[AstrAgentContext], ABC):
             if not result.error_message:
                 plugin.cooldown_guard.mark_cooldown(event.get_group_id())
 
-            if not direct_send_result:
-                if not use_background_callback:
-                    return self._build_model_tool_result(result)
-
+            if use_background_callback:
                 handled = await plugin.background_callback.dispatch(
                     event=event,
                     result=self._build_callback_result_chain(result),
@@ -161,27 +161,18 @@ class BaseMediaGenerationTool(FunctionTool[AstrAgentContext], ABC):
                 if handled:
                     return None
 
-            completion_text = await self._send_generation_result(
-                plugin,
-                event,
-                result,
-                params,
-                use_proactive_send=is_background_task
-                and (plugin.preference_config.background_task_send_type == "active"),
-                temporary_paths=temporary_paths,
-            )
-
-            if use_background_callback and direct_send_result:
-                handled = await plugin.background_callback.dispatch(
-                    event=event,
-                    result=self._build_callback_result_chain(completion_text),
-                    params=params,
-                    unified_msg_origin=unified_msg_origin,
-                    is_success=not result.error_message,
+            if direct_send_result:
+                return await self._send_generation_result(
+                    plugin,
+                    event,
+                    result,
+                    params,
+                    use_proactive_send=is_background_task
+                    and (plugin.preference_config.background_task_send_type == "active"),
+                    temporary_paths=temporary_paths,
                 )
-                if handled:
-                    return None
-            return completion_text
+
+            return self._build_model_tool_result(result)
         finally:
             if is_background_task:
                 plugin.task_manager.finish(plugin.task_manager.build_task_id(event))
@@ -205,16 +196,22 @@ class BaseMediaGenerationTool(FunctionTool[AstrAgentContext], ABC):
     ) -> str:
         try:
             if result.error_message:
-                msg_chain: list[BaseMessageComponent] = [
-                    Comp.Reply(id=event.message_obj.message_id),
+                msg_chain = build_message_chain(
+                    event,
                     Comp.Plain(f"❌ {self.media_name}生成失败：{result.error_message}"),
-                ]
+                    quote_reply_mode=plugin.preference_config.quote_reply_mode,
+                    is_command=False,
+                )
             else:
-                msg_chain = plugin.drawing_command_handler._build_result_message_chain(
+                msg_chain = build_result_message_chain(
                     event,
                     result=result,
                     url_only=params.get("url", plugin.params_config.url),
+                    quote_reply_mode=plugin.preference_config.quote_reply_mode,
+                    is_command=False,
                     temporary_paths=temporary_paths,
+                    image_saver=plugin.image_saver,
+                    temp_dir=plugin.temp_dir,
                 )
 
             if use_proactive_send:

@@ -111,3 +111,93 @@ def test_llm_image_tool_does_not_append_command_avatar_note() -> None:
 
     pipeline_run.assert_awaited_once()
     assert params["prompt"] == "portrait"
+
+
+def test_callback_receives_image_chain_even_when_direct_send_is_true() -> None:
+    import astrbot.api.message_components as Comp
+
+    dispatch_mock = AsyncMock(return_value=True)
+    plugin = SimpleNamespace(
+        cooldown_guard=SimpleNamespace(mark_cooldown=lambda gid: None),
+        background_callback=SimpleNamespace(dispatch=dispatch_mock),
+        task_manager=SimpleNamespace(
+            finish=lambda tid: None, build_task_id=lambda evt: "task-1"
+        ),
+    )
+    tool = BigBananaImageGenerationTool()
+
+    gen_result = GenerationResult(
+        images=[ImageResource("image/png", b"data", "b64data")]
+    )
+
+    with patch.object(tool, "_generate_result", new=AsyncMock(return_value=gen_result)):
+        res = asyncio.run(
+            tool._generate_and_send_result(
+                plugin=plugin,
+                event=SimpleNamespace(
+                    unified_msg_origin="origin",
+                    get_group_id=lambda: "g1",
+                    platform_meta=SimpleNamespace(name="qq"),
+                ),
+                params={},
+                image_references=None,
+                unified_msg_origin="origin",
+                is_background_task=True,
+                use_background_callback=True,
+                direct_send_result=True,
+            )
+        )
+
+    assert res is None
+    dispatch_mock.assert_awaited_once()
+    passed_result_chain = dispatch_mock.await_args.kwargs["result"]
+    assert any(isinstance(comp, Comp.Image) for comp in passed_result_chain.chain)
+
+
+def test_background_callback_receives_error_chain_without_image_components() -> None:
+    import astrbot.api.message_components as Comp
+
+    dispatch_mock = AsyncMock(return_value=True)
+    plugin = SimpleNamespace(
+        cooldown_guard=SimpleNamespace(mark_cooldown=lambda gid: None),
+        background_callback=SimpleNamespace(dispatch=dispatch_mock),
+        task_manager=SimpleNamespace(
+            finish=lambda tid: None, build_task_id=lambda evt: "task-error-1"
+        ),
+    )
+    tool = BigBananaImageGenerationTool()
+
+    error_result = GenerationResult(
+        images=[],
+        urls=[],
+        error_message="image generation failed",
+    )
+
+    with patch.object(tool, "_generate_result", new=AsyncMock(return_value=error_result)):
+        res = asyncio.run(
+            tool._generate_and_send_result(
+                plugin=plugin,
+                event=SimpleNamespace(
+                    unified_msg_origin="origin",
+                    get_group_id=lambda: "g1",
+                    platform_meta=SimpleNamespace(name="qq"),
+                ),
+                params={},
+                image_references=None,
+                unified_msg_origin="origin",
+                is_background_task=True,
+                use_background_callback=True,
+                direct_send_result=True,
+            )
+        )
+
+    assert res is None
+    dispatch_mock.assert_awaited_once()
+    passed_result_chain = dispatch_mock.await_args.kwargs["result"]
+    assert any(
+        isinstance(comp, Comp.Plain) and "image generation failed" in comp.text
+        for comp in passed_result_chain.chain
+    )
+    assert not any(isinstance(comp, Comp.Image) for comp in passed_result_chain.chain)
+
+

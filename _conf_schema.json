@@ -1191,6 +1191,18 @@
                 "type": "int",
                 "default": 120,
                 "hint": "发送消息后等待用户发送图片或触发结束命令的最大时间（秒），每次收集后重置剩余时间。"
+            },
+            "quote_reply_mode": {
+                "description": "回复引用配置",
+                "type": "string",
+                "options": [
+                    "both",
+                    "command_only",
+                    "tool_only",
+                    "none"
+                ],
+                "default": "both",
+                "hint": "设置响应消息是否引用回复用户的触发消息。both：命令和 LLM 工具均引用回复（默认）；command_only：仅命令引用回复；tool_only：仅 LLM 工具引用回复；none：不引用回复。"
             }
         }
     },

@@ -49,6 +49,9 @@ class PreferenceConfig:
     """ 后台任务消息发送方式。event：事件消息（被动消息，默认）；active：主动消息 """
     gather_timeout: int = 120
     """ 收集模式超时时间, 单位: 秒 """
+    quote_reply_mode: str = "both"
+    """ 回复引用配置。both: 命令和LLM工具均引用回复；command_only: 仅命令引用回复；tool_only: 仅LLM工具引用回复；none: 不引用回复 """
+
 
 
 @dataclass(repr=False, slots=True)
