@@ -72,12 +72,16 @@ class CallbackDispatcher:
             return False
 
         try:
+            quote_reply_mode = self.plugin.preference_config.quote_reply_mode
+            should_quote = quote_reply_mode in ("both", "tool_only")
+
             callback_result = callback(
                 event=event,
                 result=result,
                 params=params,
                 unified_msg_origin=unified_msg_origin,
                 is_success=is_success,
+                should_quote=should_quote,
             )
             res = None
             if inspect.isasyncgen(callback_result):
