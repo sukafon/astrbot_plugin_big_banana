@@ -455,11 +455,29 @@
   <div class="tab-panel" id="tab-persona_replace">
     <div class="config-card">
       <h2 class="section-title" data-i18n="pages.admin.persona_replace.title">人设替换</h2>
-      <div class="hint-text" style="margin-bottom: 16px;" data-i18n="pages.admin.persona_replace.description">
+      <div class="hint-text" style="margin-bottom: 20px;" data-i18n="pages.admin.persona_replace.description">
         为目标用户配置参考头像和最多 100 个字符的额外描述。有参考图片时随机选择一张替换头像；图片列表为空时使用原本头像。LLM 绘图工具引用该用户时，会按图片编号补充描述，再进行副脑优化。
       </div>
-      <div class="list-container" id="persona-replace-list"></div>
-      <button class="add-btn" onclick="addPersonaReplaceItem()" data-i18n="pages.admin.persona_replace.add">＋ 添加人设替换规则</button>
+
+      <!-- 工具栏：搜索、计数与新建按钮 -->
+      <div class="persona-toolbar">
+        <div class="persona-toolbar-left">
+          <div class="persona-search-box">
+            <span class="persona-search-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </span>
+            <input type="text" class="persona-search-input" id="persona-search-input" placeholder="搜索目标 ID 或描述内容..." data-i18n-placeholder="pages.admin.persona_replace.search_placeholder" oninput="handlePersonaSearch(this.value)">
+          </div>
+          <span class="persona-count-badge" id="persona-count-badge"></span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openPersonaModal()" type="button" data-i18n="pages.admin.persona_replace.add">＋ 添加人设</button>
+      </div>
+
+      <!-- 卡片网格 -->
+      <div class="persona-grid" id="persona-card-grid"></div>
     </div>
   </div>
 </div>
@@ -471,6 +489,48 @@
 </footer>
 
 <div class="toast" id="toast"></div>
+
+<!-- 人设替换编辑/添加模态弹窗 -->
+<div class="modal-overlay" id="persona-modal-overlay" onclick="handlePersonaModalOverlayClick(event)">
+  <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="persona-modal-title">
+    <div class="modal-header">
+      <h3 class="modal-title" id="persona-modal-title" data-i18n="pages.admin.dynamic.persona.modal_title_add">添加人设替换规则</h3>
+      <button class="modal-close-btn" onclick="closePersonaModal()" type="button" aria-label="关闭">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="persona-modal-rule-id">
+      <div class="form-group">
+        <label data-i18n="pages.admin.dynamic.persona.target_label">目标 ID / 别名 (例如: 1234567, bot, self)</label>
+        <input type="text" class="text-input" id="persona-modal-target-id" placeholder="输入 QQ 号或 bot / self" data-i18n-placeholder="pages.admin.dynamic.persona.target_placeholder">
+      </div>
+      <div class="form-group">
+        <label data-i18n="pages.admin.dynamic.persona.description_label">额外描述（最多 100 个字符）</label>
+        <textarea class="textarea-input" id="persona-modal-description" rows="3" placeholder="例如：身高 150cm，体型娇小可爱" data-i18n-placeholder="pages.admin.dynamic.persona.description_placeholder" oninput="handlePersonaDescriptionInput()"></textarea>
+        <div class="hint-text"><span id="persona-modal-count">0/100</span> · <span data-i18n="pages.admin.dynamic.persona.description_hint">可仅填写描述；参考图片列表为空时使用原本头像。描述用于 LLM 绘图工具，并在副脑优化前补充。</span></div>
+      </div>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label data-i18n="pages.admin.dynamic.persona.images_label">参考图片列表</label>
+        <div class="images-sub-list" id="persona-modal-images-list" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 12px; min-height: 40px;">
+          <!-- 动态图片行渲染到这里 -->
+        </div>
+        <div style="margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="showPersonaModalUrlBar()" type="button" data-i18n="pages.admin.dynamic.persona.add_url">＋ 添加图片 URL</button>
+          <button class="btn btn-secondary btn-sm" onclick="triggerPersonaModalImageUpload()" type="button" data-i18n="pages.admin.dynamic.persona.upload_local">＋ 上传本地图片</button>
+          <input type="file" id="persona-modal-file-input" style="display: none;" accept="image/*" onchange="handlePersonaModalImageUpload(this)">
+        </div>
+        <div class="persona-url-input-bar" id="persona-modal-url-bar" style="display: none; margin-top: 12px; gap: 8px; align-items: center;">
+          <input type="text" class="text-input" id="persona-modal-url-input" placeholder="输入图片 URL (http:// 或 https://)..." data-i18n-placeholder="pages.admin.dynamic.persona.url_placeholder" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmPersonaModalImageUrl();}">
+          <button class="btn btn-primary btn-sm" type="button" onclick="confirmPersonaModalImageUrl()" data-i18n="pages.admin.dynamic.persona.url_confirm">添加</button>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="hidePersonaModalUrlBar()" data-i18n="pages.admin.dynamic.persona.url_cancel">取消</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closePersonaModal()" type="button" data-i18n="pages.admin.dynamic.persona.modal_cancel">取消</button>
+      <button class="btn btn-primary" onclick="savePersonaModal()" type="button" data-i18n="pages.admin.dynamic.persona.modal_confirm">完成</button>
+    </div>
+  </div>
+</div>
 
 <!-- 按顺序加载脚本 -->
 <script src="js/common.js"></script>

@@ -48,7 +48,7 @@
       "hosting": { "title": "R2/Cloudflare 图床上传设置", "enabled": "启用图床上传", "upload_url": "上传入口基础地址", "upload_url_placeholder": "例如: https://your-worker.workers.dev", "public_base_url": "公开访问基础地址", "public_base_url_placeholder": "例如: https://your-worker.workers.dev", "auth_token": "鉴权令牌 (Auth Token)", "auth_token_placeholder": "例如: your-secret-token", "path_prefix": "路径前缀 (Path Prefix)", "path_prefix_placeholder": "例如: big-banana" },
       "sub_brain": { "title": "副脑提示词优化设置", "description": "启用后，当对话大模型调用画图工具生成图片时，会将传给工具的简短描述先提交给副脑进行扩写优化，再交给画图供应商生成图片。", "enabled": "启用副脑优化", "provider": "副脑模型供应商 (LLM Provider)", "default_provider": "当前会话默认供应商", "provider_hint": "选择用于优化提示词的 LLM 提供商。留空则使用当前对话正在使用的提供商。", "system_prompt": "副脑系统提示词", "system_prompt_placeholder": "引导副脑优化提示词的系统提示词" },
       "advanced": { "aliases": { "title": "参数别名映射 (Params Alias Map)", "description": "为内置参数名映射自定义别名，让用户可以使用别名来调用对应的画图参数。", "add": "＋ 添加别名映射" } },
-      "persona_replace": { "title": "人设替换", "description": "为目标用户配置参考头像和最多 100 个字符的额外描述。有参考图片时随机选择一张替换头像；图片列表为空时使用原本头像。LLM 绘图工具引用该用户时，会按图片编号补充描述，再进行副脑优化。", "add": "＋ 添加人设替换规则" },
+      "persona_replace": { "title": "人设替换", "description": "为目标用户配置参考头像和最多 100 个字符的额外描述。有参考图片时随机选择一张替换头像；图片列表为空时使用原本头像。LLM 绘图工具引用该用户时，会按图片编号补充描述，再进行副脑优化。", "add": "＋ 添加人设", "search_placeholder": "搜索目标 ID 或描述内容...", "count": "共 {count} 个人设规则", "empty_title": "暂无人设替换规则", "empty_desc": "点击上方「＋ 添加人设」即可为用户配置参考头像或外貌描述。", "no_results": "未找到匹配的人设规则" },
       "actions": { "discard": "🔄 放弃更改", "save": "💾 保存配置", "saving": "保存中..." },
       "dynamic": {
         "prompt": {
@@ -68,6 +68,16 @@
           "target_placeholder": "例如: gather_mode"
         },
         "persona": {
+          "modal_title_add": "添加人设替换规则",
+          "modal_title_edit": "编辑人设替换规则",
+          "modal_confirm": "完成",
+          "modal_cancel": "取消",
+          "card_edit": "编辑",
+          "card_delete": "删除",
+          "delete_confirm": "确定要删除目标「{targetId}」的人设替换规则吗？",
+          "no_desc": "未配置额外描述",
+          "original_avatar": "原头像",
+          "images_count": "{count} 张参考图",
           "target_label": "目标 ID / 别名 (例如: 1234567, bot, self)",
           "target_placeholder": "输入 QQ 号或 bot / self",
           "images_label": "参考图片列表",
@@ -77,6 +87,11 @@
           "add_url": "＋ 添加图片 URL",
           "upload_local": "＋ 上传本地图片",
           "url_prompt": "请输入图片 URL:",
+          "url_placeholder": "输入图片 URL (http:// 或 https://)...",
+          "url_confirm": "添加",
+          "url_cancel": "取消",
+          "url_empty": "请输入图片 URL",
+          "url_invalid": "图片 URL 必须以 http:// 或 https:// 开头",
           "image_alt": "头像参考图"
         },
         "whitelist": {
@@ -109,6 +124,8 @@
           "substitutions_save_failed": "人设替换保存失败"
         },
         "validation": {
+          "persona_target_required": "目标 ID 不能为空",
+          "persona_target_duplicate": "已存在目标 ID「{targetId}」的人设规则",
           "persona_description_too_long": "额外描述不能超过 100 个字符",
           "non_negative_images": "最小和最大输入图片数量必须是非负整数",
           "empty_prompt": "预设「{trigger}」的提示词正文不能为空"

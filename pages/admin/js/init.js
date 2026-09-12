@@ -5,6 +5,11 @@ document.addEventListener('DOMContentLoaded', async function () {
   // 全局 Esc：关闭页面中已打开的弹窗。
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
+      var personaModal = document.getElementById('persona-modal-overlay');
+      if (personaModal && personaModal.classList.contains('show')) {
+        closePersonaModal();
+        return;
+      }
       var overlay = document.getElementById('ccConfirmModal');
       if (overlay) overlay.classList.remove('show');
     }

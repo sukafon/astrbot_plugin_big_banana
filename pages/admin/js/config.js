@@ -79,83 +79,272 @@ function addAliasItem(data) {
   applyI18n(card);
 }
 
-// 渲染一个头像替换规则配置卡片。
-function addPersonaReplaceItem(targetId, rule) {
-  targetId = targetId || '';
-  rule = rule || {};
-  // Accept legacy image-only rules as well as structured persona rules.
-  var imgList = typeof rule === 'string' ? [rule] : (Array.isArray(rule) ? rule : (rule.images || []));
-  var description = typeof rule.description === 'string' ? rule.description : '';
-  var container = document.getElementById('persona-replace-list');
-  var card = document.createElement('div');
-  card.className = 'list-item-card persona-replace-card';
-  
-  // 生成唯一 ID，用于关联隐藏的文件输入框。
-  var cardId = 'persona_card_' + Math.random().toString(36).substr(2, 9);
-  card.id = cardId;
-  
-  card.innerHTML = `
-    <button class="remove-btn" onclick="this.parentElement.remove()">&times;</button>
-    <div class="list-grid" style="grid-template-columns: 1fr;">
-      <div class="form-group">
-        <label data-i18n="pages.admin.dynamic.persona.target_label">目标 ID / 别名 (例如: 1234567, bot, self)</label>
-        <input type="text" class="text-input target-id-input" placeholder="输入 QQ 号或 bot / self" data-i18n-placeholder="pages.admin.dynamic.persona.target_placeholder">
-      </div>
-      <div class="form-group">
-        <label data-i18n="pages.admin.dynamic.persona.description_label">额外描述（最多 100 个字符）</label>
-        <textarea class="textarea-input persona-description" rows="3" placeholder="例如：身高 150cm，体型娇小可爱" data-i18n-placeholder="pages.admin.dynamic.persona.description_placeholder"></textarea>
-        <div class="hint-text"><span class="persona-description-count">0/100</span> · <span data-i18n="pages.admin.dynamic.persona.description_hint">可仅填写描述；参考图片列表为空时使用原本头像。描述用于 LLM 绘图工具，并在副脑优化前补充。</span></div>
-      </div>
-      <div class="form-group">
-        <label data-i18n="pages.admin.dynamic.persona.images_label">参考图片列表</label>
-        <div class="images-sub-list" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 12px;">
-          <!-- 已有图片会渲染到这里 -->
+// ===== 人设替换状态管理与卡片/弹窗交互 =====
+var personaRules = [];
+var personaSearchQuery = '';
+
+// 根据搜索关键词渲染人设卡片网格
+function renderPersonaCards() {
+  var container = document.getElementById('persona-card-grid');
+  if (!container) return;
+  container.innerHTML = '';
+
+  var query = (personaSearchQuery || '').toLowerCase().trim();
+  var filtered = personaRules.filter(function (rule) {
+    if (!query) return true;
+    var matchId = (rule.targetId || '').toLowerCase().indexOf(query) >= 0;
+    var matchDesc = (rule.description || '').toLowerCase().indexOf(query) >= 0;
+    return matchId || matchDesc;
+  });
+
+  // 更新计数角标
+  var countBadge = document.getElementById('persona-count-badge');
+  if (countBadge) {
+    var countText = tr('pages.admin.persona_replace.count', '共 {count} 个人设规则')
+      .replace('{count}', filtered.length);
+    countBadge.textContent = countText;
+  }
+
+  // 空状态处理
+  if (filtered.length === 0) {
+    var emptyDiv = document.createElement('div');
+    emptyDiv.className = 'persona-empty';
+    if (personaRules.length === 0) {
+      emptyDiv.innerHTML = `
+        <div class="persona-empty-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
         </div>
-        <div style="margin-top: 12px; display: flex; gap: 10px;">
-          <button class="btn btn-secondary btn-sm" onclick="promptPersonaImageUrl('${cardId}')" type="button" data-i18n="pages.admin.dynamic.persona.add_url">＋ 添加图片 URL</button>
-          <button class="btn btn-secondary btn-sm" onclick="triggerPersonaImageUpload('${cardId}')" type="button" data-i18n="pages.admin.dynamic.persona.upload_local">＋ 上传本地图片</button>
-          <input type="file" id="file_${cardId}" style="display: none;" accept="image/*" onchange="handlePersonaImageUpload(this, '${cardId}')">
+        <div class="persona-empty-title" data-i18n="pages.admin.persona_replace.empty_title">暂无人设替换规则</div>
+        <div class="persona-empty-desc" data-i18n="pages.admin.persona_replace.empty_desc">点击上方「＋ 添加人设」即可为用户配置参考头像或外貌描述。</div>
+      `;
+    } else {
+      emptyDiv.innerHTML = `
+        <div class="persona-empty-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </div>
+        <div class="persona-empty-title" data-i18n="pages.admin.persona_replace.no_results">未找到匹配的人设规则</div>
+      `;
+    }
+    container.appendChild(emptyDiv);
+    applyI18n(emptyDiv);
+    return;
+  }
+
+  // 渲染每个规则卡片
+  filtered.forEach(function (rule) {
+    var card = document.createElement('div');
+    card.className = 'persona-card';
+    card.onclick = function () {
+      openPersonaModal(rule.id);
+    };
+
+    var imgList = rule.images || [];
+    var hasImages = imgList.length > 0;
+    var firstImg = hasImages ? imgList[0] : '';
+    var isUrl = firstImg.startsWith('http://') || firstImg.startsWith('https://');
+    var displayUrl = isUrl ? firstImg : '';
+
+    var descText = (rule.description || '').trim();
+    var hasDesc = !!descText;
+
+    var avatarHtml = '';
+    if (hasImages) {
+      avatarHtml = `
+        <img src="${displayUrl}" class="persona-card-avatar" alt="头像参考图" data-i18n-alt="pages.admin.dynamic.persona.image_alt">
+        ${imgList.length > 1 ? `<span class="persona-card-img-badge">+${imgList.length}</span>` : ''}
+      `;
+    } else {
+      avatarHtml = `
+        <div class="persona-card-avatar-placeholder">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+      `;
+    }
+
+    var tagText = hasImages
+      ? tr('pages.admin.dynamic.persona.images_count', '{count} 张参考图').replace('{count}', imgList.length)
+      : tr('pages.admin.dynamic.persona.original_avatar', '原头像');
+    var tagClass = hasImages ? 'persona-tag' : 'persona-tag muted';
+
+    var descHtml = hasDesc
+      ? escapeHtml(descText)
+      : `<span class="persona-card-desc empty" data-i18n="pages.admin.dynamic.persona.no_desc">未配置额外描述</span>`;
+
+    card.innerHTML = `
+      <button class="remove-btn" onclick="event.stopPropagation(); deletePersonaRule('${rule.id}')" title="删除" data-i18n-title="pages.admin.dynamic.persona.card_delete" type="button" aria-label="删除">&times;</button>
+      <div class="persona-card-header">
+        <div class="persona-card-avatar-wrap">
+          ${avatarHtml}
+        </div>
+        <div class="persona-card-info">
+          <div class="persona-card-target">${escapeHtml(rule.targetId)}</div>
+          <div class="persona-card-tags">
+            <span class="${tagClass}">${tagText}</span>
+          </div>
         </div>
       </div>
-    </div>
-  `;
-  container.appendChild(card);
-  applyI18n(card);
-  card.querySelector('.target-id-input').value = targetId;
-  var descriptionInput = card.querySelector('.persona-description');
-  descriptionInput.value = description;
-  descriptionInput.oninput = function () {
-    var count = Array.from(descriptionInput.value.trim()).length;
-    card.querySelector('.persona-description-count').textContent = count + '/100';
-    descriptionInput.setCustomValidity(count > 100 ? tr('pages.admin.dynamic.validation.persona_description_too_long', '额外描述不能超过 100 个字符') : '');
-  };
-  descriptionInput.oninput();
-  
-  // 回填已有图片。
-  imgList.forEach(function(url) {
-    addPersonaImageRow(cardId, url);
+      <div class="persona-card-desc ${hasDesc ? '' : 'empty'}">
+        ${descHtml}
+      </div>
+    `;
+
+    container.appendChild(card);
+    applyI18n(card);
+
+    // 如果第一张图是本地文件且尚无预览，通过 SDK 异步获取
+    if (hasImages && !isUrl) {
+      var SDK = window.AstrBotPluginPage;
+      if (SDK) {
+        (function (cardEl, filename) {
+          SDK.apiGet('image', { filename: filename })
+            .then(function (res) {
+              var data = parseResponse(res);
+              if (data && data.base64) {
+                var img = cardEl.querySelector('.persona-card-avatar');
+                if (img) img.src = data.base64;
+              }
+            })
+            .catch(function (err) {
+              console.error('加载本地头像缩略图失败:', err);
+            });
+        })(card, firstImg);
+      }
+    }
   });
 }
 
-// 通过输入框添加头像参考图 URL。
-function promptPersonaImageUrl(cardId) {
-  var url = prompt(tr('pages.admin.dynamic.persona.url_prompt', '请输入图片 URL:'));
-  if (url && url.trim()) {
-    addPersonaImageRow(cardId, url.trim());
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function handlePersonaSearch(val) {
+  personaSearchQuery = val;
+  renderPersonaCards();
+}
+
+// 打开弹窗进行人设编辑或新建
+function openPersonaModal(ruleId) {
+  var overlay = document.getElementById('persona-modal-overlay');
+  var ruleIdInput = document.getElementById('persona-modal-rule-id');
+  var titleEl = document.getElementById('persona-modal-title');
+  var targetIdInput = document.getElementById('persona-modal-target-id');
+  var descInput = document.getElementById('persona-modal-description');
+  var imagesList = document.getElementById('persona-modal-images-list');
+
+  ruleIdInput.value = ruleId || '';
+  imagesList.innerHTML = '';
+
+  if (ruleId) {
+    var rule = personaRules.find(function (r) { return r.id === ruleId; });
+    if (rule) {
+      titleEl.textContent = tr('pages.admin.dynamic.persona.modal_title_edit', '编辑人设替换规则');
+      targetIdInput.value = rule.targetId || '';
+      descInput.value = rule.description || '';
+      (rule.images || []).forEach(function (url) {
+        addPersonaModalImageRow(url);
+      });
+    }
+  } else {
+    titleEl.textContent = tr('pages.admin.dynamic.persona.modal_title_add', '添加人设替换规则');
+    targetIdInput.value = '';
+    descInput.value = '';
+  }
+
+  handlePersonaDescriptionInput();
+  hidePersonaModalUrlBar();
+  overlay.classList.add('show');
+  setTimeout(function () {
+    targetIdInput.focus();
+  }, 100);
+}
+
+function closePersonaModal() {
+  var overlay = document.getElementById('persona-modal-overlay');
+  if (overlay) overlay.classList.remove('show');
+  var fileInput = document.getElementById('persona-modal-file-input');
+  if (fileInput) fileInput.value = '';
+  hidePersonaModalUrlBar();
+}
+
+function handlePersonaModalOverlayClick(e) {
+  if (e.target.id === 'persona-modal-overlay') {
+    closePersonaModal();
   }
 }
 
-// 在头像替换规则中添加图片预览行。
-function addPersonaImageRow(cardId, url, overrideDisplayUrl) {
+function handlePersonaDescriptionInput() {
+  var descInput = document.getElementById('persona-modal-description');
+  var countEl = document.getElementById('persona-modal-count');
+  if (!descInput || !countEl) return;
+  var count = Array.from(descInput.value.trim()).length;
+  countEl.textContent = count + '/100';
+  descInput.setCustomValidity(
+    count > 100 ? tr('pages.admin.dynamic.validation.persona_description_too_long', '额外描述不能超过 100 个字符') : ''
+  );
+}
+
+function showPersonaModalUrlBar() {
+  var bar = document.getElementById('persona-modal-url-bar');
+  var input = document.getElementById('persona-modal-url-input');
+  if (!bar || !input) return;
+  bar.style.display = 'flex';
+  input.value = '';
+  input.focus();
+}
+
+function hidePersonaModalUrlBar() {
+  var bar = document.getElementById('persona-modal-url-bar');
+  var input = document.getElementById('persona-modal-url-input');
+  if (bar) bar.style.display = 'none';
+  if (input) input.value = '';
+}
+
+function confirmPersonaModalImageUrl() {
+  var input = document.getElementById('persona-modal-url-input');
+  if (!input) return;
+  var url = input.value.trim();
+  if (!url) {
+    showToast(tr('pages.admin.dynamic.persona.url_empty', '请输入图片 URL'));
+    input.focus();
+    return;
+  }
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    showToast(tr('pages.admin.dynamic.persona.url_invalid', '图片 URL 必须以 http:// 或 https:// 开头'));
+    input.focus();
+    return;
+  }
+  addPersonaModalImageRow(url);
+  hidePersonaModalUrlBar();
+}
+
+function promptPersonaModalImageUrl() {
+  showPersonaModalUrlBar();
+}
+
+function addPersonaModalImageRow(url, overrideDisplayUrl) {
   if (!url) return;
-  var card = document.getElementById(cardId);
-  if (!card) return;
-  var list = card.querySelector('.images-sub-list');
-  
-  var rowId = 'img_row_' + Math.random().toString(36).substr(2, 9);
+  var list = document.getElementById('persona-modal-images-list');
+  if (!list) return;
+
   var row = document.createElement('div');
   row.className = 'image-row';
-  row.id = rowId;
   row.style.position = 'relative';
   row.style.display = 'inline-block';
   row.style.width = '80px';
@@ -165,10 +354,10 @@ function addPersonaImageRow(cardId, url, overrideDisplayUrl) {
   row.style.border = '1px solid var(--input-border)';
   row.style.background = 'var(--input-bg)';
   row.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
-  
+
   var isUrl = url.startsWith('http://') || url.startsWith('https://');
   var displayUrl = overrideDisplayUrl || (isUrl ? url : '');
-  
+
   row.innerHTML = `
     <img src="${displayUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="头像参考图" data-i18n-alt="pages.admin.dynamic.persona.image_alt" class="avatar-preview">
     <input type="hidden" class="image-url-input" value="${url}">
@@ -177,7 +366,6 @@ function addPersonaImageRow(cardId, url, overrideDisplayUrl) {
   list.appendChild(row);
   applyI18n(row);
 
-  // 本地文件没有预览地址时，通过 API 异步读取。
   if (!isUrl && !overrideDisplayUrl) {
     var SDK = window.AstrBotPluginPage;
     if (SDK) {
@@ -196,14 +384,12 @@ function addPersonaImageRow(cardId, url, overrideDisplayUrl) {
   }
 }
 
-// 触发隐藏文件选择框以上传本地图片。
-function triggerPersonaImageUpload(cardId) {
-  var fileInput = document.getElementById('file_' + cardId);
+function triggerPersonaModalImageUpload() {
+  var fileInput = document.getElementById('persona-modal-file-input');
   if (fileInput) fileInput.click();
 }
 
-// 读取并上传本地头像参考图。
-function handlePersonaImageUpload(fileInput, cardId) {
+function handlePersonaModalImageUpload(fileInput) {
   var file = fileInput.files[0];
   if (!file) return;
 
@@ -225,7 +411,7 @@ function handlePersonaImageUpload(fileInput, cardId) {
       .then(function (res) {
         var data = parseResponse(res);
         if (data && data.filename) {
-          addPersonaImageRow(cardId, data.filename, base64Data);
+          addPersonaModalImageRow(data.filename, base64Data);
           showToast(tr('pages.admin.dynamic.toast.upload_success', '图片上传成功'));
         } else {
           throw new Error(res.message || tr('pages.admin.dynamic.errors.unknown', '未知错误'));
@@ -239,9 +425,87 @@ function handlePersonaImageUpload(fileInput, cardId) {
     showToast(tr('pages.admin.dynamic.toast.read_failed', '读取图片文件失败'));
   };
   reader.readAsDataURL(file);
-
-  // 清空文件输入框。
   fileInput.value = '';
+}
+
+function savePersonaModal() {
+  var ruleId = document.getElementById('persona-modal-rule-id').value;
+  var targetId = document.getElementById('persona-modal-target-id').value.trim();
+  var description = document.getElementById('persona-modal-description').value.trim();
+
+  if (!targetId) {
+    showToast(tr('pages.admin.dynamic.validation.persona_target_required', '目标 ID 不能为空'));
+    document.getElementById('persona-modal-target-id').focus();
+    return;
+  }
+
+  if (Array.from(description).length > 100) {
+    showToast(tr('pages.admin.dynamic.validation.persona_description_too_long', '额外描述不能超过 100 个字符'));
+    document.getElementById('persona-modal-description').focus();
+    return;
+  }
+
+  // 检查是否与其他规则的目标 ID 冲突
+  var duplicate = personaRules.some(function (r) {
+    return r.targetId === targetId && r.id !== ruleId;
+  });
+  if (duplicate) {
+    var msg = tr('pages.admin.dynamic.validation.persona_target_duplicate', '已存在目标 ID「{targetId}」的人设规则')
+      .replace('{targetId}', targetId);
+    showToast(msg);
+    return;
+  }
+
+  var imgUrls = [];
+  document.querySelectorAll('#persona-modal-images-list .image-url-input').forEach(function (input) {
+    var val = input.value.trim();
+    if (val) imgUrls.push(val);
+  });
+
+  if (ruleId) {
+    var idx = personaRules.findIndex(function (r) { return r.id === ruleId; });
+    if (idx >= 0) {
+      personaRules[idx].targetId = targetId;
+      personaRules[idx].description = description;
+      personaRules[idx].images = imgUrls;
+    }
+  } else {
+    personaRules.unshift({
+      id: 'persona_' + Math.random().toString(36).substr(2, 9),
+      targetId: targetId,
+      description: description,
+      images: imgUrls
+    });
+  }
+
+  renderPersonaCards();
+  closePersonaModal();
+}
+
+function deletePersonaRule(ruleId) {
+  var rule = personaRules.find(function (r) { return r.id === ruleId; });
+  if (!rule) return;
+  var confirmMsg = tr('pages.admin.dynamic.persona.delete_confirm', '确定要删除目标「{targetId}」的人设替换规则吗？')
+    .replace('{targetId}', rule.targetId);
+  if (confirm(confirmMsg)) {
+    personaRules = personaRules.filter(function (r) { return r.id !== ruleId; });
+    renderPersonaCards();
+  }
+}
+
+// 保持兼容性的添加方法
+function addPersonaReplaceItem(targetId, rule) {
+  targetId = targetId || '';
+  rule = rule || {};
+  var imgList = typeof rule === 'string' ? [rule] : (Array.isArray(rule) ? rule : (rule.images || []));
+  var description = typeof rule.description === 'string' ? rule.description : '';
+  personaRules.push({
+    id: 'persona_' + Math.random().toString(36).substr(2, 9),
+    targetId: targetId,
+    description: description,
+    images: imgList.slice()
+  });
+  renderPersonaCards();
 }
 
 // 渲染用户或群组白名单配置项。
@@ -446,14 +710,22 @@ function loadData() {
       addPrefixItem(val);
     });
 
-    // 渲染头像替换列表。
-    var personaReplaceList = document.getElementById('persona-replace-list');
-    personaReplaceList.innerHTML = '';
+    // 渲染人设替换卡片网格。
+    personaRules = [];
     for (var targetId in substitutions) {
       if (substitutions.hasOwnProperty(targetId)) {
-        addPersonaReplaceItem(targetId, substitutions[targetId]);
+        var rule = substitutions[targetId];
+        var imgList = typeof rule === 'string' ? [rule] : (Array.isArray(rule) ? rule : (rule.images || []));
+        var description = typeof rule.description === 'string' ? rule.description : '';
+        personaRules.push({
+          id: 'persona_' + Math.random().toString(36).substr(2, 9),
+          targetId: targetId,
+          description: description,
+          images: imgList.slice()
+        });
       }
     }
+    renderPersonaCards();
 
     // 初始化所有自定义滑块显示。
     initSliders();
@@ -637,20 +909,18 @@ function saveAll() {
   });
   updatedConfig.params_alias_map = aliasList;
 
-  // 从人设替换卡片构造映射。
+  // 从人设替换规则数组构造映射。
   var substitutionsMap = {};
   var invalidDescription = false;
-  document.querySelectorAll('#persona-replace-list .persona-replace-card').forEach(function (card) {
-    var targetId = card.querySelector('.target-id-input').value.trim();
+  personaRules.forEach(function (rule) {
+    var targetId = (rule.targetId || '').trim();
     if (!targetId) return;
-    var imgUrls = [];
-    card.querySelectorAll('.image-url-input').forEach(function (input) {
-      var val = input.value.trim();
-      if (val) imgUrls.push(val);
-    });
-    var description = card.querySelector('.persona-description').value.trim();
+    var description = (rule.description || '').trim();
     if (Array.from(description).length > 100) invalidDescription = true;
-    substitutionsMap[targetId] = { images: imgUrls, description: description };
+    substitutionsMap[targetId] = {
+      images: rule.images || [],
+      description: description
+    };
   });
   if (invalidDescription) {
     showToast(tr('pages.admin.dynamic.validation.persona_description_too_long', '额外描述不能超过 100 个字符'));
