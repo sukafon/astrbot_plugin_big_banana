@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from core.llm_tools.image_generation import BigBananaImageGenerationTool
 from core.schemas import GenerationResult, ImageResource
 
@@ -58,8 +59,7 @@ def test_llm_image_truncation_preserves_none_url_placeholders() -> None:
     )
     result = GenerationResult(
         images=[
-            ImageResource("image/png", f"image-{index}".encode())
-            for index in range(3)
+            ImageResource("image/png", f"image-{index}".encode()) for index in range(3)
         ],
         urls=[None, "https://example.com/2.png", None],
     )
@@ -80,16 +80,13 @@ def test_model_result_keeps_url_image_index_with_none_placeholder() -> None:
     )
 
     tool_result = BigBananaImageGenerationTool._build_model_tool_result(result)
-    text_parts = [
-        item.text for item in tool_result.content if hasattr(item, "text")
-    ]
+    text_parts = [item.text for item in tool_result.content if hasattr(item, "text")]
 
-    assert any(
-        "image 2: https://example.com/second.png" in text for text in text_parts
-    )
+    assert any("image 2: https://example.com/second.png" in text for text in text_parts)
 
 
-def test_llm_image_tool_does_not_append_command_avatar_note() -> None:
+@pytest.mark.parametrize("notes", [[], ["- image2：娇小可爱"]])
+def test_llm_image_tool_appends_only_collected_persona_notes(notes) -> None:
     pipeline_run = AsyncMock(return_value=GenerationResult())
     plugin = SimpleNamespace(
         sub_brain_config=SimpleNamespace(tool_enabled=False),
@@ -101,7 +98,7 @@ def test_llm_image_tool_does_not_append_command_avatar_note() -> None:
     with patch.object(
         BigBananaImageGenerationTool,
         "_collect_images",
-        new=AsyncMock(return_value=([], ["- @123: avatar is image 1"], None)),
+        new=AsyncMock(return_value=([], notes, None)),
     ):
         asyncio.run(
             BigBananaImageGenerationTool()._generate_result(
@@ -110,7 +107,45 @@ def test_llm_image_tool_does_not_append_command_avatar_note() -> None:
         )
 
     pipeline_run.assert_awaited_once()
-    assert params["prompt"] == "portrait"
+    assert params["prompt"] == (
+        "portrait\n\nAdditional supplement：\n\n- image2：娇小可爱"
+        if notes
+        else "portrait"
+    )
+
+
+@pytest.mark.parametrize("optimized_prompt", ["optimized portrait", None])
+@pytest.mark.parametrize("tool_enabled", [True, False])
+def test_persona_supplement_is_added_before_sub_brain_and_preserved_on_failure(
+    optimized_prompt, tool_enabled
+) -> None:
+    pipeline_run = AsyncMock(return_value=GenerationResult())
+    optimize = AsyncMock(return_value=optimized_prompt)
+    plugin = SimpleNamespace(
+        sub_brain_config=SimpleNamespace(tool_enabled=tool_enabled),
+        sub_brain_optimizer=SimpleNamespace(optimize_prompt=optimize),
+        drawing_pipeline=SimpleNamespace(run=pipeline_run),
+        llm_tools_config=SimpleNamespace(llm_tool_truncate_images=False),
+    )
+    params = {"prompt": "portrait", "sub_brain": True}
+    event = SimpleNamespace()
+    image = ImageResource("image/png", b"reference")
+    supplemented = "portrait\n\nAdditional supplement：\n\n- image1：娇小可爱"
+    with patch.object(
+        BigBananaImageGenerationTool,
+        "_collect_images",
+        new=AsyncMock(return_value=([image], ["- image1：娇小可爱"], None)),
+    ):
+        result = asyncio.run(
+            BigBananaImageGenerationTool()._generate_result(
+                plugin, event, params, ["@123"]
+            )
+        )
+
+    assert not result.error_message
+    optimize.assert_awaited_once_with(event, supplemented)
+    assert params["prompt"] == (optimized_prompt or supplemented)
+    pipeline_run.assert_awaited_once_with(params, image_list=[image])
 
 
 def test_callback_receives_image_chain_even_when_direct_send_is_true() -> None:
@@ -173,7 +208,9 @@ def test_background_callback_receives_error_chain_without_image_components() -> 
         error_message="image generation failed",
     )
 
-    with patch.object(tool, "_generate_result", new=AsyncMock(return_value=error_result)):
+    with patch.object(
+        tool, "_generate_result", new=AsyncMock(return_value=error_result)
+    ):
         res = asyncio.run(
             tool._generate_and_send_result(
                 plugin=plugin,
@@ -199,5 +236,3 @@ def test_background_callback_receives_error_chain_without_image_components() -> 
         for comp in passed_result_chain.chain
     )
     assert not any(isinstance(comp, Comp.Image) for comp in passed_result_chain.chain)
-
-

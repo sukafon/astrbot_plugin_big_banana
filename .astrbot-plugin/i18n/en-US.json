@@ -849,7 +849,7 @@
       "hosting": { "title": "R2 / Cloudflare Image Hosting", "enabled": "Enable Image Uploads", "upload_url": "Upload Base URL", "upload_url_placeholder": "Example: https://your-worker.workers.dev", "public_base_url": "Public Base URL", "public_base_url_placeholder": "Example: https://your-worker.workers.dev", "auth_token": "Authentication Token (Auth Token)", "auth_token_placeholder": "Example: your-secret-token", "path_prefix": "Path Prefix", "path_prefix_placeholder": "Example: big-banana" },
       "sub_brain": { "title": "Prompt Optimization Assistant", "description": "When enabled, short descriptions passed by the conversation model to the image generation tool are expanded and refined by a secondary LLM before being sent to the image provider.", "enabled": "Enable Prompt Optimization", "provider": "Prompt Optimization Model Provider (LLM Provider)", "default_provider": "Current Conversation's Default Provider", "provider_hint": "Select the LLM provider used to optimize prompts. Leave empty to use the provider from the current conversation.", "system_prompt": "Prompt Optimization System Prompt", "system_prompt_placeholder": "System prompt that guides prompt optimization" },
       "advanced": { "aliases": { "title": "Parameter Alias Mapping (Params Alias Map)", "description": "Map custom aliases to built-in parameter names so users can invoke image generation parameters by their aliases.", "add": "＋ Add Alias Mapping" } },
-      "persona_replace": { "title": "Persona Avatar Replacement", "description": "Map a target ID (such as a bot or user QQ ID, or the aliases \"bot\" and \"self\") to a list of reference avatars. When triggered, the system randomly selects one image. Image URLs and local uploads are supported.", "add": "＋ Add Persona Replacement Rule" },
+      "persona_replace": { "title": "Persona Replacement", "description": "Configure reference avatars and an optional description of up to 100 characters for each user ID. A random reference image replaces the avatar when available; an empty image list keeps the original avatar. The LLM image tool appends the description with its image number before sub-brain optimization.", "add": "＋ Add Persona Replacement Rule" },
       "actions": { "discard": "🔄 Discard Changes", "save": "💾 Save Configuration", "saving": "Saving..." },
       "dynamic": {
         "prompt": {
@@ -872,6 +872,9 @@
           "target_label": "Target ID / Alias (e.g. 1234567, bot, self)",
           "target_placeholder": "Enter a QQ ID or bot / self",
           "images_label": "Reference Images",
+          "description_label": "Additional description (up to 100 characters)",
+          "description_placeholder": "Example: 150 cm tall, petite and cute",
+          "description_hint": "Descriptions can be used alone; an empty image list keeps the original avatar. The LLM image tool adds descriptions before sub-brain optimization.",
           "add_url": "＋ Add Image URL",
           "upload_local": "＋ Upload Local Image",
           "url_prompt": "Enter an image URL:",
@@ -907,6 +910,7 @@
           "substitutions_save_failed": "Failed to save persona replacement settings"
         },
         "validation": {
+          "persona_description_too_long": "Additional descriptions cannot exceed 100 characters",
           "non_negative_images": "Minimum and maximum input image counts must be non-negative integers",
           "empty_prompt": "The prompt body for preset “{trigger}” cannot be empty"
         }

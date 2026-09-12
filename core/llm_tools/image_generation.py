@@ -144,13 +144,10 @@ class BigBananaImageGenerationTool(BaseMediaGenerationTool):
                 "image_references 不接受 base64:// 或 Data URL。"
                 "请使用聊天记录中已有的 AstrBot 缓存路径或图片 URL。"
             )
-        if (
-            not plugin.llm_tools_config.llm_tool_allow_custom_url
-            and any(
-                isinstance(reference, str)
-                and reference.strip().lower().startswith(("http://", "https://"))
-                for reference in image_references
-            )
+        if not plugin.llm_tools_config.llm_tool_allow_custom_url and any(
+            isinstance(reference, str)
+            and reference.strip().lower().startswith(("http://", "https://"))
+            for reference in image_references
         ):
             logger.warning("[BIG BANANA] 绘图工具拒绝接收自定义网络图片 URL")
             return (
@@ -268,13 +265,17 @@ class BigBananaImageGenerationTool(BaseMediaGenerationTool):
         try:
             (
                 collected_images,
-                _,
+                supplement_infos,
                 collect_err,
             ) = await self._collect_images(plugin, event, params, image_references)
             if collect_err:
                 return GenerationResult(error_message=collect_err)
 
             prompt = params.get("prompt", "")
+            if supplement_infos:
+                supplement = "Additional supplement：\n\n" + "\n".join(supplement_infos)
+                prompt = f"{prompt}\n\n{supplement}" if prompt else supplement
+                params["prompt"] = prompt
             if prompt and params.get("sub_brain", plugin.sub_brain_config.tool_enabled):
                 optimized_prompt = await plugin.sub_brain_optimizer.optimize_prompt(
                     event, prompt

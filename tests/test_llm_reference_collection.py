@@ -86,15 +86,14 @@ def test_explicit_mixed_references_keep_the_original_order(tmp_path: Path) -> No
 
 def test_qq_official_avatar_uses_appid_and_openid(tmp_path: Path) -> None:
     event = build_event("qq_official")
-    event.bot = SimpleNamespace(
-        platform=SimpleNamespace(appid="123456")
-    )
+    event.bot = SimpleNamespace(platform=SimpleNamespace(appid="123456"))
     plugin = build_plugin(tmp_path)
     collector = ImageCollector(plugin=plugin, event=event, params={})
 
-    assert asyncio.run(
-        collector._get_avatar_url("OPENID123", event)
-    ) == "https://q.qlogo.cn/qqapp/123456/OPENID123/0"
+    assert (
+        asyncio.run(collector._get_avatar_url("OPENID123", event))
+        == "https://q.qlogo.cn/qqapp/123456/OPENID123/0"
+    )
 
 
 def test_process_and_add_image_returns_status_and_error(
@@ -253,14 +252,10 @@ def test_add_msg_images_extracts_qq_official_mentions_from_plain_text(
 
     expected_urls = [
         asyncio.run(
-            collector._get_avatar_url(
-                "B04BC973DCA06850A8CEC05FB08A3F50", event
-            )
+            collector._get_avatar_url("B04BC973DCA06850A8CEC05FB08A3F50", event)
         ),
         asyncio.run(
-            collector._get_avatar_url(
-                "65A887A4AF1BE5639DC11C46B052276A", event
-            )
+            collector._get_avatar_url("65A887A4AF1BE5639DC11C46B052276A", event)
         ),
     ]
     assert [image.url for image in collector.images] == expected_urls
@@ -349,7 +344,7 @@ def test_duplicate_reference_is_not_added_or_reported_as_failure(
     asyncio.run(collector.add_explicit_references([avatar_url, "@123"]))
 
     assert len(collector.images) == 1
-    assert collector.avatar_mappings == {}
+    assert collector.avatar_mappings == {"123": 1}
     assert collector.reference_failures == []
     assert plugin.downloader.fetch_image.await_count == 1
 
@@ -407,6 +402,90 @@ def test_llm_collection_does_not_build_avatar_numbering_notes(tmp_path: Path) ->
     assert error is None
     assert len(images) == 1
     assert supplement_infos == []
+
+
+def test_persona_notes_follow_final_image_order_and_keep_original_avatar(
+    tmp_path: Path,
+) -> None:
+    plugin = build_plugin(
+        tmp_path,
+        refer_images="fixed.png",
+        fetched_results=[ImageResource("image/png", str(i).encode()) for i in range(4)],
+    )
+    plugin.avatar_map = {
+        "123": {"images": [], "description": "娇小可爱，150cm"},
+        "456": {"images": ["tall.png"], "description": "高大，190cm"},
+    }
+
+    images, notes, error = asyncio.run(
+        BigBananaImageGenerationTool()._collect_images(
+            plugin, build_event(), {}, ["scene.png", "@123", "456", "@123"]
+        )
+    )
+
+    assert error is None
+    assert [image.url for image in images] == [
+        (plugin.refer_images_dir / "fixed.png").resolve(),
+        "scene.png",
+        ImageCollector.qq_avatar_url("123"),
+        "tall.png",
+    ]
+    assert notes == ["- image3：娇小可爱，150cm", "- image4：高大，190cm"]
+    assert plugin.downloader.fetch_image.await_count == 4
+
+
+def test_persona_note_reuses_the_index_of_an_already_loaded_image(
+    tmp_path: Path,
+) -> None:
+    plugin = build_plugin(
+        tmp_path,
+        fetched_results=[ImageResource("image/png", b"same")],
+    )
+    plugin.avatar_map = {"123": {"images": ["same.png"], "description": "娇小"}}
+
+    images, notes, error = asyncio.run(
+        BigBananaImageGenerationTool()._collect_images(
+            plugin, build_event(), {"max_images": 1}, ["same.png", "@123", "123"]
+        )
+    )
+
+    assert error is None
+    assert len(images) == 1
+    assert notes == ["- image1：娇小"]
+    assert plugin.downloader.fetch_image.await_count == 1
+
+
+def test_failed_persona_reference_has_no_supplement(tmp_path: Path) -> None:
+    plugin = build_plugin(tmp_path)
+    plugin.avatar_map = {"123": {"images": [], "description": "娇小"}}
+
+    images, notes, error = asyncio.run(
+        BigBananaImageGenerationTool()._collect_images(
+            plugin, build_event(), {}, ["@123"]
+        )
+    )
+
+    assert images == []
+    assert notes == []
+    assert "@123" in error
+
+
+def test_explicit_image_url_does_not_trigger_a_persona_description(
+    tmp_path: Path,
+) -> None:
+    plugin = build_plugin(
+        tmp_path, fetched_results=[ImageResource("image/png", b"image")]
+    )
+    plugin.avatar_map = {"123": {"images": [], "description": "娇小"}}
+
+    _, notes, error = asyncio.run(
+        BigBananaImageGenerationTool()._collect_images(
+            plugin, build_event(), {}, [ImageCollector.qq_avatar_url("123")]
+        )
+    )
+
+    assert error is None
+    assert notes == []
 
 
 def test_llm_collection_identifies_the_failed_mixed_reference(
@@ -492,6 +571,3 @@ def test_llm_tool_custom_url_restriction(tmp_path: Path) -> None:
     )
 
     assert "当前工具设置已禁用自定义网络图片 URL" in result
-
-
-

@@ -246,8 +246,18 @@ class ImageCollector:
                 added, error = await self._process_and_add_image(avatar_url)
                 if error:
                     self._record_reference_failure(ref, error)
-                elif added:
-                    self._record_avatar_image(user_id, len(self.images))
+                else:
+                    # Reused URLs still need notes tied to their existing image index.
+                    image_index = (
+                        len(self.images)
+                        if added
+                        else next(
+                            index
+                            for index, image in enumerate(self.images, start=1)
+                            if image.url == avatar_url
+                        )
+                    )
+                    self._record_avatar_image(user_id, image_index)
                 continue
 
             image_ref: str | Path = ref
@@ -281,7 +291,7 @@ class ImageCollector:
             A downloadable avatar URL, or None when it cannot be resolved.
         """
         # 处理头像映射，能匹配到直接取结果，管它什么平台
-        avatar_imgs = self.plugin.avatar_map.get(user_id)
+        avatar_imgs = self.plugin.avatar_map.get(user_id, {}).get("images", [])
         if avatar_imgs:
             return random.choice(avatar_imgs)
 
@@ -448,6 +458,11 @@ class ImageCollector:
         if nickname:
             self.avatar_nicknames[user_id] = nickname
         if self.is_llm_tool:
+            description = self.plugin.avatar_map.get(user_id, {}).get("description", "")
+            if description:
+                self.image_supplement_infos.append(
+                    f"- image{image_index}：{description}"
+                )
             return
         self._refresh_avatar_supplement_infos()
 

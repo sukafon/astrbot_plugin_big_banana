@@ -80,9 +80,12 @@ function addAliasItem(data) {
 }
 
 // 渲染一个头像替换规则配置卡片。
-function addPersonaReplaceItem(targetId, imgList) {
+function addPersonaReplaceItem(targetId, rule) {
   targetId = targetId || '';
-  imgList = imgList || [];
+  rule = rule || {};
+  // Accept legacy image-only rules as well as structured persona rules.
+  var imgList = typeof rule === 'string' ? [rule] : (Array.isArray(rule) ? rule : (rule.images || []));
+  var description = typeof rule.description === 'string' ? rule.description : '';
   var container = document.getElementById('persona-replace-list');
   var card = document.createElement('div');
   card.className = 'list-item-card persona-replace-card';
@@ -96,7 +99,12 @@ function addPersonaReplaceItem(targetId, imgList) {
     <div class="list-grid" style="grid-template-columns: 1fr;">
       <div class="form-group">
         <label data-i18n="pages.admin.dynamic.persona.target_label">目标 ID / 别名 (例如: 1234567, bot, self)</label>
-        <input type="text" class="text-input target-id-input" value="${targetId}" placeholder="输入 QQ 号或 bot / self" data-i18n-placeholder="pages.admin.dynamic.persona.target_placeholder">
+        <input type="text" class="text-input target-id-input" placeholder="输入 QQ 号或 bot / self" data-i18n-placeholder="pages.admin.dynamic.persona.target_placeholder">
+      </div>
+      <div class="form-group">
+        <label data-i18n="pages.admin.dynamic.persona.description_label">额外描述（最多 100 个字符）</label>
+        <textarea class="textarea-input persona-description" rows="3" placeholder="例如：身高 150cm，体型娇小可爱" data-i18n-placeholder="pages.admin.dynamic.persona.description_placeholder"></textarea>
+        <div class="hint-text"><span class="persona-description-count">0/100</span> · <span data-i18n="pages.admin.dynamic.persona.description_hint">可仅填写描述；参考图片列表为空时使用原本头像。描述用于 LLM 绘图工具，并在副脑优化前补充。</span></div>
       </div>
       <div class="form-group">
         <label data-i18n="pages.admin.dynamic.persona.images_label">参考图片列表</label>
@@ -113,6 +121,15 @@ function addPersonaReplaceItem(targetId, imgList) {
   `;
   container.appendChild(card);
   applyI18n(card);
+  card.querySelector('.target-id-input').value = targetId;
+  var descriptionInput = card.querySelector('.persona-description');
+  descriptionInput.value = description;
+  descriptionInput.oninput = function () {
+    var count = Array.from(descriptionInput.value.trim()).length;
+    card.querySelector('.persona-description-count').textContent = count + '/100';
+    descriptionInput.setCustomValidity(count > 100 ? tr('pages.admin.dynamic.validation.persona_description_too_long', '额外描述不能超过 100 个字符') : '');
+  };
+  descriptionInput.oninput();
   
   // 回填已有图片。
   imgList.forEach(function(url) {
@@ -622,6 +639,7 @@ function saveAll() {
 
   // 从人设替换卡片构造映射。
   var substitutionsMap = {};
+  var invalidDescription = false;
   document.querySelectorAll('#persona-replace-list .persona-replace-card').forEach(function (card) {
     var targetId = card.querySelector('.target-id-input').value.trim();
     if (!targetId) return;
@@ -630,8 +648,16 @@ function saveAll() {
       var val = input.value.trim();
       if (val) imgUrls.push(val);
     });
-    substitutionsMap[targetId] = imgUrls;
+    var description = card.querySelector('.persona-description').value.trim();
+    if (Array.from(description).length > 100) invalidDescription = true;
+    substitutionsMap[targetId] = { images: imgUrls, description: description };
   });
+  if (invalidDescription) {
+    showToast(tr('pages.admin.dynamic.validation.persona_description_too_long', '额外描述不能超过 100 个字符'));
+    btnSave.disabled = false;
+    btnSave.textContent = tr('pages.admin.actions.save', '💾 保存配置');
+    return;
+  }
 
   // 通过后端接口保存。
   Promise.all([

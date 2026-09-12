@@ -1,5 +1,4 @@
 import base64
-import json
 import mimetypes
 import os
 import uuid
@@ -245,19 +244,9 @@ class BigBananaWebApi:
             return jsonify({"status": "error", "message": str(e), "data": []})
 
     async def api_substitutions_get(self):
-        """读取头像替换映射配置并返回给前端。"""
+        """Return the active, normalized persona substitutions."""
         try:
-            substitutions = {}
-            path = self.plugin.refer_images_dir.parent / "avatar_substitutions.json"
-            if os.path.exists(path):
-                try:
-                    with open(path, encoding="utf-8") as f:
-                        substitutions = json.load(f)
-                except Exception:
-                    self.logger.warning(
-                        "解析 avatar_substitutions.json 失败，已按空映射处理。"
-                    )
-            return jsonify({"status": "ok", "data": substitutions})
+            return jsonify({"status": "ok", "data": self.plugin.avatar_map})
         except Exception as e:
             self.logger.exception(f"获取头像替换配置失败: {e}")
             return jsonify({"status": "error", "message": str(e)})
@@ -269,27 +258,7 @@ class BigBananaWebApi:
             if not isinstance(body, dict):
                 return jsonify({"status": "error", "message": "请求体必须是 JSON 对象"})
 
-            path = self.plugin.refer_images_dir.parent / "avatar_substitutions.json"
-
-            # 保存映射到文件。
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(body, f, indent=4, ensure_ascii=False)
-
-            avatar_map = {}
-            for key, value in body.items():
-                if isinstance(value, str):
-                    references = [value.strip()] if value.strip() else []
-                elif isinstance(value, list):
-                    references = [
-                        item.strip()
-                        for item in value
-                        if isinstance(item, str) and item.strip()
-                    ]
-                else:
-                    references = []
-                if references:
-                    avatar_map[str(key)] = references
-            self.plugin.avatar_map = avatar_map
+            self.plugin.update_avatar_substitutions(body)
             return jsonify({"status": "ok"})
         except Exception as e:
             self.logger.exception(f"保存头像替换配置失败: {e}")

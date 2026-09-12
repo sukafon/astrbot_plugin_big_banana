@@ -454,9 +454,9 @@
   <!-- 8. 人设替换面板 -->
   <div class="tab-panel" id="tab-persona_replace">
     <div class="config-card">
-      <h2 class="section-title" data-i18n="pages.admin.persona_replace.title">人设头像替换</h2>
+      <h2 class="section-title" data-i18n="pages.admin.persona_replace.title">人设替换</h2>
       <div class="hint-text" style="margin-bottom: 16px;" data-i18n="pages.admin.persona_replace.description">
-        配置目标 ID (如机器人 QQ 号、用户 QQ 号，或别名 "bot"、"self") 与对应的参考头像图片列表。当触发时，系统会随机从中选择一张头像。支持输入图片 URL，或直接上传本地图片。
+        为目标用户配置参考头像和最多 100 个字符的额外描述。有参考图片时随机选择一张替换头像；图片列表为空时使用原本头像。LLM 绘图工具引用该用户时，会按图片编号补充描述，再进行副脑优化。
       </div>
       <div class="list-container" id="persona-replace-list"></div>
       <button class="add-btn" onclick="addPersonaReplaceItem()" data-i18n="pages.admin.persona_replace.add">＋ 添加人设替换规则</button>

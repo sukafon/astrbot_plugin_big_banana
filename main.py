@@ -85,25 +85,16 @@ class BigBanana(Star):
     async def initialize(self):
         """根据已读取的配置创建运行期依赖和单例对象"""
 
-        # 头像替换
+        # Load both legacy image lists and structured persona substitutions.
         self.avatar_map = {}
         avatar_path = self.data_dir / "avatar_substitutions.json"
         if avatar_path.exists():
             try:
-                data = json.loads(avatar_path.read_text(encoding="utf-8"))
-                for k, v in data.items():
-                    if isinstance(v, str) and v.strip():
-                        self.avatar_map[str(k)] = [v.strip()]
-                    elif isinstance(v, list):
-                        references = [
-                            item.strip()
-                            for item in v
-                            if isinstance(item, str) and item.strip()
-                        ]
-                        if references:
-                            self.avatar_map[str(k)] = references
+                self.update_avatar_substitutions(
+                    json.loads(avatar_path.read_text(encoding="utf-8")), save=False
+                )
             except Exception:
-                pass
+                logger.exception("[BIG BANANA] Failed to load avatar substitutions")
 
         # 创建全局单例
         self.prompt_config_manager = PromptConfigManager(self.conf)
@@ -162,6 +153,95 @@ class BigBanana(Star):
         # 启动WEB API
         self.web_api = BigBananaWebApi(self)
         self.web_api.register_routes()
+
+    def update_avatar_substitutions(self, data: dict, *, save: bool = True) -> None:
+        """Normalize persona rules and optionally persist them before activation.
+
+        Args:
+            data: User IDs mapped to legacy image references or persona objects.
+            save: Whether to write the normalized rules to disk.
+
+        Raises:
+            ValueError: The mapping or a description is invalid.
+            OSError: The updated rules could not be saved.
+        """
+        if not isinstance(data, dict):
+            raise ValueError("人设替换配置必须是 JSON 对象")
+        avatar_map = {}
+        for user_id, value in data.items():
+            description = ""
+            if isinstance(value, dict):
+                description = value.get("description", "")
+                if not isinstance(description, str):
+                    raise ValueError(f"{user_id} 的额外描述必须是文本")
+                description = description.strip()
+                if len(description) > 100:
+                    raise ValueError(f"{user_id} 的额外描述不能超过 100 个字符")
+                value = value.get("images", [])
+            if isinstance(value, str):
+                value = [value]
+            references = (
+                [
+                    item.strip()
+                    for item in value
+                    if isinstance(item, str) and item.strip()
+                ]
+                if isinstance(value, list)
+                else []
+            )
+            if references or description:
+                avatar_map[str(user_id)] = {
+                    "images": references,
+                    "description": description,
+                }
+        if save:
+            path = self.data_dir / "avatar_substitutions.json"
+            temporary_path = path.with_suffix(".json.tmp")
+            try:
+                temporary_path.write_text(
+                    json.dumps(avatar_map, indent=4, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                temporary_path.replace(path)
+            finally:
+                temporary_path.unlink(missing_ok=True)
+        self.avatar_map = avatar_map
+
+    @filter.command("大香蕉人设替换", alias={"人设替换"}, priority=10)
+    async def set_persona_description(self, event: AstrMessageEvent):
+        """Save the sender's persona description while preserving reference images.
+
+        Args:
+            event: The message containing the command and free-form description.
+        """
+        event.stop_event()
+        parts = event.message_str.strip().split(maxsplit=1)
+        description = parts[1].strip() if len(parts) > 1 else ""
+        if not description:
+            yield event.plain_result(
+                "用法：/大香蕉人设替换 描述内容（最多 100 个字符）"
+            )
+            return
+        if len(description) > 100:
+            yield event.plain_result("❌ 额外描述不能超过 100 个字符，请缩短后重试。")
+            return
+        user_id = event.get_sender_id()
+        if not user_id:
+            yield event.plain_result("❌ 无法获取当前用户 ID。")
+            return
+        user_id = str(user_id)
+        substitutions = self.avatar_map.copy()
+        substitutions[user_id] = {
+            **substitutions.get(user_id, {}),
+            "description": description,
+        }
+        try:
+            self.update_avatar_substitutions(substitutions)
+        except Exception:
+            logger.exception("[BIG BANANA] Failed to save persona description")
+            yield event.plain_result("❌ 人设额外描述保存失败，请稍后重试。")
+            return
+        yield event.plain_result(f"✅ 已更新你的人设额外描述：{description}")
 
     @filter.permission_type(filter.PermissionType.ADMIN, raise_error=False)
     @filter.command("lm白名单添加", alias={"lmawl"})
