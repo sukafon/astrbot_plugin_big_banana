@@ -136,6 +136,48 @@ def test_images_api_passes_new_image_generation_options() -> None:
     assert body["output_compression"] == 60
 
 
+def test_images_api_omits_gpt_image_options_for_dalle_models() -> None:
+    plugin = SimpleNamespace(
+        params_config=SimpleNamespace(
+            moderation="auto",
+            partial_images=0,
+            size="default",
+            size_keyword_map={},
+            quality="default",
+            background="default",
+            output_format="default",
+            output_compression=None,
+            input_fidelity="default",
+            action="default",
+            n=1,
+        )
+    )
+    config = ProviderConfig(
+        provider_type="OpenAI_Images",
+        name="images",
+        model="dall-e-3",
+    )
+    provider = OpenAIImagesProvider(
+        plugin,
+        config,
+        {
+            "prompt": "test",
+            "quality": "high",
+            "background": "transparent",
+            "output_format": "webp",
+            "output_compression": 60,
+        },
+    )
+    provider._body_context_cache = None
+
+    body = provider._build_body_context()
+
+    assert "quality" not in body
+    assert "background" not in body
+    assert "output_format" not in body
+    assert "output_compression" not in body
+
+
 def test_provider_config_manager_reads_image_model_without_changing_main_model() -> None:
     manager = ProviderConfigManager(
         {

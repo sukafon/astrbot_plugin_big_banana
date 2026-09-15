@@ -31,35 +31,31 @@ class OpenAIImagesProvider(StandardProvider):
                 self.image_list,
             ),
         }
-        quality = self.params.get("quality", self.plugin.params_config.quality)
-        if quality not in (None, "", "default"):
-            data["quality"] = quality
-        background = self.params.get(
-            "background", self.plugin.params_config.background
-        )
-        if background not in (None, "", "default"):
-            data["background"] = background
-        output_format = self.params.get(
-            "output_format", self.plugin.params_config.output_format
-        )
-        if output_format not in (None, "", "default"):
-            data["output_format"] = output_format
-        output_compression = self.params.get(
-            "output_compression", self.plugin.params_config.output_compression
-        )
-        if output_compression not in (None, "", -1):
-            data["output_compression"] = output_compression
-        if self.image_list:
-            input_fidelity = self.params.get(
-                "input_fidelity", self.plugin.params_config.input_fidelity
+        if self.provider_config.model.startswith(("gpt-image", "chatgpt-image")):
+            quality = self.params.get("quality", self.plugin.params_config.quality)
+            if quality not in (None, "", "default"):
+                data["quality"] = quality
+            background = self.params.get(
+                "background", self.plugin.params_config.background
             )
-            if input_fidelity not in (None, "", "default"):
-                data["input_fidelity"] = input_fidelity
-        is_gpt_image = self.provider_config.model.startswith(
-            ("gpt-image", "chatgpt-image")
-        )
-        # gpt-image 专有的 moderation 参数
-        if is_gpt_image:
+            if background not in (None, "", "default"):
+                data["background"] = background
+            output_format = self.params.get(
+                "output_format", self.plugin.params_config.output_format
+            )
+            if output_format not in (None, "", "default"):
+                data["output_format"] = output_format
+            output_compression = self.params.get(
+                "output_compression", self.plugin.params_config.output_compression
+            )
+            if output_compression not in (None, "", -1):
+                data["output_compression"] = output_compression
+            if self.image_list:
+                input_fidelity = self.params.get(
+                    "input_fidelity", self.plugin.params_config.input_fidelity
+                )
+                if input_fidelity not in (None, "", "default"):
+                    data["input_fidelity"] = input_fidelity
             data["moderation"] = self.params.get(
                 "moderation", self.plugin.params_config.moderation
             )
@@ -106,35 +102,31 @@ class OpenAIImagesProvider(StandardProvider):
                 self.image_list,
             ),
         }
-        quality = self.params.get("quality", self.plugin.params_config.quality)
-        if quality not in (None, "", "default"):
-            context["quality"] = quality
-        background = self.params.get(
-            "background", self.plugin.params_config.background
-        )
-        if background not in (None, "", "default"):
-            context["background"] = background
-        output_format = self.params.get(
-            "output_format", self.plugin.params_config.output_format
-        )
-        if output_format not in (None, "", "default"):
-            context["output_format"] = output_format
-        output_compression = self.params.get(
-            "output_compression", self.plugin.params_config.output_compression
-        )
-        if output_compression not in (None, "", -1):
-            context["output_compression"] = output_compression
-        is_gpt_image = self.provider_config.model.startswith(
-            ("gpt-image", "chatgpt-image")
-        )
-        # 此参数仅支持dall-e-2 / dall-e-3
-        if self.provider_config.model.startswith(("dall-e-2", "dall-e-3")):
-            context["response_format"] = "b64_json"
-        # gpt-image 专有的 moderation 参数
-        if is_gpt_image:
+        if self.provider_config.model.startswith(("gpt-image", "chatgpt-image")):
+            quality = self.params.get("quality", self.plugin.params_config.quality)
+            if quality not in (None, "", "default"):
+                context["quality"] = quality
+            background = self.params.get(
+                "background", self.plugin.params_config.background
+            )
+            if background not in (None, "", "default"):
+                context["background"] = background
+            output_format = self.params.get(
+                "output_format", self.plugin.params_config.output_format
+            )
+            if output_format not in (None, "", "default"):
+                context["output_format"] = output_format
+            output_compression = self.params.get(
+                "output_compression", self.plugin.params_config.output_compression
+            )
+            if output_compression not in (None, "", -1):
+                context["output_compression"] = output_compression
             context["moderation"] = self.params.get(
                 "moderation", self.plugin.params_config.moderation
             )
+        # 此参数仅支持dall-e-2 / dall-e-3
+        if self.provider_config.model.startswith(("dall-e-2", "dall-e-3")):
+            context["response_format"] = "b64_json"
         if self.provider_config.stream:
             context["stream"] = True
             context["partial_images"] = self.params.get(
