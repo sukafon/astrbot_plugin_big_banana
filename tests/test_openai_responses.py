@@ -94,6 +94,21 @@ def test_responses_omits_input_fidelity_without_reference_images() -> None:
     assert "input_fidelity" not in body["tools"][0]
 
 
+def test_responses_omits_edit_action_without_reference_images() -> None:
+    body = build_body(params={"action": "edit"})
+
+    assert "action" not in body["tools"][0]
+
+
+def test_responses_keeps_edit_action_with_reference_images() -> None:
+    body = build_body(
+        params={"action": "edit"},
+        image_list=[ImageResource("image/png", b"not-a-real-image")],
+    )
+
+    assert body["tools"][0]["action"] == "edit"
+
+
 def test_images_api_passes_new_image_generation_options() -> None:
     plugin = SimpleNamespace(
         params_config=SimpleNamespace(

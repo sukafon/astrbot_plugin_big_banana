@@ -77,7 +77,9 @@ class OpenAIResponsesProvider(StandardProvider):
         if output_compression not in (None, "", -1):
             tool["output_compression"] = output_compression
         action = self.params.get("action", self.plugin.params_config.action)
-        if action not in (None, "", "default"):
+        if action not in (None, "", "default") and (
+            action != "edit" or self.image_list
+        ):
             tool["action"] = action
         if self.image_list:
             input_fidelity = self.params.get(
