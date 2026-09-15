@@ -15,6 +15,7 @@ _INTEGER_PARAMS = {
     "seed",
     "n",
     "partial_images",
+    "output_compression",
     "fps",
 }
 _FLOAT_PARAMS = {"guidance_scale"}
@@ -24,6 +25,7 @@ _INTEGER_RANGES = {
     "num_inference_steps": (1, None),
     "n": (1, 10),
     "partial_images": (0, 3),
+    "output_compression": (0, 100),
     "fps": (1, 120),
 }
 _BOOLEAN_PARAMS = {

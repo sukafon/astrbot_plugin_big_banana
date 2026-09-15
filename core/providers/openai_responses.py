@@ -4,6 +4,7 @@ from typing import Any
 from astrbot.api import logger
 
 from .standard import StandardProvider
+from .utils import get_openai_size
 
 
 class OpenAIResponsesProvider(StandardProvider):
@@ -54,12 +55,44 @@ class OpenAIResponsesProvider(StandardProvider):
     def _build_image_tool(self) -> dict:
         """构建 image_generation 工具参数。"""
         tool: dict[str, Any] = {"type": "image_generation"}
-        size = self.determine_openai_size()
+        image_model = self.provider_config.image_model.strip()
+        if image_model:
+            tool["model"] = image_model
+        quality = self.params.get("quality", self.plugin.params_config.quality)
+        if quality not in (None, "", "default"):
+            tool["quality"] = quality
+        background = self.params.get(
+            "background", self.plugin.params_config.background
+        )
+        if background not in (None, "", "default"):
+            tool["background"] = background
+        output_format = self.params.get(
+            "output_format", self.plugin.params_config.output_format
+        )
+        if output_format not in (None, "", "default"):
+            tool["output_format"] = output_format
+        output_compression = self.params.get(
+            "output_compression", self.plugin.params_config.output_compression
+        )
+        if output_compression not in (None, "", -1):
+            tool["output_compression"] = output_compression
+        action = self.params.get("action", self.plugin.params_config.action)
+        if action not in (None, "", "default"):
+            tool["action"] = action
+        if self.image_list:
+            input_fidelity = self.params.get(
+                "input_fidelity", self.plugin.params_config.input_fidelity
+            )
+            if input_fidelity not in (None, "", "default"):
+                tool["input_fidelity"] = input_fidelity
+        size = get_openai_size(
+            self.params,
+            self.plugin.params_config,
+            self.image_list,
+        )
         if size != "default":
             tool["size"] = size
-        moderation = self.params.get(
-            "moderation", self.plugin.params_config.moderation
-        )
+        moderation = self.params.get("moderation", self.plugin.params_config.moderation)
         if moderation:
             tool["moderation"] = moderation
         if self.provider_config.stream:

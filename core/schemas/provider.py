@@ -22,6 +22,8 @@ class ProviderConfig:
     """API 地址"""
     model: str = ""
     """模型名称"""
+    image_model: str = ""
+    """Responses API image_generation 工具使用的生图模型。"""
     stream: bool = False
     """是否启用流式响应"""
     enable_proxy: bool = False

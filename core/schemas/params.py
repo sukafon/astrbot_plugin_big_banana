@@ -31,6 +31,18 @@ class ParamsConfig:
     """OpenAI 图片生成数量"""
     partial_images: int = 0
     """OpenAI 流式图片预览数量"""
+    quality: str = "default"
+    """OpenAI 图片质量；default 表示不传递。"""
+    background: str = "default"
+    """OpenAI 图片背景类型；default 表示不传递。"""
+    output_format: str = "default"
+    """OpenAI 图片输出格式；default 表示不传递。"""
+    output_compression: int | None = None
+    """OpenAI JPEG/WebP 输出压缩程度；None 或负数表示不传递。"""
+    input_fidelity: str = "default"
+    """OpenAI 参考图保真度；default 表示不传递。"""
+    action: str = "default"
+    """Responses image_generation 工具动作；default 表示不传递。"""
 
     def __init__(
         self,
@@ -47,6 +59,12 @@ class ParamsConfig:
         size_keyword_map: list[str] | None = None,
         n: int = 1,
         partial_images: int = 0,
+        quality: str = "default",
+        background: str = "default",
+        output_format: str = "default",
+        output_compression: int | None = None,
+        input_fidelity: str = "default",
+        action: str = "default",
     ) -> None:
         self.min_images = min_images
         self.max_images = max_images
@@ -61,6 +79,12 @@ class ParamsConfig:
         self.size_keyword_map = self._parse_size_keyword_map(size_keyword_map or [])
         self.n = n
         self.partial_images = partial_images
+        self.quality = quality
+        self.background = background
+        self.output_format = output_format
+        self.output_compression = output_compression
+        self.input_fidelity = input_fidelity
+        self.action = action
 
     @staticmethod
     def _parse_size_keyword_map(raw: list[str]) -> dict[tuple[str, ...], str]:

@@ -3,6 +3,7 @@ import json
 from aiohttp import FormData
 
 from .standard import StandardProvider
+from .utils import get_openai_size
 
 
 class OpenAIImagesProvider(StandardProvider):
@@ -24,8 +25,36 @@ class OpenAIImagesProvider(StandardProvider):
             "model": self.provider_config.model,
             "prompt": self.params.get("prompt", "draw a picture"),
             "n": self.params.get("n", self.plugin.params_config.n),
-            "size": self.determine_openai_size(),
+            "size": get_openai_size(
+                self.params,
+                self.plugin.params_config,
+                self.image_list,
+            ),
         }
+        quality = self.params.get("quality", self.plugin.params_config.quality)
+        if quality not in (None, "", "default"):
+            data["quality"] = quality
+        background = self.params.get(
+            "background", self.plugin.params_config.background
+        )
+        if background not in (None, "", "default"):
+            data["background"] = background
+        output_format = self.params.get(
+            "output_format", self.plugin.params_config.output_format
+        )
+        if output_format not in (None, "", "default"):
+            data["output_format"] = output_format
+        output_compression = self.params.get(
+            "output_compression", self.plugin.params_config.output_compression
+        )
+        if output_compression not in (None, "", -1):
+            data["output_compression"] = output_compression
+        if self.image_list:
+            input_fidelity = self.params.get(
+                "input_fidelity", self.plugin.params_config.input_fidelity
+            )
+            if input_fidelity not in (None, "", "default"):
+                data["input_fidelity"] = input_fidelity
         is_gpt_image = self.provider_config.model.startswith(
             ("gpt-image", "chatgpt-image")
         )
@@ -71,8 +100,30 @@ class OpenAIImagesProvider(StandardProvider):
             "model": self.provider_config.model,
             "prompt": self.params.get("prompt", "draw a picture"),
             "n": self.params.get("n", self.plugin.params_config.n),
-            "size": self.determine_openai_size(),
+            "size": get_openai_size(
+                self.params,
+                self.plugin.params_config,
+                self.image_list,
+            ),
         }
+        quality = self.params.get("quality", self.plugin.params_config.quality)
+        if quality not in (None, "", "default"):
+            context["quality"] = quality
+        background = self.params.get(
+            "background", self.plugin.params_config.background
+        )
+        if background not in (None, "", "default"):
+            context["background"] = background
+        output_format = self.params.get(
+            "output_format", self.plugin.params_config.output_format
+        )
+        if output_format not in (None, "", "default"):
+            context["output_format"] = output_format
+        output_compression = self.params.get(
+            "output_compression", self.plugin.params_config.output_compression
+        )
+        if output_compression not in (None, "", -1):
+            context["output_compression"] = output_compression
         is_gpt_image = self.provider_config.model.startswith(
             ("gpt-image", "chatgpt-image")
         )

@@ -523,6 +523,12 @@
                         "default": "gpt-5.5",
                         "hint": "Responses API 需填写支持 image_generation 工具的主线模型，例如 gpt-5.5"
                     },
+                    "image_model": {
+                        "description": "生图模型",
+                        "type": "string",
+                        "default": "",
+                        "hint": "可选。填写后传递给 image_generation 工具，例如 gpt-image-2.5；留空则使用接口默认生图模型。"
+                    },
                     "stream": {
                         "description": "流式",
                         "type": "bool",
@@ -946,7 +952,7 @@
     "openai_image_config": {
         "description": "OpenAI 参数配置",
         "type": "object",
-        "hint": "通常仅OpenAI Images提供商类型使用，但是其他支持的提供商也能够读取",
+        "hint": "通常仅OpenAI Images和OpenAI Responses提供商类型使用，但是其他支持的提供商也能够读取",
         "items": {
             "moderation": {
                 "description": "内容审核级别",
@@ -989,7 +995,75 @@
                 "description": "流式预览图片数量",
                 "type": "int",
                 "default": 0,
-                "hint": "OpenAI Images 流式响应时返回的预览图数量，范围 0-3。0 表示仅返回最终图片。仅在启用流式响应时生效。"
+                "hint": "OpenAI Images 或 Responses 流式响应时返回的预览图数量，范围 0-3。0 表示仅返回最终图片。仅在启用流式响应时生效。"
+            },
+            "quality": {
+                "description": "图片质量",
+                "type": "string",
+                "options": [
+                    "default",
+                    "auto",
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                ],
+                "default": "default",
+                "hint": "OpenAI 图像质量。不同生图模型支持的质量档位可能不同，default 表示不传递。"
+            },
+            "background": {
+                "description": "图片背景",
+                "type": "string",
+                "options": [
+                    "default",
+                    "auto",
+                    "transparent",
+                    "opaque"
+                ],
+                "default": "default",
+                "hint": "OpenAI 图像背景类型。transparent 通常需要同时使用 png 或 webp 输出格式，default 表示不传递。"
+            },
+            "output_format": {
+                "description": "输出格式",
+                "type": "string",
+                "options": [
+                    "default",
+                    "png",
+                    "jpeg",
+                    "webp"
+                ],
+                "default": "default",
+                "hint": "OpenAI 图像输出格式。default 表示使用接口默认格式。"
+            },
+            "output_compression": {
+                "description": "输出压缩程度",
+                "type": "int",
+                "default": -1,
+                "hint": "OpenAI JPEG 或 WebP 输出压缩程度，范围 0-100；设置 -1 不传递。"
+            },
+            "input_fidelity": {
+                "description": "参考图保真度",
+                "type": "string",
+                "options": [
+                    "default",
+                    "low",
+                    "high"
+                ],
+                "default": "default",
+                "hint": "OpenAI 图像编辑或参考图保真度。仅在有参考图时传递，default 表示不传递。"
+            },
+            "action": {
+                "description": "Responses 图像动作",
+                "type": "string",
+                "options": [
+                    "default",
+                    "auto",
+                    "generate",
+                    "edit"
+                ],
+                "default": "default",
+                "hint": "仅 OpenAI Responses 生图工具使用：auto 由模型判断，generate 强制生成，edit 强制编辑；default 表示不传递。"
             }
         }
     },

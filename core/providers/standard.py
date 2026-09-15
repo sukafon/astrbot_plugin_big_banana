@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import math
 import random
-from io import BytesIO
 from typing import Any
 
 from aiohttp import ClientSession, ClientTimeout, FormData
-from PIL import Image
 
 from astrbot.api import logger
 
@@ -54,82 +51,6 @@ class StandardProvider(BaseProvider):
         if status is None or status in NO_RETRY_STATUS_CODES:
             return False
         return status in RETRY_STATUS_CODES
-
-    def determine_openai_size(self) -> str:
-        """根据参数、提示词或参考图尺寸推导 OpenAI 图片输出大小。"""
-        configured_size = self.params.get("size", self.plugin.params_config.size)
-        if configured_size != "default":
-            return configured_size
-
-        prompt = self.params.get("prompt", "")
-        for keywords, size in self.plugin.params_config.size_keyword_map.items():
-            for keyword in keywords:
-                if keyword in prompt:
-                    return size
-
-        if self.image_list:
-            img = self.image_list[0]
-            raw_bytes = img.bytes
-            try:
-                with Image.open(BytesIO(raw_bytes)) as img_obj:
-                    w, h = img_obj.size
-
-                if w > 3 * h:
-                    w = 3 * h
-                elif h > 3 * w:
-                    h = 3 * w
-
-                max_area = 8294400
-                min_area = 655360
-                max_edge = 3840
-
-                scale = 1.0
-                if w * h > max_area:
-                    scale = math.sqrt(max_area / (w * h))
-                elif w * h < min_area:
-                    scale = math.sqrt(min_area / (w * h))
-
-                w = int(w * scale)
-                h = int(h * scale)
-
-                if w > max_edge:
-                    scale = max_edge / w
-                    w = max_edge
-                    h = int(h * scale)
-                if h > max_edge:
-                    scale = max_edge / h
-                    h = max_edge
-                    w = int(w * scale)
-
-                w = max(16, round(w / 16) * 16)
-                h = max(16, round(h / 16) * 16)
-
-                if w > 3 * h:
-                    w = 3 * h
-                    w = max(16, round(w / 16) * 16)
-                elif h > 3 * w:
-                    h = 3 * w
-                    h = max(16, round(h / 16) * 16)
-
-                while w * h > max_area or max(w, h) > max_edge:
-                    if w > h:
-                        w -= 16
-                    else:
-                        h -= 16
-
-                while w * h < min_area:
-                    if w < h:
-                        w += 16
-                    else:
-                        h += 16
-
-                return f"{w}x{h}"
-            except Exception as e:
-                logger.warning(
-                    f"[BIG BANANA] 获取参考图分辨率失败: {e}，将使用默认尺寸 auto"
-                )
-
-        return "auto"
 
     async def generate_images(self) -> GenerationResult:
         """按 Key 轮询和重试策略调度具体提供商生成图片。"""

@@ -63,10 +63,15 @@ V2（`v0.2.x`）以全新的配置结构和生成管线为基线，不保证兼�
 | `--gather_mode` | true, false | 启用消息收集模式 *[5] |
 | `--providers` | 提供商名称[/模型] | 使用此参数可以指定提供商；模板提供商可使用 `提供商名/模型名` 临时覆盖模型 *[6] |
 | `--n` | INT | 生成图片的数量，仅OpenAI Image API 支持 |
-| `--size` | 1536x1024, 1024x1536, auto, ... | 生成图片的分辨率，仅OpenAI Image API 支持 |
+| `--size` | 1536x1024, 1024x1536, auto, ... | 生成图片的分辨率，仅 OpenAI Images/Responses 支持 |
 | `--url` | true, false | 仅返回图片URL，不直接发送图片 *[7] |
 | `--capability` | image_generation, video_generation | 选择预设使用的生成能力 |
-| `--quality` | speed, quality | CogVideoX 输出模式 |
+| `--quality` | auto, low, medium, high, xhigh, max | OpenAI 图片质量；CogVideoX 使用 speed, quality |
+| `--background` | auto, transparent, opaque | OpenAI 图片背景类型 |
+| `--output_format` | png, jpeg, webp | OpenAI 图片输出格式 |
+| `--output_compression` | 0-100 | OpenAI JPEG/WebP 输出压缩程度 |
+| `--input_fidelity` | low, high | OpenAI 参考图保真度，仅有参考图时生效 |
+| `--action` | auto, generate, edit | OpenAI Responses 生图工具的生成/编辑动作 |
 | `--fps` | 30, 60 | CogVideoX 视频帧率 |
 | `--with_audio` | true, false | 是否生成 AI 音效 |
 | `--watermark_enabled` | true, false | 是否添加 AI 水印 |
@@ -79,6 +84,7 @@ V2（`v0.2.x`）以全新的配置结构和生成管线为基线，不保证兼�
 
 - `--aspect_ratio` 仅 Gemini 规范生效
 - `--image_size`、`--google_search` 仅 Gemini 规范，gemini-3 前缀的模型生效
+- `--quality`、`--background`、`--output_format`、`--output_compression` 和 `--input_fidelity` 仅 OpenAI Images/Responses 规范生效；`--action` 仅 OpenAI Responses 生图工具生效
 
 \*[4] 支持添加预设图片参考，使用英文 `,` 分割多张图片。需要将文件放在插件数据目录 `plugin_data/astrbot_plugin_big_banana/refer_images/` 文件夹，使用示例 `--refer_images 文件名1,文件名2`。参数值中不能有空格。插件配置中的 `refer_images` 默认值对命令调用和 LLM 图片/视频工具调用均生效；预设或本次调用显式指定时会覆盖默认值。
 
@@ -99,6 +105,12 @@ V2（`v0.2.x`）以全新的配置结构和生成管线为基线，不保证兼�
 - `手办化` 手办化预设提示词。
 
 \* `llm_default` 和 `llm_video_default` 同时存在于默认配置和插件内部预设中，两处参数保持一致；配置中的同名预设存在时会覆盖内部值，旧配置缺少条目时使用内部参数。LLM 工具预设名称留空时不会自动启用这两个预设。
+
+### OpenAI Responses 生图模型
+
+`OpenAI_Responses` 的“模型”是负责理解请求并调用工具的主线模型，例如 `gpt-5.5`；“生图模型”是 `image_generation` 工具实际使用的模型。需要单独指定时，在该提供商配置中填写“生图模型”（配置字段为 `image_model`），例如 `gpt-image-2`。留空则不传递该字段，由接口选择默认生图模型。使用 `--providers 提供商/模型` 临时覆盖时，覆盖的是顶层主线模型。
+
+OpenAI 图像参数配置中的质量、背景、输出格式、压缩程度和参考图保真度会同时用于 `OpenAI_Images` 与 `OpenAI_Responses`；`action` 仅用于 Responses 的生图工具。
 
 ## 人设替换与额外描述
 

@@ -89,6 +89,7 @@ class ProviderConfigManager:
                 keys=raw_item.get("keys", []),
                 base_url=raw_item.get("base_url", "").strip().rstrip("/"),
                 model=raw_item.get("model", ""),
+                image_model=raw_item.get("image_model", ""),
                 stream=raw_item.get("stream", False),
                 enable_proxy=raw_item.get("enable_proxy", False),
                 max_images=raw_item.get("max_images", 6),

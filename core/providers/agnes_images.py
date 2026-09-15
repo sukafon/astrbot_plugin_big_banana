@@ -2,6 +2,7 @@ import json
 from typing import Any
 
 from .standard import StandardProvider
+from .utils import get_openai_size
 
 
 class AgnesImagesProvider(StandardProvider):
@@ -32,7 +33,11 @@ class AgnesImagesProvider(StandardProvider):
         context: dict[str, Any] = {
             "model": self.provider_config.model,
             "prompt": self.params.get("prompt", "draw a picture"),
-            "size": self.determine_openai_size(),
+            "size": get_openai_size(
+                self.params,
+                self.plugin.params_config,
+                self.image_list,
+            ),
             "extra_body": {"response_format": "url"},
         }
         if context["size"] == "auto":
