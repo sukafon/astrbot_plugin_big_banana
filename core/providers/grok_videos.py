@@ -185,7 +185,11 @@ class GrokVideosProvider(BaseVideoProvider):
             if time.monotonic() >= deadline:
                 break
             try:
-                result = await self._fetch_job(api_key, request_id)
+                result = await self._fetch_job(
+                    api_key,
+                    request_id,
+                    timeout=deadline - time.monotonic(),
+                )
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -224,7 +228,9 @@ class GrokVideosProvider(BaseVideoProvider):
             error_message=f"Grok 视频生成超过 {job_timeout} 秒仍未完成"
         )
 
-    async def _fetch_job(self, api_key: str, request_id: str) -> dict[str, Any]:
+    async def _fetch_job(
+        self, api_key: str, request_id: str, *, timeout: float
+    ) -> dict[str, Any]:
         session = self.plugin.http_manager.get_aiohttp_session()
         result_url = build_grok_video_api_url(
             self.provider_config.base_url,
@@ -235,7 +241,7 @@ class GrokVideosProvider(BaseVideoProvider):
             result_url,
             headers=headers,
             proxy=self.proxy,
-            timeout=ClientTimeout(total=60),
+            timeout=ClientTimeout(total=min(60, timeout)),
         ) as response:
             response_text = await response.text()
             result = json.loads(response_text)

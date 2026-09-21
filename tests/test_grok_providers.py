@@ -191,6 +191,10 @@ def test_grok_video_polling_returns_video_url(monkeypatch) -> None:
         "https://example.com/grok.mp4"
     ]
     assert provider._fetch_job.await_count == 2
+    assert all(
+        0 < call.kwargs["timeout"] <= provider.plugin.params_config.video_job_timeout
+        for call in provider._fetch_job.await_args_list
+    )
 
 
 def test_grok_video_polling_does_not_fetch_after_deadline(monkeypatch) -> None:
