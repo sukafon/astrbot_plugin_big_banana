@@ -17,7 +17,6 @@ def build_provider() -> VertexAIAnonymousProvider:
         name="vertex_ai_anonymous",
     )
     provider = VertexAIAnonymousProvider(plugin, config, {"prompt": "test"})
-    provider.timeout = 30
     provider.max_refresh = 2
     provider.max_retry = 3
     provider.retry_delay = 0
