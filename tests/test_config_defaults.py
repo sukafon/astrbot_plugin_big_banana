@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from core.schemas import CommonConfig, LlmToolsConfig, PreferenceConfig
+from core.schemas import CommonConfig, LlmToolsConfig, ParamsConfig, PreferenceConfig
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -99,3 +99,18 @@ def test_vertex_anonymous_retry_controls_are_in_provider_template() -> None:
     assert provider_items["random_fingerprint"]["type"] == "bool"
     assert "max_recaptcha_retry" not in provider_items
     assert "retry_before_switch" not in provider_items
+
+
+def test_video_config_owns_shared_video_defaults() -> None:
+    schema = json.loads((ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
+    video_items = schema["video_config"]["items"]
+
+    assert ParamsConfig().video_size == "default"
+    assert ParamsConfig().video_with_audio is True
+    assert video_items["video_size"]["default"] == "default"
+    assert video_items["video_with_audio"]["default"] is True
+    assert "智谱和 Grok" in video_items["video_size"]["hint"]
+    assert "仅智谱使用" in video_items["video_quality"]["hint"]
+    assert "仅 Grok 使用" in video_items["video_duration"]["hint"]
+    assert "智谱和 Grok" in video_items["video_poll_interval"]["hint"]
+    assert "智谱和 Grok" in video_items["video_job_timeout"]["hint"]

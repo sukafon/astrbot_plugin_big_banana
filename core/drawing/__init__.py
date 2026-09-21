@@ -5,7 +5,7 @@ from .hosting import R2ImageHoster
 from .optimizer import SubBrainOptimizer
 from .parser import parse_params
 from .pipeline import DrawingPipeline
-from .saver import ImageSaver
+from .saver import save_images_to_local
 from .tasks import DrawingTaskManager
 
 __all__ = [
@@ -16,7 +16,7 @@ __all__ = [
     "R2ImageHoster",
     "SubBrainOptimizer",
     "DrawingTaskManager",
-    "ImageSaver",
+    "save_images_to_local",
     "parse_params",
 ]
 

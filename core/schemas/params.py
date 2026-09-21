@@ -25,6 +25,24 @@ class ParamsConfig:
     """GPT 图像编辑模型的内容安全审核等级"""
     size: str = "default"
     """OpenAI 图片输出尺寸；default 表示由插件自动推导"""
+    video_size: str = "default"
+    """视频输出尺寸；default 表示使用视频提供商配置"""
+    video_duration: int = 6
+    """视频默认时长"""
+    video_aspect_ratio: str = "default"
+    """视频默认宽高比"""
+    video_quality: str = "speed"
+    """智谱视频默认质量"""
+    video_fps: int = 30
+    """智谱视频默认帧率"""
+    video_with_audio: bool = True
+    """视频默认音频开关，智谱/Grok 映射到各自 API 字段"""
+    video_watermark_enabled: bool = True
+    """智谱视频默认水印开关"""
+    video_poll_interval: float = 5
+    """视频任务轮询间隔"""
+    video_job_timeout: float = 900
+    """视频任务总超时"""
     size_keyword_map: dict[tuple[str, ...], str] = field(default_factory=dict)
     """OpenAI 图片尺寸关键词映射"""
     n: int = 1
@@ -56,6 +74,15 @@ class ParamsConfig:
         url: bool = False,
         moderation: str = "auto",
         size: str = "default",
+        video_size: str = "default",
+        video_duration: int = 6,
+        video_aspect_ratio: str = "default",
+        video_quality: str = "speed",
+        video_fps: int = 30,
+        video_with_audio: bool = True,
+        video_watermark_enabled: bool = True,
+        video_poll_interval: float = 5,
+        video_job_timeout: float = 900,
         size_keyword_map: list[str] | None = None,
         n: int = 1,
         partial_images: int = 0,
@@ -76,6 +103,15 @@ class ParamsConfig:
         self.url = url
         self.moderation = moderation
         self.size = size
+        self.video_size = video_size
+        self.video_duration = video_duration
+        self.video_aspect_ratio = video_aspect_ratio
+        self.video_quality = video_quality
+        self.video_fps = video_fps
+        self.video_with_audio = video_with_audio
+        self.video_watermark_enabled = video_watermark_enabled
+        self.video_poll_interval = video_poll_interval
+        self.video_job_timeout = video_job_timeout
         self.size_keyword_map = self._parse_size_keyword_map(size_keyword_map or [])
         self.n = n
         self.partial_images = partial_images

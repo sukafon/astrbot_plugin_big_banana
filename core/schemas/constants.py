@@ -29,6 +29,7 @@ PARAMS_LIST = [
     "n",
     "partial_images",
     "size",
+    "video_size",
     "background",
     "output_format",
     "output_compression",
@@ -41,6 +42,7 @@ PARAMS_LIST = [
     "quality",
     "fps",
     "with_audio",
+    "duration",
     "watermark_enabled",
 ]
 

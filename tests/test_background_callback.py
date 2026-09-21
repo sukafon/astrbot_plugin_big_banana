@@ -15,6 +15,7 @@ def build_dispatcher(callback):
             background_callback_plugin="upstream_plugin",
             background_callback_method="on_media_generation_complete",
         ),
+        preference_config=SimpleNamespace(quote_reply_mode="both"),
     )
     return CallbackDispatcher(plugin)
 
@@ -47,6 +48,7 @@ def test_callback_receives_success_state_and_complete_keyword_contract() -> None
         "params": params,
         "unified_msg_origin": "platform:message:session",
         "is_success": True,
+        "should_quote": True,
     }
 
 
@@ -71,6 +73,7 @@ def test_async_callback_receives_failure_state_and_can_decline_handling() -> Non
 
     assert handled is False
     assert received["is_success"] is False
+    assert received["should_quote"] is True
 
 
 def test_callback_receives_captured_origin_instead_of_current_event_value() -> None:
@@ -95,5 +98,6 @@ def test_callback_receives_captured_origin_instead_of_current_event_value() -> N
     assert handled is True
     assert received["event"] is event
     assert received["unified_msg_origin"] == "original:session"
+    assert received["should_quote"] is True
 
 

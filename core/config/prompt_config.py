@@ -17,6 +17,7 @@ _INTEGER_PARAMS = {
     "partial_images",
     "output_compression",
     "fps",
+    "duration",
 }
 _FLOAT_PARAMS = {"guidance_scale"}
 _INTEGER_RANGES = {
@@ -27,6 +28,7 @@ _INTEGER_RANGES = {
     "partial_images": (0, 3),
     "output_compression": (0, 100),
     "fps": (1, 120),
+    "duration": (1, 15),
 }
 _BOOLEAN_PARAMS = {
     "google_search",

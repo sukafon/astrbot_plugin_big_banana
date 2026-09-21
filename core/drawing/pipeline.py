@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from astrbot.api import logger
 
 from ..schemas import GenerationResult, ImageResource
-from .saver import ImageSaver
+from .saver import save_images_to_local
 
 if TYPE_CHECKING:
     from ...main import BigBanana
@@ -17,7 +17,6 @@ class DrawingPipeline:
     def __init__(self, plugin: BigBanana) -> None:
         """初始化绘图组件。"""
         self.plugin = plugin
-        self.image_saver = ImageSaver()
 
     async def run(
         self, params: dict, image_list: list[ImageResource] | None
@@ -110,7 +109,7 @@ class DrawingPipeline:
 
         # 本地保存生成的图片
         if self.plugin.save_images.local_save:
-            self.image_saver.save_images_to_local(
+            save_images_to_local(
                 dispatch_result.images, self.plugin.save_dir
             )
 

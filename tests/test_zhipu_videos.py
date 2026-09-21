@@ -9,6 +9,15 @@ from core.schemas import ProviderConfig
 def build_provider(params: dict | None = None) -> ZhipuVideosProvider:
     plugin = SimpleNamespace(
         common_config=SimpleNamespace(timeout=300, proxy=None),
+        params_config=SimpleNamespace(
+            video_size="default",
+            video_quality="speed",
+            video_fps=30,
+            video_with_audio=False,
+            video_watermark_enabled=True,
+            video_poll_interval=1,
+            video_job_timeout=30,
+        ),
     )
     config = ProviderConfig(
         provider_type="Zhipu_Videos",
@@ -18,14 +27,7 @@ def build_provider(params: dict | None = None) -> ZhipuVideosProvider:
         keys=["test-key"],
         base_url="https://open.bigmodel.cn/api/paas/v4",
         model="cogvideox-flash",
-        raw_config={
-            "quality": "speed",
-            "fps": 30,
-            "with_audio": False,
-            "watermark_enabled": True,
-            "poll_interval": 1,
-            "job_timeout": 30,
-        },
+        raw_config={},
     )
     return ZhipuVideosProvider(
         plugin,
@@ -42,7 +44,7 @@ def test_builds_cogvideox_flash_request() -> None:
             "fps": 60,
             "with_audio": True,
             "watermark_enabled": False,
-            "size": "1920x1080",
+            "video_size": "1920x1080",
         }
     )
 

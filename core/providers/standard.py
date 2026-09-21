@@ -121,6 +121,11 @@ class StandardProvider(BaseProvider):
                 response = resp
                 response_text = await resp.text()
                 result = json.loads(response_text)
+                if not isinstance(result, dict):
+                    return ProviderCallResult(
+                        status_code=resp.status,
+                        error_message="响应内容格式错误",
+                    )
                 if resp.status == 200:
                     image_sources, reason = self._extract_result(result)
                     images = await self._build_images(image_sources)
@@ -131,7 +136,7 @@ class StandardProvider(BaseProvider):
                         response_text=response_text,
                     )
                 # 解析错误原因
-                err_msg = result.get("error", {}).get("message", "未知原因")
+                err_msg = self._extract_error_message(result)
                 logger.error(
                     f"[BIG BANANA] 图片生成失败，状态码: {resp.status}，原因: {err_msg}"
                 )
@@ -192,11 +197,13 @@ class StandardProvider(BaseProvider):
                         response_text=response_text,
                     )
                 # 解析错误原因
-                err_msg = (
-                    json.loads(response_text)
-                    .get("error", {})
-                    .get("message", "未知原因")
-                )
+                result = json.loads(response_text)
+                if not isinstance(result, dict):
+                    return ProviderCallResult(
+                        status_code=resp.status,
+                        error_message="响应内容格式错误",
+                    )
+                err_msg = self._extract_error_message(result)
                 logger.error(
                     f"[BIG BANANA] 图片生成失败，状态码: {resp.status}，原因: {err_msg}"
                 )
@@ -278,3 +285,17 @@ class StandardProvider(BaseProvider):
                 )
             )
         return images
+
+    @staticmethod
+    def _extract_error_message(result: dict[str, Any]) -> str:
+        """Extract errors from both OpenAI-style and xAI-style responses."""
+        error = result.get("error")
+        if isinstance(error, dict):
+            message = error.get("message") or error.get("detail")
+            if isinstance(message, str) and message:
+                code = error.get("code")
+                return f"{code}: {message}" if code else message
+        elif isinstance(error, str) and error:
+            return error
+        message = result.get("message")
+        return message if isinstance(message, str) and message else "未知原因"

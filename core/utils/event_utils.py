@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import astrbot.api.message_components as Comp
 
+from ..drawing.saver import save_images_to_local
 from ..schemas import MAX_SIZE_B64_LEN, GenerationResult
 
 if TYPE_CHECKING:
@@ -12,7 +13,6 @@ if TYPE_CHECKING:
     from astrbot.api.event import AstrMessageEvent
     from astrbot.core.message.components import BaseMessageComponent
 
-    from ..drawing.saver import ImageSaver
 
 
 def get_message_id(event: AstrMessageEvent) -> str | None:
@@ -73,8 +73,7 @@ def build_result_message_chain(
     quote_reply_mode: str = "both",
     is_command: bool = True,
     temporary_paths: list[Path] | None = None,
-    image_saver: ImageSaver | None = None,
-    temp_dir: Path | str | None = None,
+    temp_dir: Path | None = None,
 ) -> list[BaseMessageComponent]:
     """构造适配平台限制的媒体生成结果消息链。"""
     msg_chain = build_message_chain(
@@ -107,8 +106,8 @@ def build_result_message_chain(
         (image.base64 and len(image.base64) > MAX_SIZE_B64_LEN)
         for image in images_with_bytes
     ):
-        if image_saver is not None and temp_dir is not None:
-            save_results = image_saver.save_images_to_local(images_with_bytes, temp_dir)
+        if temp_dir is not None:
+            save_results = save_images_to_local(images_with_bytes, temp_dir)
             if temporary_paths is not None:
                 temporary_paths.extend(path for _name, path in save_results)
             for name_, path_ in save_results:

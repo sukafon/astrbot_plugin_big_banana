@@ -69,6 +69,7 @@ class BigBanana(Star):
                 self.conf.get("params_config", {})
                 | self.conf.get("gemini_image_config", {})
                 | self.conf.get("openai_image_config", {})
+                | self.conf.get("video_config", {})
             )
         )
         self.preference_config = PreferenceConfig(
@@ -225,7 +226,6 @@ class BigBanana(Star):
         if not user_id:
             yield event.plain_result("❌ 无法获取当前用户 ID。")
             return
-        user_id = str(user_id)
         substitutions = self.avatar_map.copy()
         substitutions[user_id] = {
             **substitutions.get(user_id, {}),

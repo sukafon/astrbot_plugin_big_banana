@@ -43,7 +43,9 @@ def build_video_parameters() -> dict:
                 "description": REFERENCES_DESCRIPTION,
             },
             "quality": {"type": "string", "enum": ["speed", "quality"]},
-            "size": {"type": "string"},
+            "video_size": {"type": "string"},
+            "aspect_ratio": {"type": "string"},
+            "duration": {"type": "integer", "minimum": 1, "maximum": 15},
             "fps": {"type": "string", "enum": ["30", "60"]},
             "with_audio": {"type": "boolean"},
             "watermark_enabled": {"type": "boolean"},
@@ -185,7 +187,9 @@ class BigBananaVideoGenerationTool(BaseMediaGenerationTool):
 
         for key in (
             "quality",
-            "size",
+            "video_size",
+            "aspect_ratio",
+            "duration",
             "fps",
             "with_audio",
             "watermark_enabled",

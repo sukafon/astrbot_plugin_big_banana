@@ -17,7 +17,6 @@ from ..utils import build_message_chain, build_result_message_chain
 
 if TYPE_CHECKING:
     from astrbot.core.agent.tool import ToolExecResult
-    from astrbot.core.message.components import BaseMessageComponent
     from astrbot.core.platform.astr_message_event import AstrMessageEvent
 
     from ...main import BigBanana
@@ -210,7 +209,6 @@ class BaseMediaGenerationTool(FunctionTool[AstrAgentContext], ABC):
                     quote_reply_mode=plugin.preference_config.quote_reply_mode,
                     is_command=False,
                     temporary_paths=temporary_paths,
-                    image_saver=plugin.image_saver,
                     temp_dir=plugin.temp_dir,
                 )
 

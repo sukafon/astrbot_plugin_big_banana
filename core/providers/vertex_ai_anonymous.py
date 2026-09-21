@@ -2,6 +2,7 @@ import asyncio
 import json
 import random
 import re
+import time
 from typing import Any, cast
 from urllib.parse import parse_qs, urlparse
 
@@ -75,8 +76,9 @@ class VertexAIAnonymousProvider(BaseProvider):
         total_attempt_count = 0
         # 总共最大尝试次数
         max_total_attempts = (self.max_refresh + 1) * (self.max_retry + 2) + 3
+        retry_deadline = time.monotonic() + self.timeout
 
-        while True:
+        while time.monotonic() < retry_deadline:
             # 防死循环熔断
             total_attempt_count += 1
             if total_attempt_count > max_total_attempts:
@@ -158,6 +160,9 @@ class VertexAIAnonymousProvider(BaseProvider):
 
             # 其他未单独处理的状态码直接返回错误信息，包括错误代码3的数据结构原因
             return GenerationResult(error_message=err_msg or "图片生成失败")
+
+        logger.error("[BIG BANANA] Vertex AI Anonymous 重试超过总时限")
+        return GenerationResult(error_message="图片生成失败：重试超时")
 
     async def _call_vertex_api(self, body: dict) -> ProviderCallResult:
         """调用匿名 Vertex AI GraphQL 接口并解析图片结果。"""

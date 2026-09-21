@@ -735,6 +735,188 @@
                     }
                 }
             },
+            "grok_images": {
+                "name": "Grok_Images",
+                "items": {
+                    "provider_type": {
+                        "type": "str",
+                        "default": "grok_images",
+                        "invisible": true
+                    },
+                    "capability": {
+                        "type": "str",
+                        "default": "image_generation",
+                        "invisible": true
+                    },
+                    "enabled": {
+                        "type": "bool",
+                        "description": "启用提供商",
+                        "default": false,
+                        "hint": "关闭后会静默跳过此提供商（包括默认提供商和参数指定）"
+                    },
+                    "name": {
+                        "description": "提供商名称",
+                        "hint": "名称必须唯一，用于索引提供商配置，留空将静默跳过此配置。",
+                        "type": "str",
+                        "default": "Grok_Images"
+                    },
+                    "enabled_as_default": {
+                        "type": "bool",
+                        "description": "加入默认提供商集合",
+                        "default": false,
+                        "hint": "当用户不指定 --providers 参数时将从集合中按优先级回退使用。"
+                    },
+                    "fallback_order": {
+                        "description": "默认提供商优先级",
+                        "hint": "数字越小，优先级越高，会被 --providers 参数直接指定的提供商顺序覆盖。",
+                        "type": "int",
+                        "default": 0
+                    },
+                    "keys": {
+                        "description": "xAI API Key",
+                        "hint": "直连 xAI 时填写 console.x.ai 的 API Key；使用 CLIProxyAPI 时填写其 config.yaml 的 api-keys 值，不需要填写 Bearer 前缀。每次请求打乱顺序依次重试。",
+                        "type": "list",
+                        "default": []
+                    },
+                    "base_url": {
+                        "description": "Base URL",
+                        "type": "string",
+                        "default": "https://api.x.ai/v1",
+                        "hint": "直连 xAI 可填写到 /v1、/images 或完整的 /images/generations；CLIProxyAPI 请填写服务根地址（例如 http://127.0.0.1:8317）或其原生 /v1，不要填写 /openai/v1；插件会自动拼接接口路径。"
+                    },
+                    "model": {
+                        "description": "模型",
+                        "type": "string",
+                        "default": "grok-imagine-image-2.0",
+                        "hint": "默认 grok-imagine-image-2.0，也可以填写账户可用的 Grok Imagine 图片模型。"
+                    },
+                    "aspect_ratio": {
+                        "description": "默认宽高比",
+                        "type": "string",
+                        "default": "default",
+                        "hint": "例如 1:1、16:9、9:16；default 表示交给模型决定。提示词中的 --aspect_ratio 优先。"
+                    },
+                    "resolution": {
+                        "description": "默认分辨率",
+                        "type": "string",
+                        "options": [
+                            "default",
+                            "1k",
+                            "2k"
+                        ],
+                        "default": "default",
+                        "hint": "Grok Imagine 当前支持 1k 和 2k；default 表示不传递。"
+                    },
+                    "quality": {
+                        "description": "默认质量",
+                        "type": "string",
+                        "options": [
+                            "auto",
+                            "low",
+                            "medium"
+                        ],
+                        "default": "auto",
+                        "hint": "仅 grok-imagine-image-2.0 支持。"
+                    },
+                    "response_format": {
+                        "description": "响应格式",
+                        "type": "string",
+                        "options": [
+                            "url",
+                            "b64_json"
+                        ],
+                        "default": "url",
+                        "hint": "url 为临时图片 URL，b64_json 为 Base64 图片数据。"
+                    },
+                    "stream": {
+                        "description": "流式",
+                        "type": "bool",
+                        "default": false,
+                        "hint": "xAI 官方图片接口通常使用普通 JSON；仅在中转服务明确支持时开启。"
+                    },
+                    "enable_proxy": {
+                        "description": "启用代理",
+                        "type": "bool",
+                        "default": false,
+                        "hint": "启用代理，需先在“常规配置”中配置代理地址。"
+                    },
+                    "max_images": {
+                        "description": "最大输入图片限制",
+                        "type": "int",
+                        "default": 5,
+                        "hint": "Grok Imagine 图片编辑最多支持 5 张参考图；输入 -1 表示不限制。"
+                    }
+                }
+            },
+            "grok_videos": {
+                "name": "Grok_Videos",
+                "items": {
+                    "provider_type": {
+                        "type": "str",
+                        "default": "grok_videos",
+                        "invisible": true
+                    },
+                    "capability": {
+                        "type": "str",
+                        "default": "video_generation",
+                        "invisible": true
+                    },
+                    "enabled": {
+                        "type": "bool",
+                        "description": "启用提供商",
+                        "default": false,
+                        "hint": "关闭后会静默跳过此提供商（包括默认提供商和参数指定）"
+                    },
+                    "name": {
+                        "description": "提供商名称",
+                        "hint": "名称必须唯一，用于索引提供商配置，留空将静默跳过此配置。",
+                        "type": "str",
+                        "default": "Grok_Videos"
+                    },
+                    "enabled_as_default": {
+                        "type": "bool",
+                        "description": "加入默认视频提供商集合",
+                        "default": false,
+                        "hint": "当用户不指定 --providers 参数时将从集合中按优先级回退使用。"
+                    },
+                    "fallback_order": {
+                        "description": "默认视频提供商优先级",
+                        "hint": "数字越小，优先级越高，会被 --providers 参数直接指定的提供商顺序覆盖。",
+                        "type": "int",
+                        "default": 0
+                    },
+                    "keys": {
+                        "description": "xAI API Key",
+                        "hint": "直连 xAI 时填写 console.x.ai 的 API Key；使用 CLIProxyAPI 时填写其 config.yaml 的 api-keys 值，不需要填写 Bearer 前缀。每次请求打乱顺序依次重试。",
+                        "type": "list",
+                        "default": []
+                    },
+                    "base_url": {
+                        "description": "Base URL",
+                        "type": "string",
+                        "default": "https://api.x.ai/v1",
+                        "hint": "直连 xAI 可填写到 /v1、/videos 或完整的 /videos/generations；CLIProxyAPI 请填写服务根地址（例如 http://127.0.0.1:8317）或其原生 /v1，不要填写 /openai/v1；插件会自动拼接接口路径。"
+                    },
+                    "model": {
+                        "description": "模型",
+                        "type": "string",
+                        "default": "grok-imagine-video-1.5",
+                        "hint": "默认 grok-imagine-video-1.5，也可以填写账户可用的 Grok Imagine 视频模型。"
+                    },
+                    "enable_proxy": {
+                        "description": "启用代理",
+                        "type": "bool",
+                        "default": false,
+                        "hint": "启用代理，需先在“常规配置”中配置代理地址。"
+                    },
+                    "max_images": {
+                        "description": "最大输入图片限制",
+                        "type": "int",
+                        "default": 1,
+                        "hint": "Grok 视频生成最多使用 1 张首帧参考图。"
+                    }
+                }
+            },
             "zhipu_videos": {
                 "name": "智谱视频",
                 "items": {
@@ -786,65 +968,6 @@
                         "type": "string",
                         "default": "cogvideox-flash",
                         "hint": "主要适配 cogvideox-flash，同时兼容同接口的 cogvideox-2。"
-                    },
-                    "quality": {
-                        "description": "生成模式",
-                        "type": "string",
-                        "options": [
-                            "speed",
-                            "quality"
-                        ],
-                        "default": "speed",
-                        "hint": "speed 速度优先，quality 质量优先。"
-                    },
-                    "with_audio": {
-                        "description": "生成 AI 音效",
-                        "type": "bool",
-                        "default": false
-                    },
-                    "size": {
-                        "description": "视频分辨率",
-                        "type": "string",
-                        "options": [
-                            "default",
-                            "720x480",
-                            "1024x1024",
-                            "1280x960",
-                            "960x1280",
-                            "1920x1080",
-                            "1080x1920",
-                            "2048x1080",
-                            "3840x2160"
-                        ],
-                        "default": "default",
-                        "hint": "default 表示不传递，由模型根据输入决定。"
-                    },
-                    "fps": {
-                        "description": "视频帧率",
-                        "type": "int",
-                        "options": [
-                            30,
-                            60
-                        ],
-                        "default": 30
-                    },
-                    "watermark_enabled": {
-                        "description": "添加 AI 水印",
-                        "type": "bool",
-                        "default": true,
-                        "hint": "关闭水印要求账户先在“个人中心 → 安全管理 → 去水印管理”实名认证并签署免责声明"
-                    },
-                    "poll_interval": {
-                        "description": "任务轮询间隔",
-                        "type": "float",
-                        "default": 5,
-                        "hint": "单位：秒，最小按 1 秒处理。"
-                    },
-                    "job_timeout": {
-                        "description": "视频任务总超时",
-                        "type": "float",
-                        "default": 900,
-                        "hint": "单位：秒，超时后停止轮询。"
                     },
                     "enable_proxy": {
                         "description": "启用代理",
@@ -1064,6 +1187,75 @@
                 ],
                 "default": "default",
                 "hint": "仅 OpenAI Responses 生图工具使用：auto 由模型判断，generate 强制生成，edit 强制编辑；default 表示不传递。"
+            }
+        }
+    },
+    "video_config": {
+        "description": "视频参数配置",
+        "type": "object",
+        "hint": "视频生成的全局默认参数。命令或 LLM 工具显式传入的参数优先；各字段 hint 标明当前由智谱或 Grok 使用。",
+        "items": {
+            "video_size": {
+                "description": "视频尺寸",
+                "type": "string",
+                "default": "default",
+                "hint": "智谱和 Grok 使用。请按当前 provider 填写：Grok 使用 480p、720p、1080p，智谱使用 720x480、1920x1080 等尺寸；default 表示不传递。"
+            },
+            "video_duration": {
+                "description": "视频时长",
+                "type": "int",
+                "default": 6,
+                "hint": "仅 Grok 使用，支持 1 到 15 秒；智谱忽略。"
+            },
+            "video_aspect_ratio": {
+                "description": "视频宽高比",
+                "type": "string",
+                "default": "default",
+                "hint": "仅 Grok 使用，例如 1:1、16:9、9:16；智谱忽略。default 表示不传递。"
+            },
+            "video_quality": {
+                "description": "视频质量模式",
+                "type": "string",
+                "options": [
+                    "speed",
+                    "quality"
+                ],
+                "default": "speed",
+                "hint": "仅智谱使用：speed 或 quality；Grok 忽略。"
+            },
+            "video_fps": {
+                "description": "视频帧率",
+                "type": "int",
+                "options": [
+                    30,
+                    60
+                ],
+                "default": 30,
+                "hint": "仅智谱使用：30 或 60；Grok 忽略。"
+            },
+            "video_with_audio": {
+                "description": "视频生成音频",
+                "type": "bool",
+                "default": true,
+                "hint": "智谱和 Grok 使用。智谱传递为 with_audio，Grok 传递为 generate_audio。"
+            },
+            "video_watermark_enabled": {
+                "description": "智谱视频水印",
+                "type": "bool",
+                "default": true,
+                "hint": "仅智谱使用；Grok 忽略。"
+            },
+            "video_poll_interval": {
+                "description": "视频任务轮询间隔",
+                "type": "float",
+                "default": 5,
+                "hint": "智谱和 Grok 使用，单位：秒。"
+            },
+            "video_job_timeout": {
+                "description": "视频任务总超时",
+                "type": "float",
+                "default": 900,
+                "hint": "智谱和 Grok 使用，单位：秒；超时后停止轮询。"
             }
         }
     },

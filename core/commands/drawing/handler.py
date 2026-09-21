@@ -9,12 +9,11 @@ from astrbot.core.message.message_event_result import MessageChain
 
 from ...drawing import (
     DrawingPipeline,
-    ImageSaver,
     parse_params,
 )
-from ...utils import build_message_chain, build_result_message_chain
 from ...drawing.collector import ImageCollector
-from ...schemas import MAX_SIZE_B64_LEN, GenerationResult
+from ...schemas import GenerationResult
+from ...utils import build_message_chain, build_result_message_chain
 from .gather_session import DrawingGatherSession
 
 if TYPE_CHECKING:
@@ -22,7 +21,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from astrbot.api.event import AstrMessageEvent
-    from astrbot.core.message.components import BaseMessageComponent
     from astrbot.core.message.message_event_result import MessageEventResult
 
     from ....main import BigBanana
@@ -42,7 +40,6 @@ class DrawingCommandHandler:
         self.plugin = plugin
         self.drawing_pipeline = drawing_pipeline
         self.meme_handler = meme_handler
-        self.image_saver = ImageSaver()
 
     async def handle_on_message(
         self, event: AstrMessageEvent
@@ -259,7 +256,6 @@ class DrawingCommandHandler:
                     quote_reply_mode=self.plugin.preference_config.quote_reply_mode,
                     is_command=True,
                     temporary_paths=temporary_paths,
-                    image_saver=self.image_saver,
                     temp_dir=self.plugin.temp_dir,
                 )
 

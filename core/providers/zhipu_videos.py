@@ -71,17 +71,19 @@ class ZhipuVideosProvider(BaseVideoProvider):
         if "prompt" not in body and "image_url" not in body:
             return {}, "CogVideoX-Flash 至少需要提示词或一张参考图"
 
-        raw_config = self.provider_config.raw_config
-        quality = self.params.get("quality", raw_config.get("quality", "speed"))
+        quality = self.params.get("quality", self.plugin.params_config.video_quality)
         if quality not in {"speed", "quality"}:
             return {}, "quality 仅支持 speed 或 quality"
         body["quality"] = quality
 
-        size = self.params.get("size", raw_config.get("size", "default"))
+        video_size = self.params.get(
+            "video_size", self.plugin.params_config.video_size
+        )
+        size = video_size
         if size and size != "default":
             body["size"] = size
 
-        fps = self.params.get("fps", raw_config.get("fps", 30))
+        fps = self.params.get("fps", self.plugin.params_config.video_fps)
         if isinstance(fps, str):
             try:
                 fps = int(fps)
@@ -92,11 +94,10 @@ class ZhipuVideosProvider(BaseVideoProvider):
         body["fps"] = fps
 
         body["with_audio"] = self.params.get(
-            "with_audio", raw_config.get("with_audio", False)
+            "with_audio", self.plugin.params_config.video_with_audio
         )
         body["watermark_enabled"] = self.params.get(
-            "watermark_enabled",
-            raw_config.get("watermark_enabled", True),
+            "watermark_enabled", self.plugin.params_config.video_watermark_enabled
         )
         return body, None
 
@@ -161,12 +162,8 @@ class ZhipuVideosProvider(BaseVideoProvider):
             return None, "智谱视频任务创建发生网络错误"
 
     async def _poll_job(self, api_key: str, task_id: str) -> GenerationResult:
-        raw_config = self.provider_config.raw_config
-        poll_interval = max(1.0, raw_config.get("poll_interval", 5))
-        job_timeout = max(
-            poll_interval,
-            raw_config.get("job_timeout", 900),
-        )
+        poll_interval = self.plugin.params_config.video_poll_interval
+        job_timeout = self.plugin.params_config.video_job_timeout
         deadline = time.monotonic() + job_timeout
         consecutive_errors = 0
 
