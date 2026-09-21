@@ -178,7 +178,12 @@ class GrokVideosProvider(BaseVideoProvider):
         consecutive_errors = 0
 
         while time.monotonic() < deadline:
-            await asyncio.sleep(poll_interval)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            await asyncio.sleep(min(poll_interval, remaining))
+            if time.monotonic() >= deadline:
+                break
             try:
                 result = await self._fetch_job(api_key, request_id)
             except asyncio.CancelledError:

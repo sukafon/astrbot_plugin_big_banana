@@ -67,7 +67,7 @@ V2（`v0.2.x`）以全新的配置结构和生成管线为基线，不保证兼�
 | `--video_size` | 480p, 720p, 1080p, 1920x1080, ... | 视频尺寸；按当前视频提供商填写并直接传递 |
 | `--url` | true, false | 仅返回图片URL，不直接发送图片 *[7] |
 | `--capability` | image_generation, video_generation | 选择预设使用的生成能力 |
-| `--quality` | auto, low, medium, high, xhigh, max | OpenAI/Grok 图片质量；CogVideoX 使用 speed, quality |
+| `--quality` | OpenAI: auto, low, medium, high, xhigh, max；Grok: auto, low, medium | OpenAI/Grok 图片质量；CogVideoX 使用 speed, quality |
 | `--background` | auto, transparent, opaque | OpenAI 图片背景类型 |
 | `--output_format` | png, jpeg, webp | OpenAI 图片输出格式 |
 | `--output_compression` | 0-100 | OpenAI JPEG/WebP 输出压缩程度 |

@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+from core.providers import grok_videos
 from core.providers.grok_images import GrokImagesProvider
 from core.providers.grok_videos import (
     GrokVideosProvider,
@@ -190,6 +191,31 @@ def test_grok_video_polling_returns_video_url(monkeypatch) -> None:
         "https://example.com/grok.mp4"
     ]
     assert provider._fetch_job.await_count == 2
+
+
+def test_grok_video_polling_does_not_fetch_after_deadline(monkeypatch) -> None:
+    provider = build_video_provider()
+    provider.plugin.params_config.video_poll_interval = 10
+    provider.plugin.params_config.video_job_timeout = 1
+    provider._fetch_job = AsyncMock()
+    slept: list[float] = []
+    clock = iter([0.0, 0.0, 0.0, 1.0])
+
+    async def record_sleep(delay: float) -> None:
+        slept.append(delay)
+
+    monkeypatch.setattr(asyncio, "sleep", record_sleep)
+    monkeypatch.setattr(
+        grok_videos,
+        "time",
+        SimpleNamespace(monotonic=lambda: next(clock)),
+    )
+
+    result = asyncio.run(provider._poll_job("test-key", "request-id"))
+
+    assert result.error_message == "Grok 视频生成超过 1 秒仍未完成"
+    assert slept == [1.0]
+    provider._fetch_job.assert_not_awaited()
 
 
 def test_grok_video_rejects_invalid_duration() -> None:
