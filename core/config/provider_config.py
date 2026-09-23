@@ -92,6 +92,7 @@ class ProviderConfigManager:
                 image_model=raw_item.get("image_model", ""),
                 stream=raw_item.get("stream", False),
                 enable_proxy=raw_item.get("enable_proxy", False),
+                video_download_enabled=raw_item.get("video_download_enabled", False),
                 max_images=raw_item.get("max_images", 6),
                 raw_config=raw_item,
             )

@@ -35,6 +35,7 @@ class VideoPipeline:
         Returns:
             Generated videos or an error result.
         """
+        self.plugin.video_downloader.cleanup_stale_files()
         if self.plugin.common_config.strip_metadata and image_list:
             cleaned_images: list[ImageResource] = []
             for image in image_list:

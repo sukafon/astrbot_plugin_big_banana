@@ -840,6 +840,12 @@
                         "default": false,
                         "hint": "启用代理，需先在“常规配置”中配置代理地址。"
                     },
+                    "video_download_enabled": {
+                        "description": "发送前下载视频",
+                        "type": "bool",
+                        "default": false,
+                        "hint": "启用后插件下载并校验视频，再以本地文件发送；下载使用“常规配置”中的代理。协议端必须能访问 AstrBot 回调接口或共享目录；--url true 会跳过下载。"
+                    },
                     "max_images": {
                         "description": "最大输入图片限制",
                         "type": "int",
@@ -973,6 +979,12 @@
                         "description": "启用代理",
                         "type": "bool",
                         "default": false
+                    },
+                    "video_download_enabled": {
+                        "description": "发送前下载视频",
+                        "type": "bool",
+                        "default": false,
+                        "hint": "启用后插件下载并校验视频，再以本地文件发送；下载使用“常规配置”中的代理。协议端必须能访问 AstrBot 回调接口或共享目录；--url true 会跳过下载。"
                     },
                     "max_images": {
                         "description": "最大输入图片限制",
@@ -1193,7 +1205,7 @@
     "video_config": {
         "description": "视频参数配置",
         "type": "object",
-        "hint": "视频生成的全局默认参数。命令或 LLM 工具显式传入的参数优先；各字段 hint 标明当前由智谱或 Grok 使用。",
+        "hint": "视频生成参数和下载重试策略。命令或 LLM 工具显式传入的生成参数优先；是否由插件下载视频在各视频提供商配置中单独设置，下载使用常规配置中的代理。",
         "items": {
             "video_size": {
                 "description": "视频尺寸",
@@ -1256,6 +1268,18 @@
                 "type": "float",
                 "default": 900,
                 "hint": "智谱和 Grok 使用，单位：秒；超时后停止轮询。"
+            },
+            "video_download_retries": {
+                "description": "视频下载重试次数",
+                "type": "int",
+                "default": 3,
+                "hint": "首次下载失败后最多重试次数，运行时最多限制为 5 次。"
+            },
+            "video_download_timeout": {
+                "description": "单次视频下载超时",
+                "type": "float",
+                "default": 300,
+                "hint": "每次视频下载尝试的最长时间，单位：秒。"
             }
         }
     },
@@ -1306,7 +1330,7 @@
                 "description": "HTTP代理",
                 "type": "string",
                 "default": "",
-                "hint": "格式示例：http://127.0.0.1:7890，填写此项不会导致代理被默认启用，需要在其他配置项中显式开启"
+                "hint": "格式示例：http://127.0.0.1:7890，填写此项不会导致代理被默认启用，需要在其他配置项中显式开启；启用视频提供商的“发送前下载视频”时也使用此代理。"
             },
             "strip_metadata": {
                 "description": "抹除隐私元数据",

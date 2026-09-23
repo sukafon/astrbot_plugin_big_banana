@@ -118,9 +118,7 @@ class GrokVideosProvider(BaseVideoProvider):
         if aspect_ratio not in (None, "", "default"):
             body["aspect_ratio"] = str(aspect_ratio)
 
-        video_size = self.params.get(
-            "video_size", self.plugin.params_config.video_size
-        )
+        video_size = self.params.get("video_size", self.plugin.params_config.video_size)
         resolution_value = video_size
         if resolution_value not in (None, "", "default"):
             body["resolution"] = resolution_value
@@ -211,7 +209,14 @@ class GrokVideosProvider(BaseVideoProvider):
                 video = result.get("video")
                 url = video.get("url") if isinstance(video, dict) else None
                 if isinstance(url, str) and url.startswith(("http://", "https://")):
-                    return GenerationResult(videos=[VideoResource(url=url)])
+                    return GenerationResult(
+                        videos=[
+                            VideoResource(
+                                url=url,
+                                download_enabled=self.provider_config.video_download_enabled,
+                            )
+                        ]
+                    )
                 return GenerationResult(
                     error_message="Grok 视频任务完成，但未返回视频 URL"
                 )

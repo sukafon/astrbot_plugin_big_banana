@@ -117,7 +117,13 @@ OpenAI 图像参数配置中的质量、背景、输出格式、压缩程度和�
 
 ### 视频参数配置
 
-`video_config` 统一管理视频默认参数。`video_size`、`video_poll_interval`、`video_job_timeout` 和 `video_with_audio` 同时供智谱和 Grok 使用；`video_duration`、`video_aspect_ratio` 由 Grok 使用，`video_quality`、`video_fps` 和 `video_watermark_enabled` 由智谱使用。provider 模板仅保留连接、模型、Key、代理和输入图片限制等 provider-specific 配置，不重复声明这些公共视频参数。
+`video_config` 统一管理视频生成参数、轮询和下载重试策略。`video_size`、`video_poll_interval`、`video_job_timeout` 和 `video_with_audio` 同时供智谱和 Grok 使用；`video_duration`、`video_aspect_ratio` 由 Grok 使用，`video_quality`、`video_fps` 和 `video_watermark_enabled` 由智谱使用。是否下载视频分别配置在各视频提供商中；下载代理复用“常规配置”中的代理。
+
+如果协议端直接获取某个提供商的视频 URL 不稳定，可在该视频提供商配置中启用“发送前下载视频”，并在“常规配置”中设置代理。例如 AstrBot 在 Windows 上运行、代理监听本机 `10090` 端口时，可填写 `http://127.0.0.1:10090`。插件会流式下载 MP4、校验响应长度和文件头，失败后按 `video_config` 中的“视频下载重试次数”重试，再通过本地文件组件发送。下载文件保留 15 分钟，在下次视频生成请求或插件启动时清理过期文件，不使用定时任务。`--url true` 会跳过本地下载并返回原始 URL。
+
+Grok_Videos 与智谱视频提供商分别控制是否下载，未启用的提供商仍按远程 URL 发送。本地文件发送要求协议端可以访问 AstrBot 的文件：容器或远程 NapCat 请配置 AstrBot 的“对外可达的回调接口地址”，并确保 NapCat 能访问该地址；也可以将插件数据目录共享挂载给协议端。Windows 上运行 AstrBot、WSL 中运行 NapCat 时，优先配置 NapCat 可访问的回调地址。
+
+下载只接受 HTTP(S) 视频 URL，并对每次重定向做同样检查。视频 URL 由已配置的提供商返回，启用“发送前下载视频”前请确认该提供商可信；插件不再预先解析视频域名，实际解析方式由 HTTP 客户端和代理配置决定。
 
 ### Grok Imagine 图片与视频
 

@@ -19,6 +19,7 @@ from .core import (
     ProviderDispatcher,
     R2ImageHoster,
     SubBrainOptimizer,
+    VideoDownloader,
     VideoPipeline,
     VideoProviderDispatcher,
     WhitelistHandler,
@@ -58,6 +59,8 @@ class BigBanana(Star):
         # 初始化临时目录
         self.temp_dir = self.data_dir / "temp_images"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
+        self.video_temp_dir = self.data_dir / "temp_videos"
+        self.video_temp_dir.mkdir(parents=True, exist_ok=True)
         # 初始化保存目录
         self.save_dir = self.data_dir / "save_images"
         self.save_dir.mkdir(parents=True, exist_ok=True)
@@ -110,6 +113,8 @@ class BigBanana(Star):
         self.background_callback = CallbackDispatcher(self)
         # HTTP管理器
         self.http_manager = HttpManager()
+        self.video_downloader = VideoDownloader(self.video_temp_dir)
+        self.video_downloader.cleanup_stale_files()
         # HTTP下载器
         self.downloader = Downloader(
             self.http_manager.get_aiohttp_session(), self.common_config.proxy

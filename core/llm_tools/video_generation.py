@@ -106,13 +106,10 @@ class BigBananaVideoGenerationTool(BaseMediaGenerationTool):
             for reference in image_references
         ):
             return "image_references 不接受 base64:// 或 Data URL。"
-        if (
-            not plugin.llm_tools_config.llm_tool_allow_custom_url
-            and any(
-                isinstance(reference, str)
-                and reference.strip().lower().startswith(("http://", "https://"))
-                for reference in image_references
-            )
+        if not plugin.llm_tools_config.llm_tool_allow_custom_url and any(
+            isinstance(reference, str)
+            and reference.strip().lower().startswith(("http://", "https://"))
+            for reference in image_references
         ):
             return (
                 "当前工具设置已禁用自定义网络图片 URL (HTTP/HTTPS)。"
@@ -166,8 +163,7 @@ class BigBananaVideoGenerationTool(BaseMediaGenerationTool):
                 )
             if (
                 preset is not None
-                and preset.get("capability", "image_generation")
-                == "video_generation"
+                and preset.get("capability", "image_generation") == "video_generation"
             ):
                 params.update(preset)
 
@@ -241,7 +237,16 @@ class BigBananaVideoGenerationTool(BaseMediaGenerationTool):
         chain: list[BaseMessageComponent] = [
             Comp.Plain("后台视频生成已完成，以下视频尚未发送给用户。")
         ]
-        chain.extend(Comp.Video.fromURL(video.url) for video in result.videos)
+        videos = [video for video in result.videos if video.url]
+        for video in videos:
+            if video.local_path is not None and video.local_path.is_file():
+                chain.append(Comp.Video.fromFileSystem(str(video.local_path)))
+            elif video.local_path is not None:
+                chain.append(
+                    Comp.Plain(f"❌ 本地视频文件不存在，视频链接：{video.url}")
+                )
+            else:
+                chain.append(Comp.Video.fromURL(video.url))
         return MessageChain(chain=chain)
 
     @staticmethod
