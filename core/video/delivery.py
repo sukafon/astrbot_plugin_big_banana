@@ -44,6 +44,7 @@ async def prepare_video_delivery(
                 proxy=(plugin.common_config.proxy or "").strip() or None,
                 retries=plugin.params_config.video_download_retries,
                 timeout=plugin.params_config.video_download_timeout,
+                allow_private_network=plugin.common_config.allow_private_provider_urls,
             )
             created_paths.append(video.local_path)
         except (VideoDownloadError, OSError, TypeError, ValueError) as exc:

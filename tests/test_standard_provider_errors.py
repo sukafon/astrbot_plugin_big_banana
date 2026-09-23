@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from core.providers.standard import StandardProvider
-from core.schemas import ProviderCallResult, ProviderConfig
+from core.schemas import CommonConfig, ProviderCallResult, ProviderConfig
 
 
 @pytest.mark.asyncio
@@ -72,7 +72,7 @@ async def test_http_200_is_included_when_response_has_no_image() -> None:
 @pytest.mark.asyncio
 async def test_output_urls_preserve_gif_format() -> None:
     downloader = SimpleNamespace(fetch_images=AsyncMock(return_value=[]))
-    plugin = SimpleNamespace(downloader=downloader)
+    plugin = SimpleNamespace(downloader=downloader, common_config=CommonConfig())
     provider = StandardProvider(
         plugin,
         ProviderConfig(name="openai-images"),
@@ -84,3 +84,4 @@ async def test_output_urls_preserve_gif_format() -> None:
     kwargs = downloader.fetch_images.await_args.kwargs
     assert kwargs["convert"] is True
     assert kwargs["allow_gif"] is True
+    assert kwargs["restrict_private_network"] is True

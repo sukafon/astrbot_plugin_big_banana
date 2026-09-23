@@ -282,6 +282,9 @@ class StandardProvider(BaseProvider):
                     convert=True,
                     allow_gif=True,
                     headers=self.image_download_headers,
+                    restrict_private_network=(
+                        not self.plugin.common_config.allow_private_provider_urls
+                    ),
                 )
             )
         return images

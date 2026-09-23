@@ -13,7 +13,9 @@ def test_background_tasks_are_disabled_by_default() -> None:
     assert LlmToolsConfig().llm_tool_allow_custom_url is False
 
 
-def test_llm_tool_presets_allow_empty_to_disable_and_have_recommended_defaults() -> None:
+def test_llm_tool_presets_allow_empty_to_disable_and_have_recommended_defaults() -> (
+    None
+):
     schema = json.loads((ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
     llm_tool_items = schema["llm_tools"]["items"]
 
@@ -21,8 +23,7 @@ def test_llm_tool_presets_allow_empty_to_disable_and_have_recommended_defaults()
     assert LlmToolsConfig().llm_video_tool_preset_name == ""
     assert llm_tool_items["llm_tool_preset_name"]["default"] == "llm_default"
     assert (
-        llm_tool_items["llm_video_tool_preset_name"]["default"]
-        == "llm_video_default"
+        llm_tool_items["llm_video_tool_preset_name"]["default"] == "llm_video_default"
     )
     assert LlmToolsConfig().llm_tool_max_tasks_per_session == 1
     assert llm_tool_items["llm_tool_max_tasks_per_session"]["default"] == 1
@@ -33,8 +34,7 @@ def test_empty_results_do_not_fall_back_by_default() -> None:
 
     schema = json.loads((ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
     assert (
-        schema["common_config"]["items"]["fallback_on_empty_result"]["default"]
-        is False
+        schema["common_config"]["items"]["fallback_on_empty_result"]["default"] is False
     )
 
 
@@ -46,15 +46,10 @@ def test_background_tasks_are_disabled_in_config_schema() -> None:
         is False
     )
     assert (
-        schema["llm_tools"]["items"]["llm_tool_use_background_task"]["default"]
-        is False
+        schema["llm_tools"]["items"]["llm_tool_use_background_task"]["default"] is False
     )
-    assert (
-        schema["llm_tools"]["items"]["llm_tool_truncate_images"]["default"] is False
-    )
-    assert (
-        schema["llm_tools"]["items"]["llm_tool_allow_custom_url"]["default"] is False
-    )
+    assert schema["llm_tools"]["items"]["llm_tool_truncate_images"]["default"] is False
+    assert schema["llm_tools"]["items"]["llm_tool_allow_custom_url"]["default"] is False
 
 
 def test_deprecated_llm_avatar_skip_preference_is_removed() -> None:
@@ -76,9 +71,9 @@ def test_avatar_numbering_note_is_documented_as_command_only() -> None:
 def test_vertex_anonymous_retry_controls_are_in_provider_template() -> None:
     schema = json.loads((ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
     default_provider = schema["provider_template"]["default"][0]
-    provider_items = schema["provider_template"]["templates"][
-        "vertex_ai_anonymous"
-    ]["items"]
+    provider_items = schema["provider_template"]["templates"]["vertex_ai_anonymous"][
+        "items"
+    ]
 
     assert default_provider["max_refresh"] == 5
     assert default_provider["max_retry"] == 5
@@ -91,9 +86,7 @@ def test_vertex_anonymous_retry_controls_are_in_provider_template() -> None:
         "recaptchaToken 最大刷新次数"
     )
     assert provider_items["max_retry"]["default"] == 5
-    assert provider_items["max_retry"]["description"] == (
-        "recaptchaToken 最大重试次数"
-    )
+    assert provider_items["max_retry"]["description"] == ("recaptchaToken 最大重试次数")
     assert provider_items["retry_delay"]["default"] == 1
     assert provider_items["random_fingerprint"]["default"] is False
     assert provider_items["random_fingerprint"]["type"] == "bool"
@@ -114,3 +107,21 @@ def test_video_config_owns_shared_video_defaults() -> None:
     assert "仅 Grok 使用" in video_items["video_duration"]["hint"]
     assert "智谱和 Grok" in video_items["video_poll_interval"]["hint"]
     assert "智谱和 Grok" in video_items["video_job_timeout"]["hint"]
+
+
+def test_private_provider_url_policy_is_global() -> None:
+    schema = json.loads((ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
+    templates = schema["provider_template"]["templates"]
+
+    assert CommonConfig().allow_private_provider_urls is False
+    assert (
+        schema["common_config"]["items"]["allow_private_provider_urls"]["default"]
+        is False
+    )
+    assert "video_download_enabled" in templates["grok_videos"]["items"]
+    assert "video_download_enabled" in templates["zhipu_videos"]["items"]
+    assert "video_download_enabled" not in templates["grok_images"]["items"]
+    assert all(
+        "video_download_allow_private_network" not in template["items"]
+        for template in templates.values()
+    )
