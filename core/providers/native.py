@@ -100,6 +100,9 @@ class NativeProvider(BaseProvider):
                         image_ref,
                         convert=True,
                         allow_gif=True,
+                        restrict_private_network=(
+                            not self.plugin.common_config.allow_private_provider_urls
+                        ),
                     )
                     if fetched:
                         images.append(fetched)
@@ -126,6 +129,9 @@ class NativeProvider(BaseProvider):
                     use_proxy=self.provider_config.enable_proxy,
                     convert=True,
                     allow_gif=True,
+                    restrict_private_network=(
+                        not self.plugin.common_config.allow_private_provider_urls
+                    ),
                 )
                 if fetched:
                     images.append(fetched)

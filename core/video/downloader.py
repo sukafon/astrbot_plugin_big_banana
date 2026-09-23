@@ -10,6 +10,8 @@ from curl_cffi.requests import AsyncSession
 
 from astrbot.api import logger
 
+from ..client.downloader import is_public_http_url
+
 _REDIRECT_STATUSES = {301, 302, 303, 307, 308}
 _MAX_REDIRECTS = 5
 _MAX_VIDEO_BYTES = 512 * 1024 * 1024
@@ -44,6 +46,7 @@ class VideoDownloader:
         proxy: str | None,
         retries: int,
         timeout: float,
+        allow_private_network: bool = False,
     ) -> Path:
         """Download and validate an MP4, retrying transient errors.
 
@@ -52,6 +55,7 @@ class VideoDownloader:
             proxy: Optional HTTP or SOCKS proxy URL.
             retries: Number of attempts after the first request, capped at five.
             timeout: Per-attempt request timeout in seconds.
+            allow_private_network: Whether to trust private provider addresses.
 
         Returns:
             Path to the complete MP4 file.
@@ -73,6 +77,7 @@ class VideoDownloader:
                     partial_path,
                     proxy=proxy,
                     timeout=max(float(timeout), 1.0),
+                    allow_private_network=allow_private_network,
                 )
                 partial_path.replace(final_path)
                 return final_path
@@ -105,6 +110,7 @@ class VideoDownloader:
         *,
         proxy: str | None,
         timeout: float,
+        allow_private_network: bool,
     ) -> None:
         """Stream one MP4 response and verify its declared size and file header.
 
@@ -113,6 +119,7 @@ class VideoDownloader:
             partial_path: Temporary path for this attempt.
             proxy: Optional HTTP or SOCKS proxy URL.
             timeout: Request timeout in seconds.
+            allow_private_network: Whether private provider addresses are allowed.
 
         Raises:
             VideoDownloadError: If a network, response, or file validation error occurs.
@@ -135,6 +142,11 @@ class VideoDownloader:
                 raise _PermanentVideoDownloadError(
                     "video URL or redirect is not a valid HTTP(S) address"
                 ) from exc
+
+            if not allow_private_network and not await is_public_http_url(current_url):
+                raise _PermanentVideoDownloadError(
+                    "video URL or redirect is not a public HTTP(S) address"
+                )
 
             async with (
                 AsyncSession(trust_env=False) as session,

@@ -17,6 +17,8 @@ class CommonConfig:
     """请求超时时间, 单位: 秒"""
     proxy: str | None = None
     """代理"""
+    allow_private_provider_urls: bool = False
+    """Whether provider-returned media URLs may resolve to private addresses."""
     strip_metadata: bool = True
     """是否在图片处理中抹除所有可能带隐私的元数据"""
 
@@ -51,7 +53,6 @@ class PreferenceConfig:
     """ 收集模式超时时间, 单位: 秒 """
     quote_reply_mode: str = "both"
     """ 回复引用配置。both: 命令和LLM工具均引用回复；command_only: 仅命令引用回复；tool_only: 仅LLM工具引用回复；none: 不引用回复 """
-
 
 
 @dataclass(repr=False, slots=True)
@@ -106,4 +107,3 @@ class LlmToolsConfig:
     """ 后台任务完成回调方法 """
     llm_tool_max_tasks_per_session: int = 1
     """ 每个会话 LLM 工具后台任务并发上限（0 为不限制） """
-

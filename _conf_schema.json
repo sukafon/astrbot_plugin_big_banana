@@ -840,12 +840,6 @@
                         "default": false,
                         "hint": "启用代理，需先在“常规配置”中配置代理地址。"
                     },
-                    "video_download_enabled": {
-                        "description": "发送前下载视频",
-                        "type": "bool",
-                        "default": false,
-                        "hint": "启用后插件下载并校验视频，再以本地文件发送；下载使用“常规配置”中的代理。协议端必须能访问 AstrBot 回调接口或共享目录；--url true 会跳过下载。"
-                    },
                     "max_images": {
                         "description": "最大输入图片限制",
                         "type": "int",
@@ -914,6 +908,12 @@
                         "type": "bool",
                         "default": false,
                         "hint": "启用代理，需先在“常规配置”中配置代理地址。"
+                    },
+                    "video_download_enabled": {
+                        "description": "发送前下载视频",
+                        "type": "bool",
+                        "default": false,
+                        "hint": "启用后插件下载并校验视频，再以本地文件发送；下载使用“常规配置”中的代理。协议端必须能访问 AstrBot 回调接口或共享目录；--url true 会跳过下载。"
                     },
                     "max_images": {
                         "description": "最大输入图片限制",
@@ -1331,6 +1331,12 @@
                 "type": "string",
                 "default": "",
                 "hint": "格式示例：http://127.0.0.1:7890，填写此项不会导致代理被默认启用，需要在其他配置项中显式开启；启用视频提供商的“发送前下载视频”时也使用此代理。"
+            },
+            "allow_private_provider_urls": {
+                "description": "允许提供商返回内网媒体 URL",
+                "type": "bool",
+                "default": false,
+                "hint": "影响插件下载提供商返回的图片和视频 URL。关闭时拒绝解析到内网、回环或保留地址的 URL 及重定向；本地服务或代理 Fake-IP 模式确需访问时可开启，仅对可信提供商使用。"
             },
             "strip_metadata": {
                 "description": "抹除隐私元数据",

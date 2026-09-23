@@ -5,6 +5,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
+from core.client.downloader import is_public_http_url
 from core.schemas import GenerationResult, VideoResource
 from core.utils.event_utils import build_result_message_chain
 from core.video.delivery import prepare_video_delivery
@@ -14,6 +17,17 @@ from core.video.pipeline import VideoPipeline
 import astrbot.api.message_components as Comp
 
 _MP4 = b"\x00\x00\x00\x18ftypisom\x00\x00\x00\x00isom"
+
+
+def test_public_url_check_rejects_mixed_dns_addresses() -> None:
+    addresses = [
+        (0, 0, 0, "", ("93.184.215.14", 443)),
+        (0, 0, 0, "", ("127.0.0.1", 443)),
+    ]
+    with patch("core.client.downloader.socket.getaddrinfo", return_value=addresses):
+        result = asyncio.run(is_public_http_url("https://video.example/clip.mp4"))
+
+    assert result is False
 
 
 class FakeResponse:
@@ -67,6 +81,7 @@ def test_download_uses_configured_proxy_for_local_provider_url(tmp_path: Path) -
                 proxy="http://127.0.0.1:10090",
                 retries=0,
                 timeout=10,
+                allow_private_network=True,
             )
         )
 
@@ -90,6 +105,7 @@ def test_download_rejects_non_http_redirect_before_connecting(tmp_path: Path) ->
                     proxy=None,
                     retries=0,
                     timeout=10,
+                    allow_private_network=True,
                 )
             )
         except VideoDownloadError:
@@ -114,6 +130,7 @@ def test_download_follows_relative_http_redirect(tmp_path: Path) -> None:
                 proxy=None,
                 retries=0,
                 timeout=10,
+                allow_private_network=True,
             )
         )
 
@@ -121,6 +138,87 @@ def test_download_follows_relative_http_redirect(tmp_path: Path) -> None:
     assert [session.requests[0][1] for session in FakeSession.instances] == [
         "https://video.example/start/clip.mp4",
         "https://video.example/final.mp4",
+    ]
+
+
+def test_default_video_policy_checks_public_url_before_request(tmp_path: Path) -> None:
+    FakeSession.instances = []
+    FakeSession.responses = [FakeResponse(200)]
+    validator = AsyncMock(return_value=True)
+
+    with (
+        patch("core.video.downloader.is_public_http_url", validator),
+        patch("core.video.downloader.AsyncSession", FakeSession),
+    ):
+        path = asyncio.run(
+            VideoDownloader(tmp_path).download(
+                "https://video.example/clip.mp4",
+                proxy="http://127.0.0.1:10090",
+                retries=0,
+                timeout=10,
+            )
+        )
+
+    assert path.read_bytes() == _MP4
+    validator.assert_awaited_once_with("https://video.example/clip.mp4")
+    assert FakeSession.instances[0].requests[0][1] == ("https://video.example/clip.mp4")
+
+
+def test_default_video_policy_rejects_private_url_before_connecting(
+    tmp_path: Path,
+) -> None:
+    FakeSession.instances = []
+    validator = AsyncMock(return_value=False)
+
+    with (
+        patch("core.video.downloader.is_public_http_url", validator),
+        patch("core.video.downloader.AsyncSession", FakeSession),
+    ):
+        try:
+            asyncio.run(
+                VideoDownloader(tmp_path).download(
+                    "http://127.0.0.1:8317/clip.mp4",
+                    proxy=None,
+                    retries=3,
+                    timeout=10,
+                )
+            )
+        except VideoDownloadError:
+            pass
+        else:
+            raise AssertionError("private URL was accepted")
+
+    validator.assert_awaited_once()
+    assert not FakeSession.instances
+
+
+def test_default_video_policy_rejects_private_redirect(tmp_path: Path) -> None:
+    FakeSession.instances = []
+    FakeSession.responses = [FakeResponse(302, location="http://127.0.0.1/secret")]
+    validator = AsyncMock(side_effect=[True, False])
+
+    with (
+        patch("core.video.downloader.is_public_http_url", validator),
+        patch("core.video.downloader.AsyncSession", FakeSession),
+    ):
+        try:
+            asyncio.run(
+                VideoDownloader(tmp_path).download(
+                    "https://video.example/clip.mp4",
+                    proxy=None,
+                    retries=0,
+                    timeout=10,
+                )
+            )
+        except VideoDownloadError:
+            pass
+        else:
+            raise AssertionError("private redirect was accepted")
+
+    assert len(FakeSession.instances) == 1
+    assert [call.args[0] for call in validator.await_args_list] == [
+        "https://video.example/clip.mp4",
+        "http://127.0.0.1/secret",
     ]
 
 
@@ -151,13 +249,18 @@ def test_next_video_request_cleans_expired_files_only(tmp_path: Path) -> None:
     assert active_partial.exists()
 
 
-def test_local_video_is_retained_after_building_the_message(tmp_path: Path) -> None:
+@pytest.mark.parametrize("allow_private", [False, True])
+def test_local_video_is_retained_after_building_the_message(
+    tmp_path: Path, allow_private: bool
+) -> None:
     path = tmp_path / "video_ready.mp4"
     path.write_bytes(_MP4)
     downloader = SimpleNamespace(download=AsyncMock(return_value=path))
     plugin = SimpleNamespace(
         video_downloader=downloader,
-        common_config=SimpleNamespace(proxy=""),
+        common_config=SimpleNamespace(
+            proxy="", allow_private_provider_urls=allow_private
+        ),
         params_config=SimpleNamespace(
             video_download_retries=3, video_download_timeout=30
         ),
@@ -176,3 +279,6 @@ def test_local_video_is_retained_after_building_the_message(tmp_path: Path) -> N
     assert path.exists()
     assert temporary_paths == []
     assert any(isinstance(component, Comp.Video) for component in message)
+    assert (
+        downloader.download.await_args.kwargs["allow_private_network"] is allow_private
+    )
