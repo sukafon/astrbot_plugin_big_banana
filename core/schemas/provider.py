@@ -28,6 +28,8 @@ class ProviderConfig:
     """是否启用流式响应"""
     enable_proxy: bool = False
     """是否启用代理配置"""
+    video_download_enabled: bool = False
+    """Whether downloaded video delivery is enabled for this provider."""
     max_images: int = 6
     """该提供商支持的最大输入图片数量"""
     raw_config: dict[str, Any] = field(default_factory=dict)

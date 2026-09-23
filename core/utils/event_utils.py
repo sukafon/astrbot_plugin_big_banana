@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from astrbot.core.message.components import BaseMessageComponent
 
 
-
 def get_message_id(event: AstrMessageEvent) -> str | None:
     """安全获取事件关联的消息 ID，若不存在或不是有效 message_obj 则返回 None。"""
     message_obj = getattr(event, "message_obj", None)
@@ -95,7 +94,17 @@ def build_result_message_chain(
         return msg_chain
 
     if video_urls:
-        msg_chain.extend(Comp.Video.fromURL(url) for url in video_urls)
+        videos = [video for video in result.videos if video.url]
+        for video in videos:
+            if video.local_path is not None:
+                if video.local_path.is_file():
+                    msg_chain.append(Comp.Video.fromFileSystem(str(video.local_path)))
+                else:
+                    msg_chain.append(
+                        Comp.Plain(f"❌ 本地视频文件不存在，视频链接：{video.url}")
+                    )
+            else:
+                msg_chain.append(Comp.Video.fromURL(video.url))
         return msg_chain
 
     images_with_bytes = [image for image in result.images if image.bytes]

@@ -76,9 +76,7 @@ class ZhipuVideosProvider(BaseVideoProvider):
             return {}, "quality 仅支持 speed 或 quality"
         body["quality"] = quality
 
-        video_size = self.params.get(
-            "video_size", self.plugin.params_config.video_size
-        )
+        video_size = self.params.get("video_size", self.plugin.params_config.video_size)
         size = video_size
         if size and size != "default":
             body["size"] = size
@@ -202,7 +200,12 @@ class ZhipuVideosProvider(BaseVideoProvider):
                         continue
                     url = item.get("url")
                     if isinstance(url, str) and url.startswith(("http://", "https://")):
-                        videos.append(VideoResource(url=url))
+                        videos.append(
+                            VideoResource(
+                                url=url,
+                                download_enabled=self.provider_config.video_download_enabled,
+                            )
+                        )
                 if videos:
                     return GenerationResult(videos=videos)
                 return GenerationResult(

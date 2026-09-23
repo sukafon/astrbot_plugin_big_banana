@@ -104,6 +104,7 @@ def test_video_pipeline_drops_a_truncated_reference_without_crashing() -> None:
     plugin = SimpleNamespace(
         common_config=SimpleNamespace(strip_metadata=True),
         video_dispatcher=SimpleNamespace(dispatch=dispatcher),
+        video_downloader=SimpleNamespace(cleanup_stale_files=lambda: None),
     )
 
     result = asyncio.run(VideoPipeline(plugin).run({}, [truncated]))

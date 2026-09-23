@@ -14,6 +14,7 @@ from astrbot.core.message.message_event_result import MessageChain
 from ..drawing.collector import ImageCollector
 from ..schemas import GenerationResult
 from ..utils import build_message_chain, build_result_message_chain
+from ..video import prepare_video_delivery
 
 if TYPE_CHECKING:
     from astrbot.core.agent.tool import ToolExecResult
@@ -149,10 +150,36 @@ class BaseMediaGenerationTool(FunctionTool[AstrAgentContext], ABC):
             if not result.error_message:
                 plugin.cooldown_guard.mark_cooldown(event.get_group_id())
 
+            url_only = False
+            if self.media_name == "视频":
+                url_only = params.get("url", plugin.params_config.url)
+                if not result.error_message and (
+                    use_background_callback or direct_send_result
+                ):
+                    delivery_error = await prepare_video_delivery(
+                        plugin,
+                        result,
+                        url_only=url_only,
+                    )
+                    if delivery_error:
+                        result.error_message = delivery_error
+
             if use_background_callback:
+                if self.media_name == "视频" and url_only and not result.error_message:
+                    video_urls = [video.url for video in result.videos if video.url]
+                    callback_result = MessageChain(
+                        chain=[
+                            Comp.Plain(
+                                "后台视频生成已完成，视频链接：\n"
+                                + ("\n".join(video_urls) or "没有可用的视频 URL。")
+                            )
+                        ]
+                    )
+                else:
+                    callback_result = self._build_callback_result_chain(result)
                 handled = await plugin.background_callback.dispatch(
                     event=event,
-                    result=self._build_callback_result_chain(result),
+                    result=callback_result,
                     params=params,
                     unified_msg_origin=unified_msg_origin,
                     is_success=not result.error_message,
@@ -167,7 +194,9 @@ class BaseMediaGenerationTool(FunctionTool[AstrAgentContext], ABC):
                     result,
                     params,
                     use_proactive_send=is_background_task
-                    and (plugin.preference_config.background_task_send_type == "active"),
+                    and (
+                        plugin.preference_config.background_task_send_type == "active"
+                    ),
                     temporary_paths=temporary_paths,
                 )
 

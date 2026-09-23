@@ -400,16 +400,18 @@ class Downloader:
 
 
 async def is_public_http_url(url: str) -> bool:
-    """Check whether an HTTP URL resolves exclusively to public addresses.
+    """Check whether an HTTP media URL resolves exclusively to public addresses.
 
     Args:
-        url: Remote image URL to validate.
+        url: Remote media URL to validate.
 
     Returns:
         True when the URL uses HTTP(S) and all resolved addresses are public.
     """
+    hostname = "unknown"
     try:
         parsed = urllib.parse.urlparse(url)
+        hostname = parsed.hostname or "unknown"
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             return False
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
@@ -428,7 +430,9 @@ async def is_public_http_url(url: str) -> bool:
             ipaddress.ip_address(address).is_global for address in addresses
         )
     except (OSError, ValueError) as e:
-        logger.warning(f"[BIG BANANA] 校验公网图片地址失败: {url}，错误信息：{e}")
+        logger.warning(
+            f"[BIG BANANA] Failed to validate public media host {hostname}: {e}"
+        )
         return False
 
 

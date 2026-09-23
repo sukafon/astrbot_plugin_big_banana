@@ -43,6 +43,10 @@ class ParamsConfig:
     """视频任务轮询间隔"""
     video_job_timeout: float = 900
     """视频任务总超时"""
+    video_download_retries: int = 3
+    """Number of retries after a generated video download fails."""
+    video_download_timeout: float = 300
+    """Timeout in seconds for one generated video download attempt."""
     size_keyword_map: dict[tuple[str, ...], str] = field(default_factory=dict)
     """OpenAI 图片尺寸关键词映射"""
     n: int = 1
@@ -83,6 +87,8 @@ class ParamsConfig:
         video_watermark_enabled: bool = True,
         video_poll_interval: float = 5,
         video_job_timeout: float = 900,
+        video_download_retries: int = 3,
+        video_download_timeout: float = 300,
         size_keyword_map: list[str] | None = None,
         n: int = 1,
         partial_images: int = 0,
@@ -112,6 +118,8 @@ class ParamsConfig:
         self.video_watermark_enabled = video_watermark_enabled
         self.video_poll_interval = video_poll_interval
         self.video_job_timeout = video_job_timeout
+        self.video_download_retries = video_download_retries
+        self.video_download_timeout = video_download_timeout
         self.size_keyword_map = self._parse_size_keyword_map(size_keyword_map or [])
         self.n = n
         self.partial_images = partial_images
