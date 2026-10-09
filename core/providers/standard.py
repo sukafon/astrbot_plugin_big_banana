@@ -258,35 +258,46 @@ class StandardProvider(BaseProvider):
         raise NotImplementedError
 
     async def _build_images(self, image_sources: list[str]) -> list[ImageResource]:
-        """把 base64 或 URL 图片来源转换为图片资源。"""
-        images: list[ImageResource] = []
-        image_urls: list[str] = []
+        """Decode and download image sources concurrently in their original order.
+
+        Args:
+            image_sources: Ordered base64 or HTTP(S) image references.
+
+        Returns:
+            Successfully loaded images in the same relative order as the input.
+        """
+        tasks = []
         for source in image_sources:
             if source.startswith(("http://", "https://")):
-                image_urls.append(source)
-                continue
-            image = await self.plugin.downloader.fetch_base64_image(
-                source,
-                convert=True,
-                allow_gif=True,
-            )
-            if image:
-                images.append(image)
-            else:
-                logger.warning("[BIG BANANA] 无法解析图片 base64")
-        if image_urls:
-            images.extend(
-                await self.plugin.downloader.fetch_images(
-                    image_urls,
-                    use_proxy=self.provider_config.enable_proxy,
-                    convert=True,
-                    allow_gif=True,
-                    headers=self.image_download_headers,
-                    restrict_private_network=(
-                        not self.plugin.common_config.allow_private_provider_urls
-                    ),
+                tasks.append(
+                    self.plugin.downloader.fetch_images(
+                        [source],
+                        use_proxy=self.provider_config.enable_proxy,
+                        convert=True,
+                        allow_gif=True,
+                        headers=self.image_download_headers,
+                        restrict_private_network=(
+                            not self.plugin.common_config.allow_private_provider_urls
+                        ),
+                    )
                 )
-            )
+            else:
+                tasks.append(
+                    self.plugin.downloader.fetch_base64_image(
+                        source,
+                        convert=True,
+                        allow_gif=True,
+                    )
+                )
+
+        images: list[ImageResource] = []
+        for result in await asyncio.gather(*tasks):
+            if isinstance(result, list):
+                images.extend(result)
+            elif result:
+                images.append(result)
+            else:
+                logger.warning("[BIG BANANA] Could not decode image base64")
         return images
 
     @staticmethod
