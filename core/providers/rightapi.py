@@ -8,7 +8,7 @@ import time
 from typing import Any
 from urllib.parse import quote
 
-from aiohttp import ClientTimeout
+from aiohttp import ClientConnectorError, ClientTimeout, ConnectionTimeoutError
 
 from astrbot.api import logger
 
@@ -88,7 +88,7 @@ class RightAPIProvider(StandardProvider):
         return body
 
     async def generate_images(self) -> GenerationResult:
-        """Retry task submission, then query the accepted task with its original key.
+        """Retry pre-submission connection failures and query with the original key.
 
         Returns:
             Downloaded images or the submission, task, or download error.
@@ -117,7 +117,7 @@ class RightAPIProvider(StandardProvider):
         last_result = ProviderCallResult(error_message="RightAPI 图片任务创建失败")
         for api_key in keys:
             for _attempt in range(max_retry):
-                task_id, last_result = await self._create_job(api_key)
+                task_id, last_result, safe_to_retry = await self._create_job(api_key)
                 if task_id:
                     # Once accepted, never submit another task on polling failure.
                     result = await self._poll_job(
@@ -130,21 +130,28 @@ class RightAPIProvider(StandardProvider):
                         images=dedupe_images(result.images or []),
                         error_message=result.error_message,
                     )
-                if not self.should_retry(last_result.status_code):
+                if not safe_to_retry:
                     break
+            # Only explicit key rejection permits submitting with another key.
+            # Timeouts, 5xx responses, and malformed acceptance may hide a live job.
+            if last_result.status_code not in {401, 402, 403, 429}:
+                break
         error = last_result.error_message or "RightAPI 图片任务创建失败"
         if last_result.status_code:
             error = f"HTTP {last_result.status_code}：{error}"
         return GenerationResult(error_message=error)
 
-    async def _create_job(self, api_key: str) -> tuple[str | None, ProviderCallResult]:
+    async def _create_job(
+        self, api_key: str
+    ) -> tuple[str | None, ProviderCallResult, bool]:
         """Submit a single image task without consuming the task result.
 
         Args:
             api_key: The API key authorizing this submission.
 
         Returns:
-            The accepted task ID and HTTP result, or a submission error.
+            The accepted task ID, HTTP result, and whether a failed connection
+            can be retried without submitting an already accepted task again.
         """
         status_code = 0
         try:
@@ -154,44 +161,81 @@ class RightAPIProvider(StandardProvider):
                 json=self._build_body_context(),
                 proxy=self.proxy,
                 timeout=self.timeout,
+                allow_redirects=False,
             ) as response:
                 status_code = response.status
                 result = json.loads(await response.text())
             if not isinstance(result, dict):
-                return None, ProviderCallResult(
-                    status_code=status_code,
-                    error_message="RightAPI 任务创建响应格式错误",
+                return (
+                    None,
+                    ProviderCallResult(
+                        status_code=status_code,
+                        error_message="RightAPI 任务创建响应格式错误",
+                    ),
+                    False,
                 )
             if (
                 not 200 <= status_code < 300
                 or result.get("error")
                 or (str(result.get("status", "")).casefold() == "failed")
             ):
-                return None, ProviderCallResult(
-                    status_code=status_code,
-                    error_message=self._extract_error_message(result),
+                return (
+                    None,
+                    ProviderCallResult(
+                        status_code=status_code,
+                        error_message=self._extract_error_message(result),
+                    ),
+                    False,
                 )
             task_id = result.get("task_id")
             if not isinstance(task_id, str) or not task_id.strip():
-                return None, ProviderCallResult(
-                    status_code=status_code,
-                    error_message="RightAPI 接口未返回 task_id",
+                return (
+                    None,
+                    ProviderCallResult(
+                        status_code=status_code,
+                        error_message="RightAPI 接口未返回 task_id",
+                    ),
+                    False,
                 )
             logger.info("[BIG BANANA] RightAPI image task created: %s", task_id)
-            return task_id, ProviderCallResult(status_code=status_code)
+            return task_id, ProviderCallResult(status_code=status_code), False
+        except (ClientConnectorError, ConnectionTimeoutError) as exc:
+            # Redirects are disabled, so these errors precede the initial POST.
+            logger.warning(
+                "[BIG BANANA] RightAPI connection failed before submission: %s", exc
+            )
+            return (
+                None,
+                ProviderCallResult(error_message="RightAPI 任务创建连接失败"),
+                True,
+            )
         except asyncio.TimeoutError:
-            return None, ProviderCallResult(
-                status_code=408, error_message="RightAPI 图片任务创建超时"
+            return (
+                None,
+                ProviderCallResult(
+                    status_code=status_code,
+                    error_message="RightAPI 图片任务创建超时，提交结果不明确，请先检查服务端任务记录",
+                ),
+                False,
             )
         except json.JSONDecodeError:
-            return None, ProviderCallResult(
-                status_code=status_code,
-                error_message="RightAPI 任务创建响应格式错误",
+            return (
+                None,
+                ProviderCallResult(
+                    status_code=status_code,
+                    error_message="RightAPI 任务创建响应格式错误",
+                ),
+                False,
             )
         except Exception as exc:
             logger.error("[BIG BANANA] RightAPI task submission failed: %s", exc)
-            return None, ProviderCallResult(
-                error_message="RightAPI 任务创建发生网络错误"
+            return (
+                None,
+                ProviderCallResult(
+                    status_code=status_code,
+                    error_message="RightAPI 任务创建发生错误，提交结果不明确，请先检查服务端任务记录",
+                ),
+                False,
             )
 
     def _extract_result(self, result: dict) -> tuple[list[str], str | None]:
@@ -302,7 +346,7 @@ class RightAPIProvider(StandardProvider):
             if error:
                 return ProviderCallResult(error_message=error)
             status = str(result.get("status", "")).casefold()
-            if status in {"queued", "processing", "in_progress"}:
+            if status in {"pending", "queued", "processing", "in_progress"}:
                 continue
             if status not in {"", "completed"}:
                 return ProviderCallResult(

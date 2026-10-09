@@ -5,6 +5,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from aiohttp import (
+    ClientConnectorError,
+    ConnectionTimeoutError,
+    ServerDisconnectedError,
+)
 from core.config.provider_config import ProviderConfigManager
 from core.providers import BaseProvider, rightapi
 from core.providers.rightapi import RightAPIProvider
@@ -105,14 +110,20 @@ def test_template_registers_the_rightapi_image_provider() -> None:
     )
 
 
-def test_reference_images_use_json_generations_with_rightapi_parameters(provider):
+@pytest.mark.asyncio
+async def test_reference_images_use_json_generations_with_rightapi_parameters(provider):
     provider.image_list = [
         ImageResource("image/png", b"first"),
         ImageResource("image/jpeg", b"second"),
     ]
     provider.params.update(n=2, aspect_ratio="16:9", image_size="2K")
+    await provider.initialize()
 
-    assert provider._build_body_context() == {
+    result = await provider.generate_images()
+
+    assert result.error_message is None
+    submission = provider.session.post.call_args
+    assert submission.kwargs["json"] == {
         "model": "nano-banana-fast",
         "prompt": "A cat in the rain",
         "n": 2,
@@ -121,7 +132,9 @@ def test_reference_images_use_json_generations_with_rightapi_parameters(provider
         "async": True,
         "image": ["data:image/png;base64,Zmlyc3Q=", "data:image/jpeg;base64,c2Vjb25k"],
     }
-    assert provider._build_api_url().endswith("/images/generations")
+    assert submission.args[0].endswith("/images/generations")
+    assert "data" not in submission.kwargs
+    assert submission.kwargs["allow_redirects"] is False
 
 
 def test_provider_defaults_and_explicit_size_overrides(provider):
@@ -161,6 +174,7 @@ def test_normalizes_documented_submission_urls(provider, base_url):
 async def test_queries_the_site_endpoint_until_statusless_completion(provider):
     session = provider.plugin.http_manager.get_aiohttp_session()
     session.get.side_effect = [
+        FakeResponse({"status": "pending"}),
         FakeResponse({"status": "queued"}),
         FakeResponse({"status": "processing"}),
         FakeResponse({"status": "in_progress", "progress": 99}),
@@ -176,7 +190,7 @@ async def test_queries_the_site_endpoint_until_statusless_completion(provider):
     assert result.images[0].bytes == b"result"
     assert session.post.call_count == 1
     assert session.post.call_args.kwargs["json"]["async"] is True
-    assert session.get.call_count == 4
+    assert session.get.call_count == 5
     assert all(
         call.args[0] == "https://www.rightapi.ai/v1/tasks/task-test"
         for call in session.get.call_args_list
@@ -252,10 +266,20 @@ async def test_failure_does_not_download_images_or_submit_another_task(provider)
 
 
 @pytest.mark.asyncio
-async def test_retries_only_submission_errors_before_acceptance(provider):
+@pytest.mark.parametrize("connection_timeout", [False, True])
+async def test_retries_connection_failures_before_submission(
+    provider, connection_timeout
+):
     session = provider.plugin.http_manager.get_aiohttp_session()
+    if connection_timeout:
+        error = ConnectionTimeoutError("connection timed out")
+    else:
+        error = ClientConnectorError(
+            SimpleNamespace(host="www.rightapi.ai", port=443, ssl=True),
+            OSError("connection refused"),
+        )
     session.post.side_effect = [
-        FakeResponse({"error": {"message": "temporarily unavailable"}}, 503),
+        error,
         FakeResponse({"task_id": "task-retried"}),
     ]
     await provider.initialize()
@@ -265,6 +289,83 @@ async def test_retries_only_submission_errors_before_acceptance(provider):
     assert result.error_message is None
     assert session.post.call_count == 2
     assert session.get.call_args.args[0].endswith("/task-retried")
+
+
+@pytest.mark.asyncio
+async def test_pre_submission_failures_exhaust_the_configured_retry_budget(provider):
+    session = provider.plugin.http_manager.get_aiohttp_session()
+    session.post.side_effect = ConnectionTimeoutError("connection timed out")
+    provider.plugin.common_config.max_retry = 2
+    await provider.initialize()
+
+    result = await provider.generate_images()
+
+    assert result.error_message == "RightAPI 任务创建连接失败"
+    assert session.post.call_count == 2
+    session.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("smart_retry", [False, True])
+@pytest.mark.parametrize("status_code", [301, 302, 307, 308, 408, 500, 502, 503, 504])
+async def test_ambiguous_http_submission_is_never_replayed(
+    provider, status_code, smart_retry
+):
+    session = provider.plugin.http_manager.get_aiohttp_session()
+    session.post.return_value = FakeResponse(
+        {"error": {"message": "submission failed"}}, status_code
+    )
+    provider.provider_config.keys = ["first-key", "second-key"]
+    provider.plugin.common_config.smart_retry = smart_retry
+    await provider.initialize()
+
+    result = await provider.generate_images()
+
+    assert result.error_message == f"HTTP {status_code}：submission failed"
+    assert session.post.call_count == 1
+    assert session.post.call_args.kwargs["allow_redirects"] is False
+    session.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("smart_retry", [False, True])
+@pytest.mark.parametrize(
+    "error",
+    [
+        asyncio.TimeoutError(),
+        ServerDisconnectedError(),
+        ConnectionResetError("connection reset"),
+    ],
+)
+async def test_unknown_transport_outcome_never_replays_submission(
+    provider, error, smart_retry
+):
+    session = provider.plugin.http_manager.get_aiohttp_session()
+    session.post.side_effect = error
+    provider.provider_config.keys = ["first-key", "second-key"]
+    provider.plugin.common_config.smart_retry = smart_retry
+    await provider.initialize()
+
+    result = await provider.generate_images()
+
+    assert "提交结果不明确" in result.error_message
+    assert session.post.call_count == 1
+    session.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_accepted_response_body_timeout_never_replays_submission(provider):
+    session = provider.plugin.http_manager.get_aiohttp_session()
+    session.post.return_value.text.side_effect = asyncio.TimeoutError()
+    provider.provider_config.keys = ["first-key", "second-key"]
+    provider.plugin.common_config.smart_retry = False
+    await provider.initialize()
+
+    result = await provider.generate_images()
+
+    assert "提交结果不明确" in result.error_message
+    assert session.post.call_count == 1
+    session.get.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -349,6 +450,8 @@ async def test_repeated_query_errors_do_not_resubmit_with_another_key(provider):
 async def test_rejects_invalid_submission_responses_without_polling(provider, body):
     session = provider.plugin.http_manager.get_aiohttp_session()
     session.post.return_value = FakeResponse(body)
+    provider.provider_config.keys = ["first-key", "second-key"]
+    provider.plugin.common_config.smart_retry = False
     await provider.initialize()
 
     result = await provider.generate_images()
