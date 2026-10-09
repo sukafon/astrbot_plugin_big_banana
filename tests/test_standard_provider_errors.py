@@ -1,9 +1,10 @@
+import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from core.providers.standard import StandardProvider
-from core.schemas import CommonConfig, ProviderCallResult, ProviderConfig
+from core.schemas import CommonConfig, ImageResource, ProviderCallResult, ProviderConfig
 
 
 @pytest.mark.asyncio
@@ -85,3 +86,125 @@ async def test_output_urls_preserve_gif_format() -> None:
     assert kwargs["convert"] is True
     assert kwargs["allow_gif"] is True
     assert kwargs["restrict_private_network"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "sources",
+    [
+        [
+            "https://example.com/first.png",
+            "base64-second",
+            "https://example.com/third.png",
+        ],
+        ["base64-first", "https://example.com/second.png", "base64-third"],
+        ["https://example.com/first.png", "https://example.com/second.png"],
+        ["base64-first", "base64-second"],
+        [],
+    ],
+)
+async def test_loaded_images_preserve_source_order(sources):
+    async def fetch_urls(urls, **kwargs):
+        return [ImageResource("image/png", url.encode()) for url in urls]
+
+    async def fetch_base64(source, **kwargs):
+        return ImageResource("image/png", source.encode())
+
+    plugin = SimpleNamespace(
+        common_config=CommonConfig(),
+        downloader=SimpleNamespace(
+            fetch_images=AsyncMock(side_effect=fetch_urls),
+            fetch_base64_image=AsyncMock(side_effect=fetch_base64),
+        ),
+    )
+    images = await StandardProvider(plugin, ProviderConfig(), {})._build_images(sources)
+
+    assert [image.bytes.decode() for image in images] == sources
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failed_source", ["https://example.com/first.png", "base64-second"]
+)
+async def test_failed_sources_do_not_move_the_remaining_images(
+    failed_source, monkeypatch
+):
+    warning = Mock()
+    monkeypatch.setattr(
+        "core.providers.standard.logger", SimpleNamespace(warning=warning)
+    )
+    sources = [
+        "https://example.com/first.png",
+        "base64-second",
+        "https://example.com/third.png",
+    ]
+
+    async def fetch_urls(urls, **kwargs):
+        return [
+            ImageResource("image/png", source.encode())
+            for source in urls
+            if source != failed_source
+        ]
+
+    async def fetch_base64(source, **kwargs):
+        return (
+            None
+            if source == failed_source
+            else ImageResource("image/png", source.encode())
+        )
+
+    plugin = SimpleNamespace(
+        common_config=CommonConfig(),
+        downloader=SimpleNamespace(
+            fetch_images=AsyncMock(side_effect=fetch_urls),
+            fetch_base64_image=AsyncMock(side_effect=fetch_base64),
+        ),
+    )
+    images = await StandardProvider(plugin, ProviderConfig(), {})._build_images(sources)
+
+    assert [image.bytes.decode() for image in images] == [
+        source for source in sources if source != failed_source
+    ]
+    if failed_source.startswith("https://"):
+        warning.assert_not_called()
+    else:
+        warning.assert_called_once_with("[BIG BANANA] Could not decode image base64")
+
+
+@pytest.mark.asyncio
+async def test_mixed_sources_still_load_concurrently():
+    sources = [
+        "https://example.com/first.png",
+        "base64-second",
+        "https://example.com/third.png",
+    ]
+    started = set()
+    release = asyncio.Event()
+
+    async def fetch_urls(urls, **kwargs):
+        started.update(urls)
+        if len(started) == len(sources):
+            release.set()
+        await release.wait()
+        return [ImageResource("image/png", source.encode()) for source in urls]
+
+    async def fetch_base64(source, **kwargs):
+        started.add(source)
+        if len(started) == len(sources):
+            release.set()
+        await release.wait()
+        return ImageResource("image/png", source.encode())
+
+    plugin = SimpleNamespace(
+        common_config=CommonConfig(),
+        downloader=SimpleNamespace(
+            fetch_images=AsyncMock(side_effect=fetch_urls),
+            fetch_base64_image=AsyncMock(side_effect=fetch_base64),
+        ),
+    )
+    images = await asyncio.wait_for(
+        StandardProvider(plugin, ProviderConfig(), {})._build_images(sources), timeout=2
+    )
+
+    assert started == set(sources)
+    assert [image.bytes.decode() for image in images] == sources
