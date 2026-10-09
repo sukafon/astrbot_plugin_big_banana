@@ -6,7 +6,6 @@ import socket
 import urllib.parse
 import urllib.request
 from collections.abc import Sequence
-from contextlib import nullcontext
 from io import BytesIO
 from pathlib import Path
 
@@ -15,14 +14,8 @@ from aiohttp import (
     ClientResponse,
     ClientSession,
     ClientTimeout,
-    DummyCookieJar,
-    TCPConnector,
 )
-from aiohttp.abc import ResolveResult
-from aiohttp.resolver import ThreadedResolver
-from multidict import CIMultiDict
 from PIL import Image
-from yarl import URL
 
 from astrbot.api import logger
 
@@ -46,49 +39,6 @@ _MAX_IMAGE_BYTES = 50 * 1024 * 1024
 _DOWNLOAD_CHUNK_SIZE = 64 * 1024
 _MAX_REDIRECTS = 5
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
-
-
-class _PublicMediaResolver(ThreadedResolver):
-    """Reject private DNS results before the connector opens a media connection."""
-
-    def __init__(self, trusted_proxy_host: str | None = None) -> None:
-        """Configure the only host permitted to resolve privately.
-
-        Args:
-            trusted_proxy_host: The user's explicitly configured proxy host.
-        """
-        super().__init__()
-        self._trusted_proxy_host = trusted_proxy_host
-
-    async def resolve(
-        self, host: str, port: int = 0, family: int = socket.AF_INET
-    ) -> list[ResolveResult]:
-        """Validate the addresses used by the actual TCP connection.
-
-        Args:
-            host: Hostname requested by the connector.
-            port: Destination port.
-            family: Requested address family.
-
-        Returns:
-            The same resolved addresses that passed the public address check.
-
-        Raises:
-            OSError: If any media address is nonpublic or no addresses exist.
-        """
-        addresses = await super().resolve(host, port, family)
-        if (
-            self._trusted_proxy_host
-            and host.casefold() == self._trusted_proxy_host.casefold()
-        ):
-            return addresses
-        for address in addresses:
-            ip = ipaddress.ip_address(address["host"].split("%", 1)[0])
-            if not ip.is_global or ip.is_multicast:
-                raise OSError("media host resolved to a nonpublic address")
-        if not addresses:
-            raise OSError("media host did not resolve to an address")
-        return addresses
 
 
 async def _read_image_response(response: ClientResponse) -> bytes | None:
@@ -377,175 +327,76 @@ class Downloader:
         restrict_private_network: bool,
         verify_ssl: bool = True,
     ) -> tuple[tuple[str, bytes] | None, bool]:
-        """Download images with public address checks at each connection and hop.
-
-        Args:
-            url: Initial image URL.
-            use_proxy: Whether to use the configured proxy.
-            convert: Whether unsupported image formats should be converted.
-            allow_gif: Whether GIF images should retain their original format.
-            headers: Optional media request headers.
-            restrict_private_network: Whether each destination must be public.
-            verify_ssl: Whether TLS certificates should be verified.
-
-        Returns:
-            Decoded image data and whether a final response or policy rejection
-            was reached.
-        """
+        """下载图片，并在 SSRF 防护开启时逐跳校验重定向目标。"""
         current_url = url
         redirect_count = 0
-        proxy = (self.http_proxy or None) if use_proxy else None
-        if restrict_private_network:
-            resolver = _PublicMediaResolver(
-                trusted_proxy_host=URL(proxy).raw_host if proxy else None
-            )
-            session_context = ClientSession(
-                connector=TCPConnector(
-                    resolver=resolver, use_dns_cache=False, force_close=True
-                ),
-                cookie_jar=DummyCookieJar(),
-                trust_env=False,
-            )
-        else:
-            session_context = nullcontext(self.session)
 
-        async with session_context as session:
-            while True:
-                request_url = current_url
-                request_headers = headers
-                request_options = {}
-                if restrict_private_network:
-                    if proxy:
-                        addresses = await resolve_public_http_addresses(current_url)
-                        if not addresses:
-                            logger.warning(
-                                "[BIG BANANA] Rejected nonpublic media URL: %s",
-                                current_url,
-                            )
-                            return None, True
-                        logical_url = URL(current_url)
-                        target_ip = next(
-                            (address for address in addresses if ":" not in address),
-                            addresses[0],
-                        )
-                        # A proxy must connect to the verified IP rather than resolve
-                        # the media hostname again. Retain HTTP Host and TLS identity.
-                        request_url = str(logical_url.with_host(target_ip))
-                        request_headers = CIMultiDict(headers or {})
-                        request_headers["Host"] = logical_url.host_port_subcomponent
-                        if logical_url.scheme == "https":
-                            request_options["server_hostname"] = logical_url.raw_host
-                    elif not await is_public_http_url(current_url):
+        while True:
+            if restrict_private_network and not await is_public_http_url(current_url):
+                logger.warning(f"[BIG BANANA] 已拒绝访问非公网图片地址：{current_url}")
+                return None, True
+
+            async with self.session.get(
+                current_url,
+                headers=headers,
+                timeout=ClientTimeout(connect=30, total=60),
+                proxy=self.http_proxy if use_proxy else None,
+                ssl=verify_ssl,
+                allow_redirects=not restrict_private_network,
+            ) as response:
+                if restrict_private_network and response.status in _REDIRECT_STATUSES:
+                    location = response.headers.get("Location", "").strip()
+                    if not location:
                         logger.warning(
-                            "[BIG BANANA] Rejected nonpublic media URL: %s", current_url
+                            "[BIG BANANA] 图片下载重定向缺少 Location 响应头"
+                        )
+                        return None, True
+                    if redirect_count >= _MAX_REDIRECTS:
+                        logger.warning(
+                            f"[BIG BANANA] 图片下载重定向超过 {_MAX_REDIRECTS} 次"
                         )
                         return None, True
 
-                async with session.get(
-                    request_url,
-                    headers=request_headers,
-                    timeout=ClientTimeout(connect=30, total=60),
-                    proxy=proxy,
-                    ssl=verify_ssl,
-                    allow_redirects=not restrict_private_network,
-                    **request_options,
-                ) as response:
-                    if (
-                        restrict_private_network
-                        and response.status in _REDIRECT_STATUSES
-                    ):
-                        location = response.headers.get("Location", "").strip()
-                        if not location:
-                            logger.warning(
-                                "[BIG BANANA] Image redirect is missing Location"
-                            )
-                            return None, True
-                        if redirect_count >= _MAX_REDIRECTS:
-                            logger.warning(
-                                "[BIG BANANA] Image URL exceeded %s redirects",
-                                _MAX_REDIRECTS,
-                            )
-                            return None, True
-
-                        try:
-                            # Resolve relative redirects against the logical URL,
-                            # including when a proxy request used a pinned IP.
-                            next_url, _fragment = urllib.parse.urldefrag(
-                                urllib.parse.urljoin(current_url, location)
-                            )
-                            parsed_next_url = urllib.parse.urlparse(next_url)
-                            if (
-                                parsed_next_url.scheme not in {"http", "https"}
-                                or not parsed_next_url.hostname
-                            ):
-                                raise ValueError("unsupported redirect URL")
-                            parsed_next_url.port
-                        except ValueError:
-                            logger.warning(
-                                "[BIG BANANA] Invalid image redirect URL: %s", location
-                            )
-                            return None, True
-
-                        current_url = next_url
-                        redirect_count += 1
-                        continue
-
-                    if response.status != 200:
-                        logger.warning(
-                            "[BIG BANANA] Image download returned HTTP %s",
-                            response.status,
+                    base_url = str(getattr(response, "url", current_url))
+                    try:
+                        next_url, _fragment = urllib.parse.urldefrag(
+                            urllib.parse.urljoin(base_url, location)
                         )
-                        return None, False
-
-                    content_bytes = await _read_image_response(response)
-                    if content_bytes is None:
+                        parsed_next_url = urllib.parse.urlparse(next_url)
+                        if (
+                            parsed_next_url.scheme not in {"http", "https"}
+                            or not parsed_next_url.hostname
+                        ):
+                            raise ValueError("unsupported redirect URL")
+                        # 触发无效端口的解析异常，避免将其留到下一次请求。
+                        parsed_next_url.port
+                    except ValueError:
+                        logger.warning(
+                            f"[BIG BANANA] 图片下载重定向地址无效：{location}"
+                        )
                         return None, True
 
-                    content = await asyncio.to_thread(
-                        handle_image, content_bytes, convert, allow_gif
+                    current_url = next_url
+                    redirect_count += 1
+                    continue
+
+                if response.status != 200:
+                    logger.warning(
+                        f"[BIG BANANA] 图片下载失败，状态码: {response.status}"
                     )
-                    return content, True
+                    return None, False
 
+                content_bytes = await _read_image_response(response)
+                if content_bytes is None:
+                    return None, True
 
-async def resolve_public_http_addresses(url: str) -> list[str]:
-    """Resolve an HTTP media URL and return only an exclusively public address set.
-
-    Args:
-        url: Remote media URL to validate.
-
-    Returns:
-        The verified addresses, or an empty list for invalid or nonpublic URLs.
-    """
-    hostname = "unknown"
-    try:
-        parsed = urllib.parse.urlparse(url)
-        hostname = parsed.hostname or "unknown"
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            return []
-        port = parsed.port or (443 if parsed.scheme == "https" else 80)
-        address_infos = await asyncio.to_thread(
-            socket.getaddrinfo,
-            parsed.hostname,
-            port,
-            type=socket.SOCK_STREAM,
-        )
-        addresses: list[str] = []
-        for info in address_infos:
-            address = info[4][0]
-            if isinstance(address, str) and address:
-                address = address.split("%", 1)[0]
-                if address not in addresses:
-                    addresses.append(address)
-        for address in addresses:
-            ip = ipaddress.ip_address(address)
-            if not ip.is_global or ip.is_multicast:
-                return []
-        return addresses
-    except (OSError, ValueError) as e:
-        logger.warning(
-            f"[BIG BANANA] Failed to validate public media host {hostname}: {e}"
-        )
-        return []
+                content = await asyncio.to_thread(
+                    handle_image,
+                    content_bytes,
+                    convert,
+                    allow_gif,
+                )
+                return content, True
 
 
 async def is_public_http_url(url: str) -> bool:
@@ -555,9 +406,34 @@ async def is_public_http_url(url: str) -> bool:
         url: Remote media URL to validate.
 
     Returns:
-        True when all destination addresses are public.
+        True when the URL uses HTTP(S) and all resolved addresses are public.
     """
-    return bool(await resolve_public_http_addresses(url))
+    hostname = "unknown"
+    try:
+        parsed = urllib.parse.urlparse(url)
+        hostname = parsed.hostname or "unknown"
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return False
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        address_infos = await asyncio.to_thread(
+            socket.getaddrinfo,
+            parsed.hostname,
+            port,
+            type=socket.SOCK_STREAM,
+        )
+        addresses: set[str] = set()
+        for info in address_infos:
+            address = info[4][0]
+            if isinstance(address, str) and address:
+                addresses.add(address.split("%", 1)[0])
+        return bool(addresses) and all(
+            ipaddress.ip_address(address).is_global for address in addresses
+        )
+    except (OSError, ValueError) as e:
+        logger.warning(
+            f"[BIG BANANA] Failed to validate public media host {hostname}: {e}"
+        )
+        return False
 
 
 def handle_image(
