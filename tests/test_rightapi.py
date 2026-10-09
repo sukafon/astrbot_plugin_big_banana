@@ -550,6 +550,27 @@ async def test_query_authentication_error_is_terminal(provider):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "configured_timeout", [-1, 0, None, float("inf"), float("nan"), 2, 300]
+)
+async def test_each_query_timeout_is_positive_and_bounded_by_the_job_deadline(
+    provider, configured_timeout
+):
+    provider.plugin.common_config.timeout = configured_timeout
+    provider.provider_config.raw_config["job_timeout"] = 10
+    await provider.initialize()
+
+    result = await provider.generate_images()
+
+    assert result.error_message is None
+    timeout = provider.session.get.call_args.kwargs["timeout"]
+    assert 0 < timeout.total <= 10
+    if configured_timeout == 2:
+        assert timeout.total <= 2
+    assert timeout.ceil_threshold == float("inf")
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("poll_interval", [1, 10])
 async def test_first_query_is_immediate_even_when_interval_covers_the_deadline(
     provider, monkeypatch, skip_poll_sleep, poll_interval

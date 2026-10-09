@@ -288,6 +288,13 @@ class RightAPIProvider(StandardProvider):
         api_root = api_root.removesuffix("/v1").removesuffix("/draw")
         task_url = f"{api_root}/v1/tasks/{quote(task_id, safe='')}"
         deadline = time.monotonic() + job_timeout
+        query_timeout = self.timeout.total
+        if (
+            query_timeout is None
+            or not math.isfinite(query_timeout)
+            or query_timeout <= 0
+        ):
+            query_timeout = 60
         consecutive_errors = 0
         max_errors = max(1, self.plugin.common_config.max_retry)
         first_query = True
@@ -308,7 +315,8 @@ class RightAPIProvider(StandardProvider):
                     headers={"Authorization": f"Bearer {api_key}"},
                     proxy=self.proxy,
                     timeout=ClientTimeout(
-                        total=min(self.timeout.total or 60, 60, remaining)
+                        total=min(query_timeout, 60, remaining),
+                        ceil_threshold=math.inf,
                     ),
                 ) as response:
                     status_code = response.status
