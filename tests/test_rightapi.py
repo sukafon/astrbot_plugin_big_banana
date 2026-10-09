@@ -101,6 +101,7 @@ def test_template_registers_the_rightapi_image_provider() -> None:
     assert "stream" not in template["items"]
     assert configured["capability"] == "image_generation"
     assert configured["base_url"] == "https://www.rightapi.ai/draw/v1"
+    assert configured["image_size"] == "default"
     assert configured["poll_interval"] > 0
     assert configured["job_timeout"] > 0
     assert BaseProvider.get_provider_class("RIGHTAPI") is RightAPIProvider
@@ -148,6 +149,39 @@ def test_provider_defaults_and_explicit_size_overrides(provider):
     body = provider._build_body_context()
     assert body["size"] == "1024x1024"
     assert "imageSize" not in body
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("provider_size", "request_size", "expected_size"),
+    [
+        (None, None, "2K"),
+        ("default", None, "2K"),
+        ("", None, "2K"),
+        ("4K", None, "4K"),
+        ("4K", "1K", "1K"),
+        ("default", "4K", "4K"),
+        ("4K", "default", None),
+    ],
+)
+async def test_image_size_follows_request_provider_and_global_precedence(
+    provider, provider_size, request_size, expected_size
+):
+    provider.plugin.params_config.image_size = "2K"
+    if provider_size is not None:
+        provider.provider_config.raw_config["image_size"] = provider_size
+    if request_size is not None:
+        provider.params["image_size"] = request_size
+    await provider.initialize()
+
+    result = await provider.generate_images()
+
+    assert result.error_message is None
+    body = provider.session.post.call_args.kwargs["json"]
+    if expected_size is None:
+        assert "imageSize" not in body
+    else:
+        assert body["imageSize"] == expected_size
 
 
 @pytest.mark.parametrize(

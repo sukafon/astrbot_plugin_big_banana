@@ -796,9 +796,9 @@
                     "image_size": {
                         "description": "默认图片分辨率",
                         "type": "string",
-                        "default": "1K",
+                        "default": "default",
                         "options": ["default", "1K", "2K", "4K"],
-                        "hint": "映射为 imageSize；default 表示不传递，可通过 --image_size 覆盖。"
+                        "hint": "映射为 imageSize。default 继承全局图片分辨率；显式值覆盖全局，可通过 --image_size 覆盖。"
                     },
                     "poll_interval": {
                         "description": "任务轮询间隔（秒）",

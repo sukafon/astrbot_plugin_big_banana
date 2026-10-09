@@ -80,7 +80,10 @@ class RightAPIProvider(StandardProvider):
         }
         if size not in (None, "", "default"):
             body["size"] = size
-        image_size = self.params.get("image_size", raw_config.get("image_size", "1K"))
+        image_size = raw_config.get("image_size", "default")
+        if image_size in (None, "", "default"):
+            image_size = self.plugin.params_config.image_size
+        image_size = self.params.get("image_size", image_size)
         if image_size not in (None, "", "default"):
             body["imageSize"] = image_size
         if self.image_list:
