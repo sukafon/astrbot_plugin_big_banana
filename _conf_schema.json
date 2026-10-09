@@ -735,6 +735,97 @@
                     }
                 }
             },
+            "rightapi": {
+                "name": "RightAPI",
+                "items": {
+                    "provider_type": {
+                        "type": "str",
+                        "default": "rightapi",
+                        "invisible": true
+                    },
+                    "capability": {
+                        "type": "str",
+                        "default": "image_generation",
+                        "invisible": true
+                    },
+                    "enabled": {
+                        "type": "bool",
+                        "description": "启用提供商",
+                        "default": false
+                    },
+                    "name": {
+                        "description": "提供商名称",
+                        "hint": "名称必须唯一，用于索引提供商配置。",
+                        "type": "str",
+                        "default": "RightAPI"
+                    },
+                    "enabled_as_default": {
+                        "type": "bool",
+                        "description": "加入默认提供商集合",
+                        "default": false
+                    },
+                    "fallback_order": {
+                        "description": "默认提供商优先级",
+                        "hint": "数字越小，优先级越高。",
+                        "type": "int",
+                        "default": 0
+                    },
+                    "keys": {
+                        "description": "API密钥",
+                        "hint": "API Key列表，无需填写Bearer 前缀。",
+                        "type": "list",
+                        "default": []
+                    },
+                    "base_url": {
+                        "description": "Base URL",
+                        "type": "string",
+                        "default": "https://www.rightapi.ai/draw/v1",
+                        "hint": "可填写站点根地址、/draw/v1 或完整 images/generations 地址。任务查询自动移除 /draw 前缀。"
+                    },
+                    "model": {
+                        "description": "模型",
+                        "type": "string",
+                        "default": "nano-banana-fast"
+                    },
+                    "size": {
+                        "description": "默认图片尺寸或比例",
+                        "type": "string",
+                        "default": "1:1",
+                        "hint": "例如 1:1、16:9 或 1024x1024，可通过 --size 或 --aspect_ratio 覆盖。"
+                    },
+                    "image_size": {
+                        "description": "默认图片分辨率",
+                        "type": "string",
+                        "default": "default",
+                        "options": ["default", "1K", "2K", "4K"],
+                        "hint": "映射为 imageSize。default 继承全局图片分辨率；显式值覆盖全局，可通过 --image_size 覆盖。"
+                    },
+                    "poll_interval": {
+                        "description": "任务轮询间隔（秒）",
+                        "type": "float",
+                        "default": 5,
+                        "hint": "必须大于 0。"
+                    },
+                    "job_timeout": {
+                        "description": "任务总等待超时（秒）",
+                        "type": "float",
+                        "default": 900,
+                        "hint": "任务创建后查询与结果下载的总等待时限，必须大于 0。"
+                    },
+                    "enable_proxy": {
+                        "description": "启用代理",
+                        "type": "bool",
+                        "default": false,
+                        "hint": "启用代理，需先在常规配置中配置代理地址。"
+                    },
+                    "max_images": {
+                        "description": "最大输入图片限制",
+                        "type": "int",
+                        "default": -1,
+                        "hint": "超出此数量的图片将被截断，-1 表示不限制。"
+                    }
+                }
+            },
             "grok_images": {
                 "name": "Grok_Images",
                 "items": {
