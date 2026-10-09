@@ -516,6 +516,55 @@ async def test_query_authentication_error_is_terminal(provider):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("poll_interval", [1, 10])
+async def test_first_query_is_immediate_even_when_interval_covers_the_deadline(
+    provider, monkeypatch, skip_poll_sleep, poll_interval
+):
+    provider.provider_config.raw_config.update(
+        poll_interval=poll_interval, job_timeout=1
+    )
+    current_time = 0.0
+
+    async def advance_time(delay: float) -> None:
+        nonlocal current_time
+        current_time += delay
+
+    monkeypatch.setattr(
+        rightapi, "time", SimpleNamespace(monotonic=lambda: current_time)
+    )
+    skip_poll_sleep.side_effect = advance_time
+    await provider.initialize()
+
+    result = await provider.generate_images()
+
+    assert result.error_message is None
+    assert result.images[0].bytes == b"result"
+    provider.session.get.assert_called_once()
+    skip_poll_sleep.assert_not_awaited()
+    assert provider.session.post.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_waits_only_between_task_queries(provider, skip_poll_sleep):
+    session = provider.plugin.http_manager.get_aiohttp_session()
+    session.get.side_effect = [
+        FakeResponse({"status": "pending"}),
+        FakeResponse({"data": [{"url": "https://example.com/result.png"}]}),
+    ]
+    operations = Mock()
+    operations.attach_mock(session.get, "query")
+    operations.attach_mock(skip_poll_sleep, "sleep")
+    await provider.initialize()
+
+    result = await provider.generate_images()
+
+    assert result.error_message is None
+    assert [call[0] for call in operations.mock_calls] == ["query", "sleep", "query"]
+    skip_poll_sleep.assert_awaited_once_with(5)
+    assert session.post.call_count == 1
+
+
+@pytest.mark.asyncio
 async def test_poll_sleep_is_bounded_by_the_total_deadline(
     provider, monkeypatch, skip_poll_sleep
 ):
@@ -531,12 +580,14 @@ async def test_poll_sleep_is_bounded_by_the_total_deadline(
     )
     skip_poll_sleep.side_effect = advance_time
     await provider.initialize()
+    provider.session.get.return_value = FakeResponse({"status": "pending"})
 
     result = await provider.generate_images()
 
     assert result.error_message == "RightAPI 图片生成超过 1 秒仍未完成"
     skip_poll_sleep.assert_awaited_once_with(1)
-    provider.session.get.assert_not_called()
+    provider.session.get.assert_called_once()
+    assert provider.session.get.call_args.kwargs["timeout"].total == 1
     assert provider.session.post.call_count == 1
 
 

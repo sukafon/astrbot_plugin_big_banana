@@ -269,7 +269,7 @@ class RightAPIProvider(StandardProvider):
         poll_interval: float,
         job_timeout: float,
     ) -> ProviderCallResult:
-        """Query one accepted task until completion, failure, or the total deadline.
+        """Query an accepted task immediately, then poll within the total deadline.
 
         Args:
             api_key: The same key used to submit this task.
@@ -287,14 +287,17 @@ class RightAPIProvider(StandardProvider):
         deadline = time.monotonic() + job_timeout
         consecutive_errors = 0
         max_errors = max(1, self.plugin.common_config.max_retry)
+        first_query = True
         while time.monotonic() < deadline:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
-            await asyncio.sleep(min(poll_interval, remaining))
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                break
+            if not first_query:
+                await asyncio.sleep(min(poll_interval, remaining))
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+            first_query = False
             query_error: str | None = None
             try:
                 async with self.session.get(
