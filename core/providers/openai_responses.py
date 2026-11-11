@@ -95,7 +95,7 @@ class OpenAIResponsesProvider(StandardProvider):
         if size != "default":
             tool["size"] = size
         moderation = self.params.get("moderation", self.plugin.params_config.moderation)
-        if moderation not in (None, "", "default"):
+        if isinstance(moderation, str) and moderation not in ("", "default"):
             tool["moderation"] = moderation
         if self.provider_config.stream:
             tool["partial_images"] = self.params.get(

@@ -21,8 +21,8 @@ class ParamsConfig:
     """是否启用收集模式"""
     url: bool = False
     """是否仅返回图片 URL，不直接发送图片"""
-    moderation: str = "auto"
-    """GPT 图像编辑模型的内容安全审核等级"""
+    moderation: str = "default"
+    """GPT 图像编辑模型的内容安全审核等级；default 表示不传递该参数"""
     size: str = "default"
     """OpenAI 图片输出尺寸；default 表示由插件自动推导"""
     video_size: str = "default"
@@ -76,7 +76,7 @@ class ParamsConfig:
         refer_images: str | None = None,
         gather_mode: bool = False,
         url: bool = False,
-        moderation: str = "auto",
+        moderation: str = "default",
         size: str = "default",
         video_size: str = "default",
         video_duration: int = 6,

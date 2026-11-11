@@ -59,7 +59,7 @@ class OpenAIImagesProvider(StandardProvider):
             moderation = self.params.get(
                 "moderation", self.plugin.params_config.moderation
             )
-            if moderation not in (None, "", "default"):
+            if isinstance(moderation, str) and moderation not in ("", "default"):
                 data["moderation"] = moderation
         if self.provider_config.stream:
             data["stream"] = "true"
@@ -126,7 +126,7 @@ class OpenAIImagesProvider(StandardProvider):
             moderation = self.params.get(
                 "moderation", self.plugin.params_config.moderation
             )
-            if moderation not in (None, "", "default"):
+            if isinstance(moderation, str) and moderation not in ("", "default"):
                 context["moderation"] = moderation
         # 此参数仅支持dall-e-2 / dall-e-3
         if self.provider_config.model.startswith(("dall-e-2", "dall-e-3")):
