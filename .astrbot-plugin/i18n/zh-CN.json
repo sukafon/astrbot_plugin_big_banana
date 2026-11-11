@@ -16,7 +16,7 @@
           "max_images": { "label": "最大输入图片数量", "hint": "插件不设置全局上限，实际可用数量由具体提供商决定。" },
           "aspect_ratio": { "label": "默认宽高比", "default": "default (默认/保持原样)", "square": "1:1 (正方形)", "portrait": "2:3 (竖版高图)", "landscape": "3:2 (横版图)", "phone": "9:16 (手机屏幕)", "desktop": "16:9 (电脑屏幕)", "ultrawide": "21:9 (超宽屏)", "hint": "设置输出图片的宽高比（仅对部分支持此参数的提供商有效）。" },
           "image_size": { "label": "默认分辨率" },
-          "moderation": { "label": "内容审核级别", "auto": "auto (自动/标准)", "low": "low (低敏感度)", "hint": "GPT 图像编辑模型（如 gpt-image-*）的内容安全过滤级别。设置为 low 可降低过滤敏感度。" },
+          "moderation": { "label": "内容审核级别", "default": "default (不传递)", "auto": "auto (自动/标准)", "low": "low (低敏感度)", "hint": "GPT 图像编辑模型（如 gpt-image-*）的内容安全过滤级别。default 表示不传递该参数；设置为 low 可降低过滤敏感度。" },
           "google_search": { "label": "允许模型使用谷歌搜索工具" },
           "refer_images": { "label": "参考图片文件名列表", "placeholder": "例如: ref1.jpg, ref2.png", "hint": "用逗号分隔，把图片放在插件数据目录的 refer_images 文件夹下。" },
           "gather_mode": { "label": "启用收集模式" },

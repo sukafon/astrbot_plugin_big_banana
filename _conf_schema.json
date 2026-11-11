@@ -1184,11 +1184,12 @@
                 "description": "内容审核级别",
                 "type": "string",
                 "options": [
+                    "default",
                     "auto",
                     "low"
                 ],
-                "default": "auto",
-                "hint": "GPT 图像编辑模型（如 gpt-image-*）的内容安全审核等级。设置为 low 可以降低内容过滤的敏感度。"
+                "default": "default",
+                "hint": "GPT 图像编辑模型（如 gpt-image-*）的内容安全审核等级。default 表示不传递该参数；设置为 low 可以降低内容过滤的敏感度。"
             },
             "size": {
                 "description": "分辨率",
