@@ -56,9 +56,11 @@ class OpenAIImagesProvider(StandardProvider):
                 )
                 if input_fidelity not in (None, "", "default"):
                     data["input_fidelity"] = input_fidelity
-            data["moderation"] = self.params.get(
+            moderation = self.params.get(
                 "moderation", self.plugin.params_config.moderation
             )
+            if isinstance(moderation, str) and moderation not in ("", "default"):
+                data["moderation"] = moderation
         if self.provider_config.stream:
             data["stream"] = "true"
             data["partial_images"] = self.params.get(
@@ -121,9 +123,11 @@ class OpenAIImagesProvider(StandardProvider):
             )
             if output_compression not in (None, "", -1):
                 context["output_compression"] = output_compression
-            context["moderation"] = self.params.get(
+            moderation = self.params.get(
                 "moderation", self.plugin.params_config.moderation
             )
+            if isinstance(moderation, str) and moderation not in ("", "default"):
+                context["moderation"] = moderation
         # 此参数仅支持dall-e-2 / dall-e-3
         if self.provider_config.model.startswith(("dall-e-2", "dall-e-3")):
             context["response_format"] = "b64_json"

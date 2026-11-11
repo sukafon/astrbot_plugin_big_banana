@@ -125,3 +125,12 @@ def test_private_provider_url_policy_is_global() -> None:
         "video_download_allow_private_network" not in template["items"]
         for template in templates.values()
     )
+
+
+def test_moderation_is_omitted_unless_explicitly_set() -> None:
+    schema = json.loads((ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
+    moderation = schema["openai_image_config"]["items"]["moderation"]
+
+    assert ParamsConfig().moderation == "default"
+    assert moderation["default"] == "default"
+    assert moderation["options"] == ["default", "auto", "low"]

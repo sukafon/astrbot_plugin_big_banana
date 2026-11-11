@@ -260,3 +260,68 @@ def test_prompt_parser_accepts_new_openai_image_options() -> None:
         "action": "edit",
         "prompt": "scene",
     }
+
+
+def _images_body_for_moderation(moderation: object) -> dict:
+    plugin = SimpleNamespace(
+        params_config=SimpleNamespace(
+            moderation=moderation,
+            partial_images=0,
+            size="default",
+            size_keyword_map={},
+            quality="default",
+            background="default",
+            output_format="default",
+            output_compression=None,
+            input_fidelity="default",
+            action="default",
+            n=1,
+        )
+    )
+    config = ProviderConfig(
+        provider_type="OpenAI_Images", name="images", model="gpt-image-2"
+    )
+    provider = OpenAIImagesProvider(plugin, config, {"prompt": "test"})
+    provider._body_context_cache = None
+    return provider._build_body_context()
+
+
+def _responses_tool_for_moderation(moderation: object) -> dict:
+    plugin = SimpleNamespace(
+        params_config=SimpleNamespace(
+            moderation=moderation,
+            partial_images=0,
+            size="default",
+            size_keyword_map={},
+            quality="default",
+            background="default",
+            output_format="default",
+            output_compression=None,
+            input_fidelity="default",
+            action="default",
+        )
+    )
+    config = ProviderConfig(
+        provider_type="OpenAI_Responses",
+        name="responses",
+        model="gpt-5.5",
+        image_model="gpt-image-2",
+    )
+    provider = OpenAIResponsesProvider(plugin, config, {"prompt": "test"})
+    provider._body_context_cache = None
+    return provider._build_body_context()["tools"][0]
+
+
+def test_moderation_is_omitted_when_not_configured() -> None:
+    assert "moderation" not in _images_body_for_moderation("default")
+    assert "moderation" not in _responses_tool_for_moderation("default")
+
+
+def test_non_string_moderation_is_not_sent() -> None:
+    assert "moderation" not in _images_body_for_moderation(False)
+    assert "moderation" not in _responses_tool_for_moderation(False)
+
+
+def test_explicit_moderation_level_is_kept() -> None:
+    assert _images_body_for_moderation("low")["moderation"] == "low"
+    assert _responses_tool_for_moderation("low")["moderation"] == "low"

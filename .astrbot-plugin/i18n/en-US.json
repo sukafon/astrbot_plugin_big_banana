@@ -531,8 +531,9 @@
       "hint": "Usually only used by the OpenAI Images provider type, but other supported providers are also able to read it.",
       "moderation": {
         "description": "Content Moderation Level",
-        "hint": "Content security audit level for GPT image editing models such as gpt-image-*. Set to low to make content filtering less sensitive.",
+        "hint": "Content security audit level for GPT image editing models such as gpt-image-*. Default means the parameter is not sent; set to low to make content filtering less sensitive.",
         "labels": [
+          "Default (Not sent)",
           "Automatic",
           "Low"
         ]
@@ -817,7 +818,7 @@
           "max_images": { "label": "Maximum Input Images", "hint": "The plugin does not impose a global limit; the actual limit depends on the selected provider." },
           "aspect_ratio": { "label": "Default Aspect Ratio", "default": "default (Default / Keep Original)", "square": "1:1 (Square)", "portrait": "2:3 (Portrait)", "landscape": "3:2 (Landscape)", "phone": "9:16 (Phone Screen)", "desktop": "16:9 (Desktop Screen)", "ultrawide": "21:9 (Ultrawide)", "hint": "Set the output image aspect ratio. This only applies to providers that support this parameter." },
           "image_size": { "label": "Default Resolution" },
-          "moderation": { "label": "Content Moderation Level", "auto": "auto (Automatic / Standard)", "low": "low (Low Sensitivity)", "hint": "Content safety filtering level for GPT image-editing models such as gpt-image-*. Set it to low to reduce filtering sensitivity." },
+          "moderation": { "label": "Content Moderation Level", "default": "default (Not sent)", "auto": "auto (Automatic / Standard)", "low": "low (Low Sensitivity)", "hint": "Content safety filtering level for GPT image-editing models such as gpt-image-*. default means the parameter is not sent; set it to low to reduce filtering sensitivity." },
           "google_search": { "label": "Allow the Model to Use Google Search" },
           "refer_images": { "label": "Reference Image Filenames", "placeholder": "Example: ref1.jpg, ref2.png", "hint": "Separate filenames with commas and place the images in the refer_images folder under the plugin data directory." },
           "gather_mode": { "label": "Enable Collection Mode" },

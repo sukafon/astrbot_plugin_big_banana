@@ -605,7 +605,7 @@ function loadData() {
     document.getElementById('pc_refer_images').value = pc.refer_images || '';
     document.getElementById('pc_gather_mode').checked = !!pc.gather_mode;
     document.getElementById('pc_url').checked = !!pc.url;
-    document.getElementById('pc_moderation').value = oic.moderation || 'auto';
+    document.getElementById('pc_moderation').value = oic.moderation || 'default';
 
     // 绑定 common_config 嵌套字段。
     var cc = config.common_config || {};
